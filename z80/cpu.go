@@ -16,6 +16,20 @@ func signed(x uint8) int {
 	return int(x)
 }
 
+func int2bool(x int) bool {
+	if x != 0 {
+		return true
+	}
+	return true
+}
+
+func bool2int(x bool) int {
+	if x {
+		return 1
+	}
+	return 0
+}
+
 //-----------------------------------------------------------------------------
 // flags
 
@@ -50,7 +64,7 @@ func (cpu *CPU) flagString() string {
 }
 
 // set the flags for an add operation: result = a + val
-func (cpu *CPU) addFlags(res, val uint16) {
+func (cpu *CPU) addFlags(res int, val uint8) {
 	cpu.f = flagsSZ[res&0xff]
 	cpu.f |= (uint8)(res>>8) & _CF
 	cpu.f |= (cpu.a ^ uint8(res) ^ uint8(val)) & _HF
@@ -58,37 +72,37 @@ func (cpu *CPU) addFlags(res, val uint16) {
 }
 
 // set the flags for an 16 bit add operation: result = d + s
-func (cpu *CPU) add16Flags(res, d, s uint32) {
+func (cpu *CPU) add16Flags(res int, d, s uint16) {
 	cpu.f = cpu.f & (_SF | _ZF | _VF)
-	cpu.f |= (uint8((d^res^s)>>8) & _HF)
+	cpu.f |= uint8((d^uint16(res)^s)>>8) & _HF
 	cpu.f |= (uint8(res>>16) & _CF) | (uint8(res>>8) & (_YF | _XF))
 }
 
 // set the flags for a 16 bit sub operation: result = d - s
-func (cpu *CPU) sub16Flags(res, d, s uint32) {
-	cpu.f = uint8((d^res^s)>>8) & _HF
+func (cpu *CPU) sub16Flags(res int, d, s uint16) {
+	cpu.f = uint8((d^uint16(res)^s)>>8) & _HF
 	cpu.f |= _NF
 	cpu.f |= uint8(res>>16) & _CF
 	cpu.f |= uint8(res>>8) & (_SF | _YF | _XF)
 	if res == 0 {
 		cpu.f |= _ZF
 	}
-	cpu.f |= uint8(((s ^ d) & (d ^ res) & 0x8000) >> 13)
+	cpu.f |= uint8(((s ^ d) & (d ^ uint16(res)) & 0x8000) >> 13)
 }
 
 // set the flags for a 16 bit adc operation: result = d + s + cf
-func (cpu *CPU) adc16Flags(res, d, s uint32) {
-	cpu.f = uint8((d^res^s)>>8) & _HF
+func (cpu *CPU) adc16Flags(res int, d, s uint16) {
+	cpu.f = uint8((d^uint16(res)^s)>>8) & _HF
 	cpu.f |= uint8(res>>16) & _CF
 	cpu.f |= uint8(res>>8) & (_SF | _YF | _XF)
 	if res == 0 {
 		cpu.f |= _ZF
 	}
-	cpu.f |= uint8(((s ^ d ^ 0x8000) & (d ^ res) & 0x8000) >> 13)
+	cpu.f |= uint8(((s ^ d ^ 0x8000) & (d ^ uint16(res)) & 0x8000) >> 13)
 }
 
 // set the flags for a sub operation: result = a - val
-func (cpu *CPU) subFlags(res, val uint16) {
+func (cpu *CPU) subFlags(res int, val uint8) {
 	cpu.f = flagsSZ[res&0xff]
 	cpu.f |= uint8(res>>8) & _CF
 	cpu.f |= _NF
@@ -268,6 +282,34 @@ func (cpu *CPU) get_hl() uint16 {
 	return (uint16(cpu.h) << 8) | uint16(cpu.l)
 }
 
+// enter halt mode
+func (cpu *CPU) enter_halt() {
+	cpu.halt = true
+	cpu.dec_pc(1)
+}
+
+// leave halt mode
+func (cpu *CPU) leave_halt() {
+	if cpu.halt {
+		cpu.inc_pc(1)
+		cpu.halt = false
+	}
+}
+
+// push a 16 bit quantity onto the stack
+func (cpu *CPU) push(val uint16) {
+	cpu.mem[cpu.sp-1] = uint8(val >> 8)
+	cpu.mem[cpu.sp-2] = uint8(val)
+	cpu.sp = cpu.sp - 2
+}
+
+// pop a 16 bit quantity from the stack
+func (cpu *CPU) pop() uint16 {
+	val := (uint16(cpu.mem[cpu.sp+1]) << 8) | uint16(cpu.mem[cpu.sp])
+	cpu.sp = cpu.sp + 2
+	return val
+}
+
 // read and return the 16 bit value at mem[adr]
 func (cpu *CPU) peek(adr uint16) uint16 {
 	return (uint16(cpu.mem[adr+1]) << 8) + uint16(cpu.mem[adr])
@@ -276,7 +318,7 @@ func (cpu *CPU) peek(adr uint16) uint16 {
 // write the 16 bit value to mem[adr]
 func (cpu *CPU) poke(adr, val uint16) {
 	cpu.mem[adr+1] = uint8(val >> 8)
-	cpu.mem[adr] = uint8(val & 0xff)
+	cpu.mem[adr] = uint8(val)
 }
 
 // decrement pc
