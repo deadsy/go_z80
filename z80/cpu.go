@@ -280,13 +280,13 @@ func (cpu *CPU) poke(adr, val uint16) {
 }
 
 // decrement pc
-func (cpu *CPU) dec_pc(n uint16) {
-	cpu.pc -= n
+func (cpu *CPU) dec_pc(n int) {
+	cpu.pc = uint16(int(cpu.pc) - n)
 }
 
 // increment pc
-func (cpu *CPU) inc_pc(n uint16) {
-	cpu.pc += n
+func (cpu *CPU) inc_pc(n int) {
+	cpu.pc = uint16(int(cpu.pc) + n)
 }
 
 // return the 16 bit immediate at mem[pc], pc += 2

@@ -1941,10 +1941,10 @@ func (cpu *CPU) ins_08() int {
 
 // add hl,bc
 func (cpu *CPU) ins_09() int {
-	s = cpu.get_bc()
-	d = cpu.get_hl()
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.get_bc()
+	d := cpu.get_hl()
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -1996,7 +1996,7 @@ func (cpu *CPU) ins_10() int {
 	e := cpu.get_n()
 	cpu.b = (cpu.b - 1) & 0xff
 	if cpu.b != 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 13
 	}
 	return 8
@@ -2056,16 +2056,16 @@ func (cpu *CPU) ins_17() int {
 
 // jr 0002
 func (cpu *CPU) ins_18() int {
-	cpu._inc_pc(_signed(self.get_n()))
+	cpu.inc_pc(signed(self.get_n()))
 	return 12
 }
 
 // add hl,de
 func (cpu *CPU) ins_19() int {
-	s = cpu.get_de()
-	d = cpu.get_hl()
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.get_de()
+	d := cpu.get_hl()
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -2120,7 +2120,7 @@ func (cpu *CPU) ins_1f() int {
 func (cpu *CPU) ins_20() int {
 	e := cpu.get_n()
 	if (cpu.f & _ZF) == 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 12
 	}
 	return 7
@@ -2217,7 +2217,7 @@ func (cpu *CPU) ins_27() int {
 func (cpu *CPU) ins_28() int {
 	e := cpu.get_n()
 	if (cpu.f & _ZF) != 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 12
 	}
 	return 7
@@ -2225,10 +2225,10 @@ func (cpu *CPU) ins_28() int {
 
 // add hl,hl
 func (cpu *CPU) ins_29() int {
-	s = cpu.get_hl()
-	d = cpu.get_hl()
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.get_hl()
+	d := cpu.get_hl()
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -2280,7 +2280,7 @@ func (cpu *CPU) ins_2f() int {
 func (cpu *CPU) ins_30() int {
 	e := cpu.get_n()
 	if (cpu.f & _CF) == 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 12
 	}
 	return 7
@@ -2338,7 +2338,7 @@ func (cpu *CPU) ins_37() int {
 func (cpu *CPU) ins_38() int {
 	e := cpu.get_n()
 	if (cpu.f & _CF) != 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 12
 	}
 	return 7
@@ -2346,10 +2346,10 @@ func (cpu *CPU) ins_38() int {
 
 // add hl,sp
 func (cpu *CPU) ins_39() int {
-	s = cpu.sp
-	d = cpu.get_hl()
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.sp
+	d := cpu.get_hl()
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -2782,7 +2782,7 @@ func (cpu *CPU) ins_7f() int {
 func (cpu *CPU) ins_80() int {
 	val := cpu.b
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2791,7 +2791,7 @@ func (cpu *CPU) ins_80() int {
 func (cpu *CPU) ins_81() int {
 	val := cpu.c
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2800,7 +2800,7 @@ func (cpu *CPU) ins_81() int {
 func (cpu *CPU) ins_82() int {
 	val := cpu.d
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2809,7 +2809,7 @@ func (cpu *CPU) ins_82() int {
 func (cpu *CPU) ins_83() int {
 	val := cpu.e
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2818,7 +2818,7 @@ func (cpu *CPU) ins_83() int {
 func (cpu *CPU) ins_84() int {
 	val := cpu.h
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2827,7 +2827,7 @@ func (cpu *CPU) ins_84() int {
 func (cpu *CPU) ins_85() int {
 	val := cpu.l
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2836,7 +2836,7 @@ func (cpu *CPU) ins_85() int {
 func (cpu *CPU) ins_86() int {
 	val := cpu.mem[cpu.get_hl()]
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 7
 }
@@ -2845,7 +2845,7 @@ func (cpu *CPU) ins_86() int {
 func (cpu *CPU) ins_87() int {
 	val := cpu.a
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2854,7 +2854,7 @@ func (cpu *CPU) ins_87() int {
 func (cpu *CPU) ins_88() int {
 	val := cpu.b
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2863,7 +2863,7 @@ func (cpu *CPU) ins_88() int {
 func (cpu *CPU) ins_89() int {
 	val := cpu.c
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2872,7 +2872,7 @@ func (cpu *CPU) ins_89() int {
 func (cpu *CPU) ins_8a() int {
 	val := cpu.d
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2881,7 +2881,7 @@ func (cpu *CPU) ins_8a() int {
 func (cpu *CPU) ins_8b() int {
 	val := cpu.e
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2890,7 +2890,7 @@ func (cpu *CPU) ins_8b() int {
 func (cpu *CPU) ins_8c() int {
 	val := cpu.h
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2899,7 +2899,7 @@ func (cpu *CPU) ins_8c() int {
 func (cpu *CPU) ins_8d() int {
 	val := cpu.l
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2908,7 +2908,7 @@ func (cpu *CPU) ins_8d() int {
 func (cpu *CPU) ins_8e() int {
 	val := cpu.mem[cpu.get_hl()]
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 7
 }
@@ -2917,7 +2917,7 @@ func (cpu *CPU) ins_8e() int {
 func (cpu *CPU) ins_8f() int {
 	val := cpu.a
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2926,7 +2926,7 @@ func (cpu *CPU) ins_8f() int {
 func (cpu *CPU) ins_90() int {
 	val := cpu.b
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2935,7 +2935,7 @@ func (cpu *CPU) ins_90() int {
 func (cpu *CPU) ins_91() int {
 	val := cpu.c
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2944,7 +2944,7 @@ func (cpu *CPU) ins_91() int {
 func (cpu *CPU) ins_92() int {
 	val := cpu.d
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2953,7 +2953,7 @@ func (cpu *CPU) ins_92() int {
 func (cpu *CPU) ins_93() int {
 	val := cpu.e
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2962,7 +2962,7 @@ func (cpu *CPU) ins_93() int {
 func (cpu *CPU) ins_94() int {
 	val := cpu.h
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2971,7 +2971,7 @@ func (cpu *CPU) ins_94() int {
 func (cpu *CPU) ins_95() int {
 	val := cpu.l
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2980,7 +2980,7 @@ func (cpu *CPU) ins_95() int {
 func (cpu *CPU) ins_96() int {
 	val := cpu.mem[cpu.get_hl()]
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 7
 }
@@ -2989,7 +2989,7 @@ func (cpu *CPU) ins_96() int {
 func (cpu *CPU) ins_97() int {
 	val := cpu.a
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -2998,7 +2998,7 @@ func (cpu *CPU) ins_97() int {
 func (cpu *CPU) ins_98() int {
 	val := cpu.b
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -3007,7 +3007,7 @@ func (cpu *CPU) ins_98() int {
 func (cpu *CPU) ins_99() int {
 	val := cpu.c
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -3016,7 +3016,7 @@ func (cpu *CPU) ins_99() int {
 func (cpu *CPU) ins_9a() int {
 	val := cpu.d
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -3025,7 +3025,7 @@ func (cpu *CPU) ins_9a() int {
 func (cpu *CPU) ins_9b() int {
 	val := cpu.e
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -3034,7 +3034,7 @@ func (cpu *CPU) ins_9b() int {
 func (cpu *CPU) ins_9c() int {
 	val := cpu.h
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -3043,7 +3043,7 @@ func (cpu *CPU) ins_9c() int {
 func (cpu *CPU) ins_9d() int {
 	val := cpu.l
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -3052,7 +3052,7 @@ func (cpu *CPU) ins_9d() int {
 func (cpu *CPU) ins_9e() int {
 	val := cpu.mem[cpu.get_hl()]
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 7
 }
@@ -3061,7 +3061,7 @@ func (cpu *CPU) ins_9e() int {
 func (cpu *CPU) ins_9f() int {
 	val := cpu.a
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -3262,7 +3262,7 @@ func (cpu *CPU) ins_b7() int {
 func (cpu *CPU) ins_b8() int {
 	val := cpu.b
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 4
 }
 
@@ -3270,7 +3270,7 @@ func (cpu *CPU) ins_b8() int {
 func (cpu *CPU) ins_b9() int {
 	val := cpu.c
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 4
 }
 
@@ -3278,7 +3278,7 @@ func (cpu *CPU) ins_b9() int {
 func (cpu *CPU) ins_ba() int {
 	val := cpu.d
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 4
 }
 
@@ -3286,7 +3286,7 @@ func (cpu *CPU) ins_ba() int {
 func (cpu *CPU) ins_bb() int {
 	val := cpu.e
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 4
 }
 
@@ -3294,7 +3294,7 @@ func (cpu *CPU) ins_bb() int {
 func (cpu *CPU) ins_bc() int {
 	val := cpu.h
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 4
 }
 
@@ -3302,7 +3302,7 @@ func (cpu *CPU) ins_bc() int {
 func (cpu *CPU) ins_bd() int {
 	val := cpu.l
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 4
 }
 
@@ -3310,7 +3310,7 @@ func (cpu *CPU) ins_bd() int {
 func (cpu *CPU) ins_be() int {
 	val := cpu.mem[cpu.get_hl()]
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 7
 }
 
@@ -3318,7 +3318,7 @@ func (cpu *CPU) ins_be() int {
 func (cpu *CPU) ins_bf() int {
 	val := cpu.a
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 4
 }
 
@@ -3377,7 +3377,7 @@ func (cpu *CPU) ins_c5() int {
 func (cpu *CPU) ins_c6() int {
 	val := cpu.get_n()
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 7
 }
@@ -3436,7 +3436,7 @@ func (cpu *CPU) ins_cd() int {
 func (cpu *CPU) ins_ce() int {
 	val := cpu.get_n()
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 7
 }
@@ -3503,7 +3503,7 @@ func (cpu *CPU) ins_d5() int {
 func (cpu *CPU) ins_d6() int {
 	val := cpu.get_n()
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 7
 }
@@ -3568,7 +3568,7 @@ func (cpu *CPU) ins_dc() int {
 func (cpu *CPU) ins_de() int {
 	val := cpu.get_n()
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 7
 }
@@ -3818,7 +3818,7 @@ func (cpu *CPU) ins_fc() int {
 func (cpu *CPU) ins_fe() int {
 	val := cpu.get_n()
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 7
 }
 
@@ -6279,10 +6279,10 @@ func (cpu *CPU) ins_cbff() int {
 
 // add ix,bc
 func (cpu *CPU) ins_dd09() int {
-	s = cpu.get_bc()
-	d = cpu.ix
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.get_bc()
+	d := cpu.ix
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.ix = res
 	return 11
 }
@@ -6292,7 +6292,7 @@ func (cpu *CPU) ins_dd10() int {
 	e := cpu.get_n()
 	cpu.b = (cpu.b - 1) & 0xff
 	if cpu.b != 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 13
 	}
 	return 8
@@ -6305,10 +6305,10 @@ func (cpu *CPU) ins_dd18() int {
 
 // add ix,de
 func (cpu *CPU) ins_dd19() int {
-	s = cpu.get_de()
-	d = cpu.ix
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.get_de()
+	d := cpu.ix
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.ix = res
 	return 11
 }
@@ -6317,7 +6317,7 @@ func (cpu *CPU) ins_dd19() int {
 func (cpu *CPU) ins_dd20() int {
 	e := cpu.get_n()
 	if (cpu.f & _ZF) == 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 12
 	}
 	return 7
@@ -6362,7 +6362,7 @@ func (cpu *CPU) ins_dd26() int {
 func (cpu *CPU) ins_dd28() int {
 	e := cpu.get_n()
 	if (cpu.f & _ZF) != 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 12
 	}
 	return 7
@@ -6370,10 +6370,10 @@ func (cpu *CPU) ins_dd28() int {
 
 // add ix,ix
 func (cpu *CPU) ins_dd29() int {
-	s = cpu.ix
-	d = cpu.ix
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.ix
+	d := cpu.ix
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.ix = res
 	return 11
 }
@@ -6411,7 +6411,7 @@ func (cpu *CPU) ins_dd2e() int {
 func (cpu *CPU) ins_dd30() int {
 	e := cpu.get_n()
 	if (cpu.f & _CF) == 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 12
 	}
 	return 7
@@ -6419,7 +6419,7 @@ func (cpu *CPU) ins_dd30() int {
 
 // inc (ix+00)
 func (cpu *CPU) ins_dd34() int {
-	adr := cpu.ix + _signed(cpu.get_n())
+	adr := cpu.ix + signed(cpu.get_n())
 	n := (cpu.mem[adr] + 1) & 0xff
 	cpu.mem[adr] = n
 	cpu.f = (cpu.f & _CF) | flagsSZHVinc[n]
@@ -6428,7 +6428,7 @@ func (cpu *CPU) ins_dd34() int {
 
 // dec (ix+00)
 func (cpu *CPU) ins_dd35() int {
-	adr := cpu.ix + _signed(cpu.get_n())
+	adr := cpu.ix + signed(cpu.get_n())
 	n := (cpu.mem[adr] - 1) & 0xff
 	cpu.mem[adr] = n
 	cpu.f = (cpu.f & _CF) | flagsSZHVdec[n]
@@ -6437,7 +6437,7 @@ func (cpu *CPU) ins_dd35() int {
 
 // ld (ix+00),00
 func (cpu *CPU) ins_dd36() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.ix+d] = cpu.get_n()
 	return 15
 }
@@ -6446,7 +6446,7 @@ func (cpu *CPU) ins_dd36() int {
 func (cpu *CPU) ins_dd38() int {
 	e := cpu.get_n()
 	if (cpu.f & _CF) != 0 {
-		cpu._inc_pc(_signed(e))
+		cpu.inc_pc(signed(e))
 		return 12
 	}
 	return 7
@@ -6454,10 +6454,10 @@ func (cpu *CPU) ins_dd38() int {
 
 // add ix,sp
 func (cpu *CPU) ins_dd39() int {
-	s = cpu.sp
-	d = cpu.ix
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.sp
+	d := cpu.ix
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.ix = res
 	return 11
 }
@@ -6474,7 +6474,7 @@ func (cpu *CPU) ins_dd45() int {
 
 // ld b,(ix+00)
 func (cpu *CPU) ins_dd46() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.b = cpu.mem[cpu.ix+d]
 	return 15
 }
@@ -6491,7 +6491,7 @@ func (cpu *CPU) ins_dd4d() int {
 
 // ld c,(ix+00)
 func (cpu *CPU) ins_dd4e() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.c = cpu.mem[cpu.ix+d]
 	return 15
 }
@@ -6508,7 +6508,7 @@ func (cpu *CPU) ins_dd55() int {
 
 // ld d,(ix+00)
 func (cpu *CPU) ins_dd56() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.d = cpu.mem[cpu.ix+d]
 	return 15
 }
@@ -6525,7 +6525,7 @@ func (cpu *CPU) ins_dd5d() int {
 
 // ld e,(ix+00)
 func (cpu *CPU) ins_dd5e() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.e = cpu.mem[cpu.ix+d]
 	return 15
 }
@@ -6562,7 +6562,7 @@ func (cpu *CPU) ins_dd65() int {
 
 // ld h,(ix+00)
 func (cpu *CPU) ins_dd66() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.h = cpu.mem[cpu.ix+d]
 	return 15
 }
@@ -6604,7 +6604,7 @@ func (cpu *CPU) ins_dd6d() int {
 
 // ld l,(ix+00)
 func (cpu *CPU) ins_dd6e() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.l = cpu.mem[cpu.ix+d]
 	return 15
 }
@@ -6616,49 +6616,49 @@ func (cpu *CPU) ins_dd6f() int {
 
 // ld (ix+00),b
 func (cpu *CPU) ins_dd70() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.ix+d] = cpu.b
 	return 15
 }
 
 // ld (ix+00),c
 func (cpu *CPU) ins_dd71() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.ix+d] = cpu.c
 	return 15
 }
 
 // ld (ix+00),d
 func (cpu *CPU) ins_dd72() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.ix+d] = cpu.d
 	return 15
 }
 
 // ld (ix+00),e
 func (cpu *CPU) ins_dd73() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.ix+d] = cpu.e
 	return 15
 }
 
 // ld (ix+00),h
 func (cpu *CPU) ins_dd74() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.ix+d] = cpu.h
 	return 15
 }
 
 // ld (ix+00),l
 func (cpu *CPU) ins_dd75() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.ix+d] = cpu.l
 	return 15
 }
 
 // ld (ix+00),a
 func (cpu *CPU) ins_dd77() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.ix+d] = cpu.a
 	return 15
 }
@@ -6675,7 +6675,7 @@ func (cpu *CPU) ins_dd7d() int {
 
 // ld a,(ix+00)
 func (cpu *CPU) ins_dd7e() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.a = cpu.mem[cpu.ix+d]
 	return 15
 }
@@ -6692,9 +6692,9 @@ func (cpu *CPU) ins_dd85() int {
 
 // add a,(ix+00)
 func (cpu *CPU) ins_dd86() int {
-	val := cpu.mem[cpu.ix+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.ix+signed(cpu.get_n())]
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 15
 }
@@ -6711,9 +6711,9 @@ func (cpu *CPU) ins_dd8d() int {
 
 // adc a,(ix+00)
 func (cpu *CPU) ins_dd8e() int {
-	val := cpu.mem[cpu.ix+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.ix+signed(cpu.get_n())]
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 15
 }
@@ -6730,9 +6730,9 @@ func (cpu *CPU) ins_dd95() int {
 
 // sub (ix+00)
 func (cpu *CPU) ins_dd96() int {
-	val := cpu.mem[cpu.ix+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.ix+signed(cpu.get_n())]
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 15
 }
@@ -6749,9 +6749,9 @@ func (cpu *CPU) ins_dd9d() int {
 
 // sbc a,(ix+00)
 func (cpu *CPU) ins_dd9e() int {
-	val := cpu.mem[cpu.ix+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.ix+signed(cpu.get_n())]
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 15
 }
@@ -6768,7 +6768,7 @@ func (cpu *CPU) ins_dda5() int {
 
 // and (ix+00)
 func (cpu *CPU) ins_dda6() int {
-	val := cpu.mem[cpu.ix+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.ix+signed(cpu.get_n())]
 	cpu.a &= val
 	cpu.f = cpu.flagsSZP[cpu.a] | _HF
 	return 15
@@ -6786,7 +6786,7 @@ func (cpu *CPU) ins_ddad() int {
 
 // xor (ix+00)
 func (cpu *CPU) ins_ddae() int {
-	val := cpu.mem[cpu.ix+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.ix+signed(cpu.get_n())]
 	cpu.a ^= val
 	cpu.f = cpu.flagsSZP[cpu.a]
 	return 15
@@ -6804,7 +6804,7 @@ func (cpu *CPU) ins_ddb5() int {
 
 // or (ix+00)
 func (cpu *CPU) ins_ddb6() int {
-	val := cpu.mem[cpu.ix+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.ix+signed(cpu.get_n())]
 	cpu.a |= val
 	cpu.f = cpu.flagsSZP[cpu.a]
 	return 15
@@ -6822,9 +6822,9 @@ func (cpu *CPU) ins_ddbd() int {
 
 // cp (ix+00)
 func (cpu *CPU) ins_ddbe() int {
-	val := cpu.mem[cpu.ix+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.ix+signed(cpu.get_n())]
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 15
 }
 
@@ -8987,10 +8987,10 @@ func (cpu *CPU) ins_ed41() int {
 
 // sbc hl,bc
 func (cpu *CPU) ins_ed42() int {
-	s = cpu.get_bc()
-	d = cpu.get_hl()
-	res = d - s - (cpu.f & _CF)
-	cpu._sub16_flags(res, d, s)
+	s := cpu.get_bc()
+	d := cpu.get_hl()
+	res := d - s - (cpu.f & _CF)
+	cpu.sub16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -9006,7 +9006,7 @@ func (cpu *CPU) ins_ed43() int {
 // neg
 func (cpu *CPU) ins_ed44() int {
 	result = -cpu.a
-	cpu._sub_flags(result, cpu.a)
+	cpu.subFlags(result, cpu.a)
 	cpu.a = result & 0xff
 	return 4
 }
@@ -9044,10 +9044,10 @@ func (cpu *CPU) ins_ed49() int {
 
 // adc hl,bc
 func (cpu *CPU) ins_ed4a() int {
-	s = cpu.get_bc()
-	d = cpu.get_hl()
-	res = d + s + (cpu.f & _CF)
-	cpu._adc16_flags(res, d, s)
+	s := cpu.get_bc()
+	d := cpu.get_hl()
+	res := d + s + (cpu.f & _CF)
+	cpu.adc16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -9087,10 +9087,10 @@ func (cpu *CPU) ins_ed51() int {
 
 // sbc hl,de
 func (cpu *CPU) ins_ed52() int {
-	s = cpu.get_de()
-	d = cpu.get_hl()
-	res = d - s - (cpu.f & _CF)
-	cpu._sub16_flags(res, d, s)
+	s := cpu.get_de()
+	d := cpu.get_hl()
+	res := d - s - (cpu.f & _CF)
+	cpu.sub16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -9132,10 +9132,10 @@ func (cpu *CPU) ins_ed59() int {
 
 // adc hl,de
 func (cpu *CPU) ins_ed5a() int {
-	s = cpu.get_de()
-	d = cpu.get_hl()
-	res = d + s + (cpu.f & _CF)
-	cpu._adc16_flags(res, d, s)
+	s := cpu.get_de()
+	d := cpu.get_hl()
+	res := d + s + (cpu.f & _CF)
+	cpu.adc16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -9177,10 +9177,10 @@ func (cpu *CPU) ins_ed61() int {
 
 // sbc hl,hl
 func (cpu *CPU) ins_ed62() int {
-	s = cpu.get_hl()
-	d = cpu.get_hl()
-	res = d - s - (cpu.f & _CF)
-	cpu._sub16_flags(res, d, s)
+	s := cpu.get_hl()
+	d := cpu.get_hl()
+	res := d - s - (cpu.f & _CF)
+	cpu.sub16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -9211,10 +9211,10 @@ func (cpu *CPU) ins_ed69() int {
 
 // adc hl,hl
 func (cpu *CPU) ins_ed6a() int {
-	s = cpu.get_hl()
-	d = cpu.get_hl()
-	res = d + s + (cpu.f & _CF)
-	cpu._adc16_flags(res, d, s)
+	s := cpu.get_hl()
+	d := cpu.get_hl()
+	res := d + s + (cpu.f & _CF)
+	cpu.adc16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -9244,10 +9244,10 @@ func (cpu *CPU) ins_ed71() int {
 
 // sbc hl,sp
 func (cpu *CPU) ins_ed72() int {
-	s = cpu.sp
-	d = cpu.get_hl()
-	res = d - s - (cpu.f & _CF)
-	cpu._sub16_flags(res, d, s)
+	s := cpu.sp
+	d := cpu.get_hl()
+	res := d - s - (cpu.f & _CF)
+	cpu.sub16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -9276,10 +9276,10 @@ func (cpu *CPU) ins_ed79() int {
 
 // adc hl,sp
 func (cpu *CPU) ins_ed7a() int {
-	s = cpu.sp
-	d = cpu.get_hl()
-	res = d + s + (cpu.f & _CF)
-	cpu._adc16_flags(res, d, s)
+	s := cpu.sp
+	d := cpu.get_hl()
+	res := d + s + (cpu.f & _CF)
+	cpu.adc16Flags(res, d, s)
 	cpu.set_hl(res)
 	return 11
 }
@@ -9536,20 +9536,20 @@ func (cpu *CPU) ins_edbb() int {
 
 // add iy,bc
 func (cpu *CPU) ins_fd09() int {
-	s = cpu.get_bc()
-	d = cpu.iy
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.get_bc()
+	d := cpu.iy
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.iy = res
 	return 11
 }
 
 // add iy,de
 func (cpu *CPU) ins_fd19() int {
-	s = cpu.get_de()
-	d = cpu.iy
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.get_de()
+	d := cpu.iy
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.iy = res
 	return 11
 }
@@ -9591,10 +9591,10 @@ func (cpu *CPU) ins_fd26() int {
 
 // add iy,iy
 func (cpu *CPU) ins_fd29() int {
-	s = cpu.iy
-	d = cpu.iy
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.iy
+	d := cpu.iy
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.iy = res
 	return 11
 }
@@ -9630,7 +9630,7 @@ func (cpu *CPU) ins_fd2e() int {
 
 // inc (iy+00)
 func (cpu *CPU) ins_fd34() int {
-	adr := cpu.iy + _signed(cpu.get_n())
+	adr := cpu.iy + signed(cpu.get_n())
 	n := (cpu.mem[adr] + 1) & 0xff
 	cpu.mem[adr] = n
 	cpu.f = (cpu.f & _CF) | flagsSZHVinc[n]
@@ -9639,7 +9639,7 @@ func (cpu *CPU) ins_fd34() int {
 
 // dec (iy+00)
 func (cpu *CPU) ins_fd35() int {
-	adr := cpu.iy + _signed(cpu.get_n())
+	adr := cpu.iy + signed(cpu.get_n())
 	n := (cpu.mem[adr] - 1) & 0xff
 	cpu.mem[adr] = n
 	cpu.f = (cpu.f & _CF) | flagsSZHVdec[n]
@@ -9648,17 +9648,17 @@ func (cpu *CPU) ins_fd35() int {
 
 // ld (iy+00),00
 func (cpu *CPU) ins_fd36() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.iy+d] = cpu.get_n()
 	return 15
 }
 
 // add iy,sp
 func (cpu *CPU) ins_fd39() int {
-	s = cpu.sp
-	d = cpu.iy
-	res = d + s
-	cpu._add16_flags(res, d, s)
+	s := cpu.sp
+	d := cpu.iy
+	res := d + s
+	cpu.add16Flags(res, d, s)
 	cpu.iy = res
 	return 11
 }
@@ -9675,7 +9675,7 @@ func (cpu *CPU) ins_fd45() int {
 
 // ld b,(iy+00)
 func (cpu *CPU) ins_fd46() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.b = cpu.mem[cpu.iy+d]
 	return 15
 }
@@ -9692,7 +9692,7 @@ func (cpu *CPU) ins_fd4d() int {
 
 // ld c,(iy+00)
 func (cpu *CPU) ins_fd4e() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.c = cpu.mem[cpu.iy+d]
 	return 15
 }
@@ -9709,7 +9709,7 @@ func (cpu *CPU) ins_fd55() int {
 
 // ld d,(iy+00)
 func (cpu *CPU) ins_fd56() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.d = cpu.mem[cpu.iy+d]
 	return 15
 }
@@ -9726,7 +9726,7 @@ func (cpu *CPU) ins_fd5d() int {
 
 // ld e,(iy+00)
 func (cpu *CPU) ins_fd5e() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.e = cpu.mem[cpu.iy+d]
 	return 15
 }
@@ -9763,7 +9763,7 @@ func (cpu *CPU) ins_fd65() int {
 
 // ld h,(iy+00)
 func (cpu *CPU) ins_fd66() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.h = cpu.mem[cpu.iy+d]
 	return 15
 }
@@ -9805,7 +9805,7 @@ func (cpu *CPU) ins_fd6d() int {
 
 // ld l,(iy+00)
 func (cpu *CPU) ins_fd6e() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.l = cpu.mem[cpu.iy+d]
 	return 15
 }
@@ -9817,49 +9817,49 @@ func (cpu *CPU) ins_fd6f() int {
 
 // ld (iy+00),b
 func (cpu *CPU) ins_fd70() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.iy+d] = cpu.b
 	return 15
 }
 
 // ld (iy+00),c
 func (cpu *CPU) ins_fd71() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.iy+d] = cpu.c
 	return 15
 }
 
 // ld (iy+00),d
 func (cpu *CPU) ins_fd72() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.iy+d] = cpu.d
 	return 15
 }
 
 // ld (iy+00),e
 func (cpu *CPU) ins_fd73() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.iy+d] = cpu.e
 	return 15
 }
 
 // ld (iy+00),h
 func (cpu *CPU) ins_fd74() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.iy+d] = cpu.h
 	return 15
 }
 
 // ld (iy+00),l
 func (cpu *CPU) ins_fd75() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.iy+d] = cpu.l
 	return 15
 }
 
 // ld (iy+00),a
 func (cpu *CPU) ins_fd77() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.mem[cpu.iy+d] = cpu.a
 	return 15
 }
@@ -9876,7 +9876,7 @@ func (cpu *CPU) ins_fd7d() int {
 
 // ld a,(iy+00)
 func (cpu *CPU) ins_fd7e() int {
-	d = _signed(cpu.get_n())
+	d = signed(cpu.get_n())
 	cpu.a = cpu.mem[cpu.iy+d]
 	return 15
 }
@@ -9893,9 +9893,9 @@ func (cpu *CPU) ins_fd85() int {
 
 // add a,(iy+00)
 func (cpu *CPU) ins_fd86() int {
-	val := cpu.mem[cpu.iy+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.iy+signed(cpu.get_n())]
 	result := cpu.a + val
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 15
 }
@@ -9912,9 +9912,9 @@ func (cpu *CPU) ins_fd8d() int {
 
 // adc a,(iy+00)
 func (cpu *CPU) ins_fd8e() int {
-	val := cpu.mem[cpu.iy+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.iy+signed(cpu.get_n())]
 	result := cpu.a + val + (cpu.f & _CF)
-	cpu._add_flags(result, val)
+	cpu.addFlags(result, val)
 	cpu.a = result & 0xff
 	return 15
 }
@@ -9931,9 +9931,9 @@ func (cpu *CPU) ins_fd95() int {
 
 // sub (iy+00)
 func (cpu *CPU) ins_fd96() int {
-	val := cpu.mem[cpu.iy+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.iy+signed(cpu.get_n())]
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 15
 }
@@ -9950,9 +9950,9 @@ func (cpu *CPU) ins_fd9d() int {
 
 // sbc a,(iy+00)
 func (cpu *CPU) ins_fd9e() int {
-	val := cpu.mem[cpu.iy+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.iy+signed(cpu.get_n())]
 	result := cpu.a - val - (cpu.f & _CF)
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	cpu.a = result & 0xff
 	return 15
 }
@@ -9969,7 +9969,7 @@ func (cpu *CPU) ins_fda5() int {
 
 // and (iy+00)
 func (cpu *CPU) ins_fda6() int {
-	val := cpu.mem[cpu.iy+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.iy+signed(cpu.get_n())]
 	cpu.a &= val
 	cpu.f = cpu.flagsSZP[cpu.a] | _HF
 	return 15
@@ -9987,7 +9987,7 @@ func (cpu *CPU) ins_fdad() int {
 
 // xor (iy+00)
 func (cpu *CPU) ins_fdae() int {
-	val := cpu.mem[cpu.iy+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.iy+signed(cpu.get_n())]
 	cpu.a ^= val
 	cpu.f = cpu.flagsSZP[cpu.a]
 	return 15
@@ -10005,7 +10005,7 @@ func (cpu *CPU) ins_fdb5() int {
 
 // or (iy+00)
 func (cpu *CPU) ins_fdb6() int {
-	val := cpu.mem[cpu.iy+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.iy+signed(cpu.get_n())]
 	cpu.a |= val
 	cpu.f = cpu.flagsSZP[cpu.a]
 	return 15
@@ -10023,9 +10023,9 @@ func (cpu *CPU) ins_fdbd() int {
 
 // cp (iy+00)
 func (cpu *CPU) ins_fdbe() int {
-	val := cpu.mem[cpu.iy+_signed(cpu.get_n())]
+	val := cpu.mem[cpu.iy+signed(cpu.get_n())]
 	result := cpu.a - val
-	cpu._sub_flags(result, val)
+	cpu.subFlags(result, val)
 	return 15
 }
 
