@@ -153,7 +153,7 @@ def emit_ld_ira(out, d, s):
     """ld i/r/a, i/r/a"""
     out.put("cpu.%s = cpu.%s\n" % (d, s))
     if d == "a":
-        out.put("cpu.f = (cpu.f & _CF) | (cpu.f_sz[cpu.a]) | (cpu.iff2 << 2)\n")
+        out.put("cpu.f = (cpu.f & _CF) | (flagsSZ[cpu.a]) | (uint8(bool2int(cpu.iff2)) << 2)\n")
     out.put("return 9\n")
 
 
@@ -174,8 +174,8 @@ def emit_ld_mem_nn_rp(out, rp):
     """ld (nn), rp"""
     out.put("nn := cpu.get_nn()\n")
     if rp in _direct_rp:
-        out.put("cpu.mem[nn] = cpu.%s & 0xff\n" % rp)
-        out.put("cpu.mem[nn + 1] = cpu.%s >> 8\n" % rp)
+        out.put("cpu.mem[nn] = uint8(cpu.%s)\n" % rp)
+        out.put("cpu.mem[nn + 1] = uint8(cpu.%s >> 8)\n" % rp)
     else:
         out.put("cpu.mem[nn] = cpu.%s\n" % rp[1])
         out.put("cpu.mem[nn + 1] = cpu.%s\n" % rp[0])
@@ -186,8 +186,8 @@ def emit_ld_rp_mem_nn(out, rp):
     """ld rp,(nn)"""
     out.put("nn := cpu.get_nn()\n")
     if rp in _direct_rp:
-        out.put("cpu.%s = cpu.mem[nn + 1] << 8\n" % rp)
-        out.put("cpu.%s |= cpu.mem[nn]\n" % rp)
+        out.put("cpu.%s = uint16(cpu.mem[nn + 1]) << 8\n" % rp)
+        out.put("cpu.%s |= uint16(cpu.mem[nn])\n" % rp)
     else:
         out.put("cpu.%s = cpu.mem[nn + 1]\n" % rp[0])
         out.put("cpu.%s = cpu.mem[nn]\n" % rp[1])
@@ -261,7 +261,7 @@ def emit_ldxx(out, op):
     out.put("if n != 0 {\n")
     out.put("cpu.f |= _VF\n")
     if op in ("ldir", "lddr"):
-        out.put("cpu._dec_pc(2)\n")
+        out.put("cpu.dec_pc(2)\n")
         out.put("return 17\n")
     out.put("}\n")
 
@@ -276,7 +276,7 @@ def emit_cpxx(out, op):
     out.put("val := cpu.mem[s]\n")
     out.put("res := cpu.a - val\n")
     out.put("cpu.f = (cpu.f & _CF) | _NF\n")
-    out.put("cpu.f |= (cpu.f_sz[res] & ~(_YF | _XF))\n")
+    out.put("cpu.f |= (flagsSZ[res] &^ (_YF | _XF))\n")
     out.put("cpu.f |= ((cpu.a ^ val ^ res) & _HF)\n")
 
     out.put("if (cpu.f & _HF) != 0 {res -= 1}\n")
@@ -290,7 +290,7 @@ def emit_cpxx(out, op):
         out.put("return 12\n")
     else:
         out.put("if (n != 0) && ((cpu.f & _ZF) == 0) {\n")
-        out.put("    cpu._dec_pc(2)\n")
+        out.put("    cpu.dec_pc(2)\n")
         out.put("    return 17\n")
         out.put("}\n")
         out.put("return 12\n")
@@ -370,8 +370,8 @@ def emit_inc_dec_r(out, r, op):
         out.put("cpu.f = (cpu.f & _CF) | %s[n]\n" % flags)
         out.put("return 19\n")
     elif r == "(iy+d)":
-        out.put("adr := cpu.iy + signed(cpu.get_n())\n")
-        out.put("n := (cpu.mem[adr] %s) & 0xff\n" % delta)
+        out.put("adr := int(cpu.iy) + signed(cpu.get_n())\n")
+        out.put("n := cpu.mem[adr] %s\n" % delta)
         out.put("cpu.mem[adr] = n\n")
         out.put("cpu.f = (cpu.f & _CF) | %s[n]\n" % flags)
         out.put("return 19\n")
@@ -723,8 +723,8 @@ def emit_rot_r_x(out, op, r, x):
 
 def emit_rxd(out, op):
     """rld, rrd"""
-    out.put("adr = cpu.get_hl()\n")
-    out.put("n = cpu.mem[adr]\n")
+    out.put("adr := cpu.get_hl()\n")
+    out.put("n := cpu.mem[adr]\n")
     if op == "rrd":
         out.put("cpu.mem[adr] = ((n >> 4) | (cpu.a << 4)) & 0xff\n")
         out.put("cpu.a = (cpu.a & 0xf0) | (n & 0x0f)\n")
@@ -988,13 +988,13 @@ def emit_in_r_c(out, r):
 
 def emit_in_a_n(out):
     """in a,(n)"""
-    out.put("cpu.a = cpu.io.rd((cpu.a << 8) | cpu.get_n())\n")
+    out.put("cpu.a = cpu.io.rd((uint16(cpu.a) << 8) | uint16(cpu.get_n()))   \n")
     out.put("return 7\n")
 
 
 def emit_out_n_a(out):
     """out (n),a"""
-    out.put("cpu.io.wr((cpu.a << 8) | cpu.get_n(), cpu.a)\n")
+    out.put("cpu.io.wr((uint16(cpu.a) << 8) | uint16(cpu.get_n()), cpu.a)\n")
     out.put("return 7\n")
 
 

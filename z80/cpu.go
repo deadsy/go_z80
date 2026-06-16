@@ -112,12 +112,19 @@ func (cpu *CPU) subFlags(res int, val uint8) {
 
 //-----------------------------------------------------------------------------
 
+type IO interface {
+	wr(addr uint16, val uint8)
+	rd(addr uint16) uint8
+}
+
 type CPU struct {
 	a, f, b, c, d, e, h, l         uint8
 	alt_af, alt_bc, alt_de, alt_hl uint16
 	pc, sp, ix, iy                 uint16
-	i, r                           uint8
-	halt, im, iff1, iff2           bool
+	im, i, r                       uint8
+	halt, iff1, iff2               bool
+
+	io IO
 
 	mem []uint8
 }
@@ -141,7 +148,7 @@ func (cpu *CPU) Reset() {
 	cpu.iy = 0xffff
 	cpu.i = 0
 	cpu.r = 0
-	cpu.im = false
+	cpu.im = 0
 	cpu.iff1 = false
 	cpu.iff2 = false
 	cpu.halt = false

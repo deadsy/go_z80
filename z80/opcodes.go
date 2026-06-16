@@ -3476,7 +3476,7 @@ func (cpu *CPU) ins_d2() int {
 
 // out (00),a
 func (cpu *CPU) ins_d3() int {
-	cpu.io.wr((cpu.a<<8)|cpu.get_n(), cpu.a)
+	cpu.io.wr((uint16(cpu.a)<<8)|uint16(cpu.get_n()), cpu.a)
 	return 7
 }
 
@@ -3549,7 +3549,7 @@ func (cpu *CPU) ins_da() int {
 
 // in a,(00)
 func (cpu *CPU) ins_db() int {
-	cpu.a = cpu.io.rd((cpu.a << 8) | cpu.get_n())
+	cpu.a = cpu.io.rd((uint16(cpu.a) << 8) | uint16(cpu.get_n()))
 	return 7
 }
 
@@ -6332,8 +6332,8 @@ func (cpu *CPU) ins_dd21() int {
 // ld (0000),ix
 func (cpu *CPU) ins_dd22() int {
 	nn := cpu.get_nn()
-	cpu.mem[nn] = cpu.ix & 0xff
-	cpu.mem[nn+1] = cpu.ix >> 8
+	cpu.mem[nn] = uint8(cpu.ix)
+	cpu.mem[nn+1] = uint8(cpu.ix >> 8)
 	return 16
 }
 
@@ -6381,8 +6381,8 @@ func (cpu *CPU) ins_dd29() int {
 // ld ix,(0000)
 func (cpu *CPU) ins_dd2a() int {
 	nn := cpu.get_nn()
-	cpu.ix = cpu.mem[nn+1] << 8
-	cpu.ix |= cpu.mem[nn]
+	cpu.ix = uint16(cpu.mem[nn+1]) << 8
+	cpu.ix |= uint16(cpu.mem[nn])
 	return 16
 }
 
@@ -9112,7 +9112,7 @@ func (cpu *CPU) ins_ed56() int {
 // ld a,i
 func (cpu *CPU) ins_ed57() int {
 	cpu.a = cpu.i
-	cpu.f = (cpu.f & _CF) | (cpu.f_sz[cpu.a]) | (cpu.iff2 << 2)
+	cpu.f = (cpu.f & _CF) | (flagsSZ[cpu.a]) | (uint8(bool2int(cpu.iff2)) << 2)
 	return 9
 }
 
@@ -9157,7 +9157,7 @@ func (cpu *CPU) ins_ed5e() int {
 // ld a,r
 func (cpu *CPU) ins_ed5f() int {
 	cpu.a = cpu.r
-	cpu.f = (cpu.f & _CF) | (cpu.f_sz[cpu.a]) | (cpu.iff2 << 2)
+	cpu.f = (cpu.f & _CF) | (flagsSZ[cpu.a]) | (uint8(bool2int(cpu.iff2)) << 2)
 	return 9
 }
 
@@ -9187,8 +9187,8 @@ func (cpu *CPU) ins_ed62() int {
 
 // rrd
 func (cpu *CPU) ins_ed67() int {
-	adr = cpu.get_hl()
-	n = cpu.mem[adr]
+	adr := cpu.get_hl()
+	n := cpu.mem[adr]
 	cpu.mem[adr] = ((n >> 4) | (cpu.a << 4)) & 0xff
 	cpu.a = (cpu.a & 0xf0) | (n & 0x0f)
 	cpu.f = (cpu.f & _CF) | flagsSZP[cpu.a]
@@ -9221,8 +9221,8 @@ func (cpu *CPU) ins_ed6a() int {
 
 // rld
 func (cpu *CPU) ins_ed6f() int {
-	adr = cpu.get_hl()
-	n = cpu.mem[adr]
+	adr := cpu.get_hl()
+	n := cpu.mem[adr]
 	cpu.mem[adr] = ((n << 4) | (cpu.a & 0x0f)) & 0xff
 	cpu.a = (cpu.a & 0xf0) | (n >> 4)
 	cpu.f = (cpu.f & _CF) | flagsSZP[cpu.a]
@@ -9255,8 +9255,8 @@ func (cpu *CPU) ins_ed72() int {
 // ld (0000),sp
 func (cpu *CPU) ins_ed73() int {
 	nn := cpu.get_nn()
-	cpu.mem[nn] = cpu.sp & 0xff
-	cpu.mem[nn+1] = cpu.sp >> 8
+	cpu.mem[nn] = uint8(cpu.sp)
+	cpu.mem[nn+1] = uint8(cpu.sp >> 8)
 	return 16
 }
 
@@ -9287,8 +9287,8 @@ func (cpu *CPU) ins_ed7a() int {
 // ld sp,(0000)
 func (cpu *CPU) ins_ed7b() int {
 	nn := cpu.get_nn()
-	cpu.sp = cpu.mem[nn+1] << 8
-	cpu.sp |= cpu.mem[nn]
+	cpu.sp = uint16(cpu.mem[nn+1]) << 8
+	cpu.sp |= uint16(cpu.mem[nn])
 	return 16
 }
 
@@ -9322,7 +9322,7 @@ func (cpu *CPU) ins_eda1() int {
 	val := cpu.mem[s]
 	res := cpu.a - val
 	cpu.f = (cpu.f & _CF) | _NF
-	cpu.f |= (cpu.f_sz[res] & ~(_YF | _XF))
+	cpu.f |= (flagsSZ[res] &^ (_YF | _XF))
 	cpu.f |= ((cpu.a ^ val ^ res) & _HF)
 	if (cpu.f & _HF) != 0 {
 		res -= 1
@@ -9381,7 +9381,7 @@ func (cpu *CPU) ins_eda9() int {
 	val := cpu.mem[s]
 	res := cpu.a - val
 	cpu.f = (cpu.f & _CF) | _NF
-	cpu.f |= (cpu.f_sz[res] & ~(_YF | _XF))
+	cpu.f |= (flagsSZ[res] &^ (_YF | _XF))
 	cpu.f |= ((cpu.a ^ val ^ res) & _HF)
 	if (cpu.f & _HF) != 0 {
 		res -= 1
@@ -9429,7 +9429,7 @@ func (cpu *CPU) ins_edb0() int {
 	cpu.set_bc(n)
 	if n != 0 {
 		cpu.f |= _VF
-		cpu._dec_pc(2)
+		cpu.dec_pc(2)
 		return 17
 	}
 	return 12
@@ -9442,7 +9442,7 @@ func (cpu *CPU) ins_edb1() int {
 	val := cpu.mem[s]
 	res := cpu.a - val
 	cpu.f = (cpu.f & _CF) | _NF
-	cpu.f |= (cpu.f_sz[res] & ~(_YF | _XF))
+	cpu.f |= (flagsSZ[res] &^ (_YF | _XF))
 	cpu.f |= ((cpu.a ^ val ^ res) & _HF)
 	if (cpu.f & _HF) != 0 {
 		res -= 1
@@ -9456,7 +9456,7 @@ func (cpu *CPU) ins_edb1() int {
 	cpu.set_hl(s + 1)
 	cpu.set_bc(n)
 	if (n != 0) && ((cpu.f & _ZF) == 0) {
-		cpu._dec_pc(2)
+		cpu.dec_pc(2)
 		return 17
 	}
 	return 12
@@ -9491,7 +9491,7 @@ func (cpu *CPU) ins_edb8() int {
 	cpu.set_bc(n)
 	if n != 0 {
 		cpu.f |= _VF
-		cpu._dec_pc(2)
+		cpu.dec_pc(2)
 		return 17
 	}
 	return 12
@@ -9504,7 +9504,7 @@ func (cpu *CPU) ins_edb9() int {
 	val := cpu.mem[s]
 	res := cpu.a - val
 	cpu.f = (cpu.f & _CF) | _NF
-	cpu.f |= (cpu.f_sz[res] & ~(_YF | _XF))
+	cpu.f |= (flagsSZ[res] &^ (_YF | _XF))
 	cpu.f |= ((cpu.a ^ val ^ res) & _HF)
 	if (cpu.f & _HF) != 0 {
 		res -= 1
@@ -9518,7 +9518,7 @@ func (cpu *CPU) ins_edb9() int {
 	cpu.set_hl(s - 1)
 	cpu.set_bc(n)
 	if (n != 0) && ((cpu.f & _ZF) == 0) {
-		cpu._dec_pc(2)
+		cpu.dec_pc(2)
 		return 17
 	}
 	return 12
@@ -9563,8 +9563,8 @@ func (cpu *CPU) ins_fd21() int {
 // ld (0000),iy
 func (cpu *CPU) ins_fd22() int {
 	nn := cpu.get_nn()
-	cpu.mem[nn] = cpu.iy & 0xff
-	cpu.mem[nn+1] = cpu.iy >> 8
+	cpu.mem[nn] = uint8(cpu.iy)
+	cpu.mem[nn+1] = uint8(cpu.iy >> 8)
 	return 16
 }
 
@@ -9602,8 +9602,8 @@ func (cpu *CPU) ins_fd29() int {
 // ld iy,(0000)
 func (cpu *CPU) ins_fd2a() int {
 	nn := cpu.get_nn()
-	cpu.iy = cpu.mem[nn+1] << 8
-	cpu.iy |= cpu.mem[nn]
+	cpu.iy = uint16(cpu.mem[nn+1]) << 8
+	cpu.iy |= uint16(cpu.mem[nn])
 	return 16
 }
 
@@ -9630,8 +9630,8 @@ func (cpu *CPU) ins_fd2e() int {
 
 // inc (iy+00)
 func (cpu *CPU) ins_fd34() int {
-	adr := cpu.iy + signed(cpu.get_n())
-	n := (cpu.mem[adr] + 1) & 0xff
+	adr := int(cpu.iy) + signed(cpu.get_n())
+	n := cpu.mem[adr] + 1
 	cpu.mem[adr] = n
 	cpu.f = (cpu.f & _CF) | flagsSZHVinc[n]
 	return 19
@@ -9639,8 +9639,8 @@ func (cpu *CPU) ins_fd34() int {
 
 // dec (iy+00)
 func (cpu *CPU) ins_fd35() int {
-	adr := cpu.iy + signed(cpu.get_n())
-	n := (cpu.mem[adr] - 1) & 0xff
+	adr := int(cpu.iy) + signed(cpu.get_n())
+	n := cpu.mem[adr] - 1
 	cpu.mem[adr] = n
 	cpu.f = (cpu.f & _CF) | flagsSZHVdec[n]
 	return 19
