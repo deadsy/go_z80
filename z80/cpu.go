@@ -9,11 +9,8 @@ import (
 
 //-----------------------------------------------------------------------------
 
-func signed(x uint8) int {
-	if (x & 0x80) != 0 {
-		return (int(x) & 0x7F) - 128
-	}
-	return int(x)
+func offset16(ofs uint8) uint16 {
+		return uint16(int8(ofs))
 }
 
 func int2bool(x int) bool {
@@ -28,6 +25,88 @@ func bool2int(x bool) int {
 		return 1
 	}
 	return 0
+}
+
+//-----------------------------------------------------------------------------
+
+type IO interface {
+	wr8(adr uint16, val uint8)
+	rd8(adr uint16) uint8
+}
+
+type Memory interface {
+	wr8(adr uint16, val uint8)
+	rd8(adr uint16) uint8
+	wr16(adr uint16, val uint16)
+	rd16(adr uint16) uint16
+}
+
+type CPU struct {
+	a, f, b, c, d, e, h, l         uint8
+	alt_af, alt_bc, alt_de, alt_hl uint16
+	pc, sp, ix, iy                 uint16
+	im, i, r                       uint8
+	halt, iff1, iff2               bool
+	io IO
+	mem Memory
+}
+
+func New(io IO, mem Memory) *CPU {
+	cpu := &CPU{}
+	cpu.io = io
+	cpu.mem = mem
+	cpu.Reset()
+	return cpu
+}
+
+// Reset the CPU state
+func (cpu *CPU) Reset() {
+	cpu.a = 0xff
+	cpu.f = 0xff
+	cpu.b = 0xff
+	cpu.c = 0xff
+	cpu.d = 0xff
+	cpu.e = 0xff
+	cpu.h = 0xff
+	cpu.l = 0xff
+	cpu.alt_af = 0xffff
+	cpu.alt_bc = 0xffff
+	cpu.alt_de = 0xffff
+	cpu.alt_hl = 0xffff
+	cpu.sp = 0xffff
+	cpu.ix = 0xffff
+	cpu.iy = 0xffff
+	cpu.i = 0
+	cpu.r = 0
+	cpu.im = 0
+	cpu.iff1 = false
+	cpu.iff2 = false
+	cpu.halt = false
+	cpu.pc = 0
+}
+
+// Return a string with processor state
+func (cpu *CPU) String() string {
+	var s []string
+	s = append(s, fmt.Sprintf("a    : %02x", cpu.a))
+	s = append(s, fmt.Sprintf("f    : %02x %s", cpu.f, cpu.flagString()))
+	s = append(s, fmt.Sprintf("b c  : %02x %02x", cpu.b, cpu.c))
+	s = append(s, fmt.Sprintf("d e  : %02x %02x", cpu.d, cpu.e))
+	s = append(s, fmt.Sprintf("h l  : %02x %02x", cpu.h, cpu.l))
+	s = append(s, fmt.Sprintf("a'f' : %02x %02x", cpu.alt_af>>8, cpu.alt_af&0xff))
+	s = append(s, fmt.Sprintf("b'c' : %02x %02x", cpu.alt_bc>>8, cpu.alt_bc&0xff))
+	s = append(s, fmt.Sprintf("d'e' : %02x %02x", cpu.alt_de>>8, cpu.alt_de&0xff))
+	s = append(s, fmt.Sprintf("h'l' : %02x %02x", cpu.alt_hl>>8, cpu.alt_hl&0xff))
+	s = append(s, fmt.Sprintf("i    : %02x", cpu.i))
+	s = append(s, fmt.Sprintf("im   : %d", cpu.im))
+	s = append(s, fmt.Sprintf("iff1 : %d", cpu.iff1))
+	s = append(s, fmt.Sprintf("iff2 : %d", cpu.iff2))
+	s = append(s, fmt.Sprintf("r    : %02x", cpu.r))
+	s = append(s, fmt.Sprintf("ix   : %04x", cpu.ix))
+	s = append(s, fmt.Sprintf("iy   : %04x", cpu.iy))
+	s = append(s, fmt.Sprintf("sp   : %04x", cpu.sp))
+	s = append(s, fmt.Sprintf("pc   : %04x", cpu.pc))
+	return strings.Join(s, "\n")
 }
 
 //-----------------------------------------------------------------------------
@@ -112,75 +191,6 @@ func (cpu *CPU) subFlags(res int, val uint8) {
 
 //-----------------------------------------------------------------------------
 
-type IO interface {
-	wr(addr uint16, val uint8)
-	rd(addr uint16) uint8
-}
-
-type CPU struct {
-	a, f, b, c, d, e, h, l         uint8
-	alt_af, alt_bc, alt_de, alt_hl uint16
-	pc, sp, ix, iy                 uint16
-	im, i, r                       uint8
-	halt, iff1, iff2               bool
-
-	io IO
-
-	mem []uint8
-}
-
-// Reset the CPU state
-func (cpu *CPU) Reset() {
-	cpu.a = 0xff
-	cpu.f = 0xff
-	cpu.b = 0xff
-	cpu.c = 0xff
-	cpu.d = 0xff
-	cpu.e = 0xff
-	cpu.h = 0xff
-	cpu.l = 0xff
-	cpu.alt_af = 0xffff
-	cpu.alt_bc = 0xffff
-	cpu.alt_de = 0xffff
-	cpu.alt_hl = 0xffff
-	cpu.sp = 0xffff
-	cpu.ix = 0xffff
-	cpu.iy = 0xffff
-	cpu.i = 0
-	cpu.r = 0
-	cpu.im = 0
-	cpu.iff1 = false
-	cpu.iff2 = false
-	cpu.halt = false
-	cpu.pc = 0
-}
-
-// Return a string with processor state
-func (cpu *CPU) String() string {
-	var s []string
-	s = append(s, fmt.Sprintf("a    : %02x", cpu.a))
-	s = append(s, fmt.Sprintf("f    : %02x %s", cpu.f, cpu.flagString()))
-	s = append(s, fmt.Sprintf("b c  : %02x %02x", cpu.b, cpu.c))
-	s = append(s, fmt.Sprintf("d e  : %02x %02x", cpu.d, cpu.e))
-	s = append(s, fmt.Sprintf("h l  : %02x %02x", cpu.h, cpu.l))
-	s = append(s, fmt.Sprintf("a'f' : %02x %02x", cpu.alt_af>>8, cpu.alt_af&0xff))
-	s = append(s, fmt.Sprintf("b'c' : %02x %02x", cpu.alt_bc>>8, cpu.alt_bc&0xff))
-	s = append(s, fmt.Sprintf("d'e' : %02x %02x", cpu.alt_de>>8, cpu.alt_de&0xff))
-	s = append(s, fmt.Sprintf("h'l' : %02x %02x", cpu.alt_hl>>8, cpu.alt_hl&0xff))
-	s = append(s, fmt.Sprintf("i    : %02x", cpu.i))
-	s = append(s, fmt.Sprintf("im   : %d", cpu.im))
-	s = append(s, fmt.Sprintf("iff1 : %d", cpu.iff1))
-	s = append(s, fmt.Sprintf("iff2 : %d", cpu.iff2))
-	s = append(s, fmt.Sprintf("r    : %02x", cpu.r))
-	s = append(s, fmt.Sprintf("ix   : %04x", cpu.ix))
-	s = append(s, fmt.Sprintf("iy   : %04x", cpu.iy))
-	s = append(s, fmt.Sprintf("sp   : %04x", cpu.sp))
-	s = append(s, fmt.Sprintf("pc   : %04x", cpu.pc))
-	return strings.Join(s, "\n")
-}
-
-//-----------------------------------------------------------------------------
-
 // Execute a single instruction at the current mem[pc] location.
 // Return the number of clock cycles taken.
 func (cpu *CPU) execute() int {
@@ -191,7 +201,7 @@ func (cpu *CPU) execute() int {
 
 // A prefix code hase been repeated. NOP and re-run the current prefix
 func (cpu *CPU) repeated_prefix() int {
-	cpu.dec_pc(1)
+	cpu.pc -= 1
 	return 0
 }
 
@@ -232,13 +242,13 @@ func (cpu *CPU) execute_fd() int {
 }
 
 func (cpu *CPU) execute_ddcb() int {
-	d := signed(cpu.get_n())
+	d := cpu.get_n()
 	code := cpu.get_n()
 	return 8 + opcodes_ddcb00[code](cpu, d)
 }
 
 func (cpu *CPU) execute_fdcb() int {
-	d := signed(cpu.get_n())
+	d := cpu.get_n()
 	code := cpu.get_n()
 	return 8 + opcodes_fdcb00[code](cpu, d)
 }
@@ -289,66 +299,61 @@ func (cpu *CPU) get_hl() uint16 {
 	return (uint16(cpu.h) << 8) | uint16(cpu.l)
 }
 
+//-----------------------------------------------------------------------------
+
 // enter halt mode
 func (cpu *CPU) enter_halt() {
 	cpu.halt = true
-	cpu.dec_pc(1)
+	cpu.pc -=1
 }
 
 // leave halt mode
 func (cpu *CPU) leave_halt() {
 	if cpu.halt {
-		cpu.inc_pc(1)
+		cpu.pc += 1
 		cpu.halt = false
 	}
 }
 
-// push a 16 bit quantity onto the stack
-func (cpu *CPU) push(val uint16) {
-	cpu.mem[cpu.sp-1] = uint8(val >> 8)
-	cpu.mem[cpu.sp-2] = uint8(val)
-	cpu.sp = cpu.sp - 2
+//-----------------------------------------------------------------------------
+
+// push an 8-bit quantity onto the stack
+func (cpu *CPU) push8(val uint8) {
+	cpu.sp -= 1
+	cpu.mem.wr8(cpu.sp, val)
 }
 
-// pop a 16 bit quantity from the stack
-func (cpu *CPU) pop() uint16 {
-	val := (uint16(cpu.mem[cpu.sp+1]) << 8) | uint16(cpu.mem[cpu.sp])
-	cpu.sp = cpu.sp + 2
+// push a 16-bit quantity onto the stack
+func (cpu *CPU) push16(val uint16) {
+	cpu.sp -= 2
+	cpu.mem.wr16(cpu.sp, val)
+}
+
+// pop an 8-bit quantity from the stack
+func (cpu *CPU) pop8() uint8 {
+	val := cpu.mem.rd8(cpu.sp)
+	cpu.sp += 1
 	return val
 }
 
-// read and return the 16 bit value at mem[adr]
-func (cpu *CPU) peek(adr uint16) uint16 {
-	return (uint16(cpu.mem[adr+1]) << 8) + uint16(cpu.mem[adr])
-}
-
-// write the 16 bit value to mem[adr]
-func (cpu *CPU) poke(adr, val uint16) {
-	cpu.mem[adr+1] = uint8(val >> 8)
-	cpu.mem[adr] = uint8(val)
-}
-
-// decrement pc
-func (cpu *CPU) dec_pc(n int) {
-	cpu.pc = uint16(int(cpu.pc) - n)
-}
-
-// increment pc
-func (cpu *CPU) inc_pc(n int) {
-	cpu.pc = uint16(int(cpu.pc) + n)
+// pop a 16-bit quantity from the stack
+func (cpu *CPU) pop16() uint16 {
+	val := cpu.mem.rd16(cpu.sp)
+	cpu.sp += 2
+	return val
 }
 
 // return the 16 bit immediate at mem[pc], pc += 2
 func (cpu *CPU) get_nn() uint16 {
-	nn := cpu.peek(cpu.pc)
-	cpu.inc_pc(2)
+	nn := cpu.mem.rd16(cpu.pc)
+	cpu.pc += 2
 	return nn
 }
 
 // return the 8 bit immediate at mem[pc], pc += 1
 func (cpu *CPU) get_n() uint8 {
-	n := cpu.mem[cpu.pc]
-	cpu.inc_pc(1)
+	n := cpu.mem.rd8(cpu.pc)
+	cpu.pc += 1
 	return n
 }
 
