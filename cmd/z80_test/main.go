@@ -156,10 +156,10 @@ func setState(cpu *z80.CPU, s *State) {
 func cmpState(cpu *z80.CPU, s *State) error {
 
 	if cpu.A != s.A {
-		return fmt.Errorf("A")
+		return fmt.Errorf("A, expected 0x%02x(%d), actual 0x%02x(%d)", s.A, s.A, cpu.A, cpu.A)
 	}
 	if cpu.F != s.F {
-		return fmt.Errorf("F")
+		return fmt.Errorf("F, expected 0x%02x(%d), actual 0x%02x(%d)", s.F, s.F, cpu.F, cpu.F)
 	}
 	if cpu.B != s.B {
 		return fmt.Errorf("B")

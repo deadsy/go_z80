@@ -512,54 +512,51 @@ def emit_daa(out):
     out.put("cf := int2bool(int(cpu.F & _CF))\n")
     out.put("nf := int2bool(int(cpu.F & _NF))\n")
     out.put("hf := int2bool(int(cpu.F & _HF))\n")
+    out.put("lo := cpu.A & 0xf\n")
 
-    out.put("lo := cpu.A & 0x0f\n")
-    out.put("hi := cpu.A >> 4\n")
+    out.put("var correction uint8\n")
+    out.put("var flags uint8\n")
 
-    out.put("var diff uint8\n")
+    out.put("if nf {\n")
+    out.put("	flags |= _NF\n")
+    out.put("}\n")
 
-    out.put("if cf {\n")
-    out.put("    diff = [2]uint8{0x66, 0x60}[bool2int((lo <= 9) && (!hf))]\n")
-    out.put("} else {\n")
-    out.put("    if lo >= 10 {\n")
-    out.put("        diff = [2]uint8{0x66, 0x06}[bool2int(hi <= 8)]\n")
-    out.put("    } else {\n")
-    out.put("        if hi >= 10 {\n")
-    out.put("            diff = [2]uint8{0x60, 0x66}[bool2int(hf)]\n")
-    out.put("        } else {\n")
-    out.put("            diff = [2]uint8{0x00, 0x06}[bool2int(hf)]\n")
-    out.put("        }\n")
-    out.put("    }\n")
+    out.put("if hf || (lo > 9) {\n")
+    out.put("	correction |= 0x06\n")
+    out.put("}\n")
+
+    out.put("if cf || (cpu.A > 0x99) {\n")
+    out.put("	correction |= 0x60\n")
+    out.put("	flags |= _CF\n")
     out.put("}\n")
 
     out.put("if nf {\n")
-    out.put("    cpu.A = (cpu.A - diff) & 0xff\n")
+    out.put("	if hf && (lo < 6) {\n")
+    out.put("		flags |= _HF\n")
+    out.put("	}\n")
     out.put("} else {\n")
-    out.put("    cpu.A = (cpu.A + diff) & 0xff\n")
+    out.put("	if lo >= 0x0A {\n")
+    out.put("		flags |= _HF\n")
+    out.put("	}\n")
     out.put("}\n")
 
-    out.put("cpu.F =  flagsSZP[cpu.A] | (cpu.F & _NF)\n")
-
-    out.put("if cf {\n")
-    out.put("    cpu.F |= _CF\n")
+    out.put("if nf {\n")
+    out.put("	cpu.A -= correction\n")
+    out.put("} else {\n")
+    out.put("	cpu.A += correction\n")
     out.put("}\n")
 
-    out.put("if (lo <= 9) && (hi >= 10) {\n")
-    out.put("    cpu.F |= _CF\n")
-    out.put("}\n")
+    # Undocumented Y flag (Bit 3)
+    # if (cpu.A & 0x08) != 0 {
+    # 	flags |= _YF
+    # }
 
-    out.put("if (lo > 9) && (hi >= 9) {\n")
-    out.put("    cpu.F |= _CF\n")
-    out.put("}\n")
+    # Undocumented X flag (Bit 5)
+    # if (cpu.A & 0x20) != 0 {
+    # 	flags |= _XF
+    # }
 
-    out.put("if nf && hf && (lo <= 5) {\n")
-    out.put("    cpu.F |= _HF\n")
-    out.put("}\n")
-
-    out.put("if (!nf) && (lo >= 10) {\n")
-    out.put("    cpu.F |= _HF\n")
-    out.put("}\n")
-
+    out.put("cpu.F = flagsSZP[cpu.A] | flags\n")
     out.put("return 4\n")
 
 

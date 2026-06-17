@@ -2173,43 +2173,34 @@ func (cpu *CPU) ins_27() int {
 	cf := int2bool(int(cpu.F & _CF))
 	nf := int2bool(int(cpu.F & _NF))
 	hf := int2bool(int(cpu.F & _HF))
-	lo := cpu.A & 0x0f
-	hi := cpu.A >> 4
-	var diff uint8
-	if cf {
-		diff = [2]uint8{0x66, 0x60}[bool2int((lo <= 9) && (!hf))]
+	lo := cpu.A & 0xf
+	var correction uint8
+	var flags uint8
+	if nf {
+		flags |= _NF
+	}
+	if hf || (lo > 9) {
+		correction |= 0x06
+	}
+	if cf || (cpu.A > 0x99) {
+		correction |= 0x60
+		flags |= _CF
+	}
+	if nf {
+		if hf && (lo < 6) {
+			flags |= _HF
+		}
 	} else {
-		if lo >= 10 {
-			diff = [2]uint8{0x66, 0x06}[bool2int(hi <= 8)]
-		} else {
-			if hi >= 10 {
-				diff = [2]uint8{0x60, 0x66}[bool2int(hf)]
-			} else {
-				diff = [2]uint8{0x00, 0x06}[bool2int(hf)]
-			}
+		if lo >= 0x0A {
+			flags |= _HF
 		}
 	}
 	if nf {
-		cpu.A = (cpu.A - diff) & 0xff
+		cpu.A -= correction
 	} else {
-		cpu.A = (cpu.A + diff) & 0xff
+		cpu.A += correction
 	}
-	cpu.F = flagsSZP[cpu.A] | (cpu.F & _NF)
-	if cf {
-		cpu.F |= _CF
-	}
-	if (lo <= 9) && (hi >= 10) {
-		cpu.F |= _CF
-	}
-	if (lo > 9) && (hi >= 9) {
-		cpu.F |= _CF
-	}
-	if nf && hf && (lo <= 5) {
-		cpu.F |= _HF
-	}
-	if (!nf) && (lo >= 10) {
-		cpu.F |= _HF
-	}
+	cpu.F = flagsSZP[cpu.A] | flags
 	return 4
 }
 

@@ -10,14 +10,11 @@ import (
 //-----------------------------------------------------------------------------
 
 func offset16(ofs uint8) uint16 {
-		return uint16(int8(ofs))
+	return uint16(int8(ofs))
 }
 
 func int2bool(x int) bool {
-	if x != 0 {
-		return true
-	}
-	return true
+	return x != 0
 }
 
 func bool2int(x bool) int {
@@ -46,9 +43,9 @@ type CPU struct {
 	Alt_AF, Alt_BC, Alt_DE, Alt_HL uint16
 	PC, SP, IX, IY                 uint16
 	IM, I, R, IFF1, IFF2           uint8
-	halt               bool
-	io IO
-	mem Memory
+	halt                           bool
+	io                             IO
+	mem                            Memory
 }
 
 func New(io IO, mem Memory) *CPU {
@@ -308,7 +305,7 @@ func (cpu *CPU) get_hl() uint16 {
 // enter halt mode
 func (cpu *CPU) enter_halt() {
 	cpu.halt = true
-	cpu.PC -=1
+	cpu.PC -= 1
 }
 
 // leave halt mode
