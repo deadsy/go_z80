@@ -647,7 +647,8 @@ def emit_rota(out, op):
         out.put("cpu.A ^= 0xff\n")
         out.put("cpu.F =  (cpu.F & (_SF | _ZF | _PF | _CF)) | _HF | _NF | (cpu.A & (_YF | _XF))\n")
     elif op == "scf":
-        out.put("cpu.F =  (cpu.F & (_SF | _ZF | _PF)) | _CF | (cpu.A & (_YF | _XF))\n")
+        out.put("cpu.F |= _CF\n")
+        out.put("cpu.F = cpu.F &^ (_NF | _HF)\n")
     elif op == "ccf":
         out.put("cpu.F =  ((cpu.F & (_SF | _ZF | _PF | _CF)) | ((cpu.F & _CF) << 4) | (cpu.A & (_YF | _XF))) ^ _CF\n")
     else:

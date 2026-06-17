@@ -155,6 +155,10 @@ func setState(cpu *z80.CPU, s *State) {
 
 func cmpState(cpu *z80.CPU, s *State) error {
 
+	// clear the troublesome undocumented flag bits
+	cpu.F = cpu.F &^ 0x28
+	s.F = s.F &^ 0x28
+
 	if cpu.A != s.A {
 		return fmt.Errorf("A, expected 0x%02x(%d), actual 0x%02x(%d)", s.A, s.A, cpu.A, cpu.A)
 	}

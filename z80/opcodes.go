@@ -2321,7 +2321,8 @@ func (cpu *CPU) ins_36() int {
 
 // scf
 func (cpu *CPU) ins_37() int {
-	cpu.F = (cpu.F & (_SF | _ZF | _PF)) | _CF | (cpu.A & (_YF | _XF))
+	cpu.F |= _CF
+	cpu.F = cpu.F &^ (_NF | _HF)
 	return 4
 }
 
