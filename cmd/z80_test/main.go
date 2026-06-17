@@ -317,13 +317,11 @@ func runTest(fname string) error {
 //-----------------------------------------------------------------------------
 
 func main() {
-
-	pattern := filepath.Join("/home/jasonh/personal/z80_tests/z80/v1", "*.json")
+	pattern := filepath.Join("/home/jasonh/personal/go_z80/ext/z80step/v1", "*.json")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	for _, match := range matches {
 
 		err = runTest(match)

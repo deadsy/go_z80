@@ -6253,7 +6253,8 @@ func (cpu *CPU) ins_dd10() int {
 
 // jr 0003
 func (cpu *CPU) ins_dd18() int {
-	panic("unimplemented instruction")
+	cpu.PC += offset16(cpu.get_n())
+	return 12
 }
 
 // add ix,de

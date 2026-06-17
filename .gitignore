@@ -1,3 +1,4 @@
 /z80/__pycache__
 /dl
 /ext/z80step
+/ext/.stamp*

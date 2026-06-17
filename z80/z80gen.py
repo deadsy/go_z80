@@ -1169,8 +1169,7 @@ def emit_index(out, code, ir):
             elif y == 2:
                 return emit_djnz(out)
             elif y == 3:
-                # return ('jr', '%04x' % dj, 3)
-                return emit_unimplemented(out)
+                return emit_jr_e(out)
             else:
                 return emit_jr_cc_d(out, _cc[y - 4])
         elif z == 1:
