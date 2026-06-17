@@ -16,7 +16,16 @@ import (
 
 //-----------------------------------------------------------------------------
 
+const KiB = 1024
+
+//-----------------------------------------------------------------------------
+
+const ioRead = uint8(1 << 0)
+const ioWrite = uint8(1 << 1)
+
 type IO struct {
+	port [64 * KiB]uint8
+	op   [64 * KiB]uint8
 }
 
 func NewIO() z80.IO {
@@ -24,15 +33,41 @@ func NewIO() z80.IO {
 }
 
 func (io *IO) Wr8(addr uint16, val uint8) {
+	//log.Printf("io wr8 [%04x] = %02x", addr, val)
+	if io.op[addr]&ioWrite != 0 {
+		io.port[addr] = val
+	} else {
+		log.Printf("io wr8 [%04x] no write allowed", addr)
+	}
 }
 
 func (io *IO) Rd8(addr uint16) uint8 {
+	//log.Printf("io rd8 [%04x]", addr)
+	if io.op[addr]&ioRead != 0 {
+		return io.port[addr]
+	}
+	log.Printf("io rd8 [%04x] no read allowed", addr)
 	return 0
 }
 
-//-----------------------------------------------------------------------------
+func (io *IO) Set(ports [][3]any) {
+	for _, x := range ports {
+		addr := uint16(x[0].(float64))
+		val := uint8(x[1].(float64))
+		op := x[2].(string)
+		io.port[addr] = val
+		switch op {
+		case "r":
+			io.op[addr] |= ioRead
+		case "w":
+			io.op[addr] |= ioWrite
+		default:
+			panic(fmt.Sprintf("unknown operation %s", op))
+		}
+	}
+}
 
-const KiB = 1024
+//-----------------------------------------------------------------------------
 
 type Memory struct {
 	mem [64 * KiB]uint8
@@ -43,7 +78,7 @@ func NewMemory() z80.Memory {
 }
 
 func (m *Memory) Wr8(addr uint16, val uint8) {
-	//log.Printf("mem wr8 [%04x] = %02x\n", addr, val)
+	//log.Printf("mem wr8 [%04x] = %02x", addr, val)
 	m.mem[addr] = val
 }
 
@@ -52,7 +87,7 @@ func (m *Memory) Rd8(addr uint16) uint8 {
 }
 
 func (m *Memory) Wr16(addr uint16, val uint16) {
-	//log.Printf("mem wr16 [%04x] = %04x\n", addr, val)
+	//log.Printf("mem wr16 [%04x] = %04x", addr, val)
 	m.mem[addr] = uint8(val)
 	m.mem[addr+1] = uint8(val >> 8)
 }
@@ -120,9 +155,11 @@ type State struct {
 
 // Z80Test represents a single standalone test vector
 type Z80Test struct {
-	Name    string `json:"name"`
-	Initial State  `json:"initial"`
-	Final   State  `json:"final"`
+	Name    string   `json:"name"`
+	Initial State    `json:"initial"`
+	Final   State    `json:"final"`
+	Cycles  [][3]any `json:"cycles"`
+	Ports   [][3]any `json:"ports"`
 }
 
 func setState(cpu *z80.CPU, s *State) {
@@ -251,6 +288,9 @@ func runTest(fname string) error {
 
 		// setup ram state
 		mem.(*Memory).Set(t.Initial.Ram)
+
+		// setup io state
+		io.(*IO).Set(t.Ports)
 
 		// setup cpu state
 		setState(cpu, &t.Initial)
