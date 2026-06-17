@@ -412,7 +412,7 @@ def emit_alu_r(out, op, r):
         out.put("cpu.A = uint8(result)\n")
         out.put("return %d\n" % tclks)
     elif op == "sbc":
-        out.put("result := int(cpu.A) - int(val) - int(cpu.A & _CF)\n")
+        out.put("result := int(cpu.A) - int(val) - int(cpu.F & _CF)\n")
         out.put("cpu.subFlags(result, val)\n")
         out.put("cpu.A = uint8(result)\n")
         out.put("return %d\n" % tclks)
@@ -504,6 +504,7 @@ def emit_im(out, n):
 def emit_halt(out):
     """halt"""
     out.put("cpu.enter_halt()\n")
+    out.put("cpu.PC += 1\n")
     out.put("return 4\n")
 
 
@@ -753,9 +754,13 @@ def emit_bit_b_r(out, b, r):
     else:
         out.put("bit := cpu.%s & (1 << %d)\n" % (r.upper(), b))
         t = 4
-    out.put("var zf uint8\n")
-    out.put("if (bit == 0) {zf = _ZF}\n")
-    out.put("cpu.F =  (cpu.F & _CF) | _HF | zf\n")
+    out.put("var flags uint8\n")
+    out.put("if bit == 0 {flags = _ZF | _PF} ")
+    if b == 7:
+        out.put("else {flags = _SF}\n")
+    else:
+        out.put("\n")
+    out.put("cpu.F =  (cpu.F & _CF) | _HF | flags\n")
     out.put("return %d\n" % t)
 
 

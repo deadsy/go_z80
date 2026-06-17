@@ -192,16 +192,21 @@ func (cpu *CPU) subFlags(res int, val uint8) {
 
 //-----------------------------------------------------------------------------
 
+func (cpu *CPU) inc_r() {
+	cpu.R = (cpu.R + 1) & 0x7F
+}
+
 // Execute a single instruction at the current mem[pc] location.
 // Return the number of clock cycles taken.
 func (cpu *CPU) Execute() int {
-	cpu.R = (cpu.R + 1) & 0x7F
+	cpu.inc_r()
 	code := cpu.get_n()
 	return opcodes[code](cpu)
 }
 
 // A prefix code hase been repeated. NOP and re-run the current prefix
 func (cpu *CPU) repeated_prefix() int {
+	cpu.inc_r()
 	cpu.PC -= 1
 	return 0
 }
@@ -223,32 +228,38 @@ func (cpu *CPU) execute_fdfd() int {
 }
 
 func (cpu *CPU) execute_cb() int {
+	cpu.inc_r()
 	code := cpu.get_n()
 	return 4 + opcodes_cb[code](cpu)
 }
 
 func (cpu *CPU) execute_dd() int {
+	cpu.inc_r()
 	code := cpu.get_n()
 	return 4 + opcodes_dd[code](cpu)
 }
 
 func (cpu *CPU) execute_ed() int {
+	cpu.inc_r()
 	code := cpu.get_n()
 	return 4 + opcodes_ed[code](cpu)
 }
 
 func (cpu *CPU) execute_fd() int {
+	cpu.inc_r()
 	code := cpu.get_n()
 	return 4 + opcodes_fd[code](cpu)
 }
 
 func (cpu *CPU) execute_ddcb() int {
+	cpu.inc_r()
 	d := cpu.get_n()
 	code := cpu.get_n()
 	return 8 + opcodes_ddcb00[code](cpu, d)
 }
 
 func (cpu *CPU) execute_fdcb() int {
+	cpu.inc_r()
 	d := cpu.get_n()
 	code := cpu.get_n()
 	return 8 + opcodes_fdcb00[code](cpu, d)

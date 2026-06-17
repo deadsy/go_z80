@@ -2713,6 +2713,7 @@ func (cpu *CPU) ins_75() int {
 // halt
 func (cpu *CPU) ins_76() int {
 	cpu.enter_halt()
+	cpu.PC += 1
 	return 4
 }
 
@@ -2989,7 +2990,7 @@ func (cpu *CPU) ins_97() int {
 // sbc a,b
 func (cpu *CPU) ins_98() int {
 	val := cpu.B
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 4
@@ -2998,7 +2999,7 @@ func (cpu *CPU) ins_98() int {
 // sbc a,c
 func (cpu *CPU) ins_99() int {
 	val := cpu.C
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 4
@@ -3007,7 +3008,7 @@ func (cpu *CPU) ins_99() int {
 // sbc a,d
 func (cpu *CPU) ins_9a() int {
 	val := cpu.D
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 4
@@ -3016,7 +3017,7 @@ func (cpu *CPU) ins_9a() int {
 // sbc a,e
 func (cpu *CPU) ins_9b() int {
 	val := cpu.E
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 4
@@ -3025,7 +3026,7 @@ func (cpu *CPU) ins_9b() int {
 // sbc a,h
 func (cpu *CPU) ins_9c() int {
 	val := cpu.H
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 4
@@ -3034,7 +3035,7 @@ func (cpu *CPU) ins_9c() int {
 // sbc a,l
 func (cpu *CPU) ins_9d() int {
 	val := cpu.L
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 4
@@ -3043,7 +3044,7 @@ func (cpu *CPU) ins_9d() int {
 // sbc a,(hl)
 func (cpu *CPU) ins_9e() int {
 	val := cpu.mem.Rd8(cpu.get_hl())
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 7
@@ -3052,7 +3053,7 @@ func (cpu *CPU) ins_9e() int {
 // sbc a,a
 func (cpu *CPU) ins_9f() int {
 	val := cpu.A
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 4
@@ -4656,704 +4657,720 @@ func (cpu *CPU) ins_cb3f() int {
 // bit 0,b
 func (cpu *CPU) ins_cb40() int {
 	bit := cpu.B & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 0,c
 func (cpu *CPU) ins_cb41() int {
 	bit := cpu.C & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 0,d
 func (cpu *CPU) ins_cb42() int {
 	bit := cpu.D & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 0,e
 func (cpu *CPU) ins_cb43() int {
 	bit := cpu.E & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 0,h
 func (cpu *CPU) ins_cb44() int {
 	bit := cpu.H & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 0,l
 func (cpu *CPU) ins_cb45() int {
 	bit := cpu.L & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 0,(hl)
 func (cpu *CPU) ins_cb46() int {
 	bit := cpu.mem.Rd8(cpu.get_hl()) & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 0,a
 func (cpu *CPU) ins_cb47() int {
 	bit := cpu.A & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 1,b
 func (cpu *CPU) ins_cb48() int {
 	bit := cpu.B & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 1,c
 func (cpu *CPU) ins_cb49() int {
 	bit := cpu.C & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 1,d
 func (cpu *CPU) ins_cb4a() int {
 	bit := cpu.D & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 1,e
 func (cpu *CPU) ins_cb4b() int {
 	bit := cpu.E & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 1,h
 func (cpu *CPU) ins_cb4c() int {
 	bit := cpu.H & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 1,l
 func (cpu *CPU) ins_cb4d() int {
 	bit := cpu.L & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 1,(hl)
 func (cpu *CPU) ins_cb4e() int {
 	bit := cpu.mem.Rd8(cpu.get_hl()) & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 1,a
 func (cpu *CPU) ins_cb4f() int {
 	bit := cpu.A & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 2,b
 func (cpu *CPU) ins_cb50() int {
 	bit := cpu.B & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 2,c
 func (cpu *CPU) ins_cb51() int {
 	bit := cpu.C & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 2,d
 func (cpu *CPU) ins_cb52() int {
 	bit := cpu.D & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 2,e
 func (cpu *CPU) ins_cb53() int {
 	bit := cpu.E & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 2,h
 func (cpu *CPU) ins_cb54() int {
 	bit := cpu.H & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 2,l
 func (cpu *CPU) ins_cb55() int {
 	bit := cpu.L & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 2,(hl)
 func (cpu *CPU) ins_cb56() int {
 	bit := cpu.mem.Rd8(cpu.get_hl()) & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 2,a
 func (cpu *CPU) ins_cb57() int {
 	bit := cpu.A & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 3,b
 func (cpu *CPU) ins_cb58() int {
 	bit := cpu.B & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 3,c
 func (cpu *CPU) ins_cb59() int {
 	bit := cpu.C & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 3,d
 func (cpu *CPU) ins_cb5a() int {
 	bit := cpu.D & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 3,e
 func (cpu *CPU) ins_cb5b() int {
 	bit := cpu.E & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 3,h
 func (cpu *CPU) ins_cb5c() int {
 	bit := cpu.H & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 3,l
 func (cpu *CPU) ins_cb5d() int {
 	bit := cpu.L & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 3,(hl)
 func (cpu *CPU) ins_cb5e() int {
 	bit := cpu.mem.Rd8(cpu.get_hl()) & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 3,a
 func (cpu *CPU) ins_cb5f() int {
 	bit := cpu.A & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 4,b
 func (cpu *CPU) ins_cb60() int {
 	bit := cpu.B & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 4,c
 func (cpu *CPU) ins_cb61() int {
 	bit := cpu.C & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 4,d
 func (cpu *CPU) ins_cb62() int {
 	bit := cpu.D & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 4,e
 func (cpu *CPU) ins_cb63() int {
 	bit := cpu.E & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 4,h
 func (cpu *CPU) ins_cb64() int {
 	bit := cpu.H & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 4,l
 func (cpu *CPU) ins_cb65() int {
 	bit := cpu.L & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 4,(hl)
 func (cpu *CPU) ins_cb66() int {
 	bit := cpu.mem.Rd8(cpu.get_hl()) & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 4,a
 func (cpu *CPU) ins_cb67() int {
 	bit := cpu.A & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 5,b
 func (cpu *CPU) ins_cb68() int {
 	bit := cpu.B & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 5,c
 func (cpu *CPU) ins_cb69() int {
 	bit := cpu.C & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 5,d
 func (cpu *CPU) ins_cb6a() int {
 	bit := cpu.D & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 5,e
 func (cpu *CPU) ins_cb6b() int {
 	bit := cpu.E & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 5,h
 func (cpu *CPU) ins_cb6c() int {
 	bit := cpu.H & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 5,l
 func (cpu *CPU) ins_cb6d() int {
 	bit := cpu.L & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 5,(hl)
 func (cpu *CPU) ins_cb6e() int {
 	bit := cpu.mem.Rd8(cpu.get_hl()) & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 5,a
 func (cpu *CPU) ins_cb6f() int {
 	bit := cpu.A & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 6,b
 func (cpu *CPU) ins_cb70() int {
 	bit := cpu.B & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 6,c
 func (cpu *CPU) ins_cb71() int {
 	bit := cpu.C & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 6,d
 func (cpu *CPU) ins_cb72() int {
 	bit := cpu.D & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 6,e
 func (cpu *CPU) ins_cb73() int {
 	bit := cpu.E & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 6,h
 func (cpu *CPU) ins_cb74() int {
 	bit := cpu.H & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 6,l
 func (cpu *CPU) ins_cb75() int {
 	bit := cpu.L & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 6,(hl)
 func (cpu *CPU) ins_cb76() int {
 	bit := cpu.mem.Rd8(cpu.get_hl()) & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 6,a
 func (cpu *CPU) ins_cb77() int {
 	bit := cpu.A & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 7,b
 func (cpu *CPU) ins_cb78() int {
 	bit := cpu.B & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 7,c
 func (cpu *CPU) ins_cb79() int {
 	bit := cpu.C & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 7,d
 func (cpu *CPU) ins_cb7a() int {
 	bit := cpu.D & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 7,e
 func (cpu *CPU) ins_cb7b() int {
 	bit := cpu.E & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 7,h
 func (cpu *CPU) ins_cb7c() int {
 	bit := cpu.H & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 7,l
 func (cpu *CPU) ins_cb7d() int {
 	bit := cpu.L & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
 // bit 7,(hl)
 func (cpu *CPU) ins_cb7e() int {
 	bit := cpu.mem.Rd8(cpu.get_hl()) & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 7,a
 func (cpu *CPU) ins_cb7f() int {
 	bit := cpu.A & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 4
 }
 
@@ -6686,7 +6703,7 @@ func (cpu *CPU) ins_dd9d() int {
 // sbc a,(ix+00)
 func (cpu *CPU) ins_dd9e() int {
 	val := cpu.mem.Rd8(cpu.IX + offset16(cpu.get_n()))
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 15
@@ -7686,88 +7703,90 @@ func (cpu *CPU) ins_ddcb003f(d uint8) int {
 // bit 0,(ix+00)
 func (cpu *CPU) ins_ddcb0040(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IX+offset16(d)) & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 1,(ix+00)
 func (cpu *CPU) ins_ddcb0048(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IX+offset16(d)) & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 2,(ix+00)
 func (cpu *CPU) ins_ddcb0050(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IX+offset16(d)) & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 3,(ix+00)
 func (cpu *CPU) ins_ddcb0058(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IX+offset16(d)) & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 4,(ix+00)
 func (cpu *CPU) ins_ddcb0060(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IX+offset16(d)) & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 5,(ix+00)
 func (cpu *CPU) ins_ddcb0068(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IX+offset16(d)) & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 6,(ix+00)
 func (cpu *CPU) ins_ddcb0070(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IX+offset16(d)) & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 7,(ix+00)
 func (cpu *CPU) ins_ddcb0078(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IX+offset16(d)) & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
@@ -9887,7 +9906,7 @@ func (cpu *CPU) ins_fd9d() int {
 // sbc a,(iy+00)
 func (cpu *CPU) ins_fd9e() int {
 	val := cpu.mem.Rd8(cpu.IY + offset16(cpu.get_n()))
-	result := int(cpu.A) - int(val) - int(cpu.A&_CF)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
 	return 15
@@ -10887,88 +10906,90 @@ func (cpu *CPU) ins_fdcb003f(d uint8) int {
 // bit 0,(iy+00)
 func (cpu *CPU) ins_fdcb0040(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IY+offset16(d)) & (1 << 0)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 1,(iy+00)
 func (cpu *CPU) ins_fdcb0048(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IY+offset16(d)) & (1 << 1)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 2,(iy+00)
 func (cpu *CPU) ins_fdcb0050(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IY+offset16(d)) & (1 << 2)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 3,(iy+00)
 func (cpu *CPU) ins_fdcb0058(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IY+offset16(d)) & (1 << 3)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 4,(iy+00)
 func (cpu *CPU) ins_fdcb0060(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IY+offset16(d)) & (1 << 4)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 5,(iy+00)
 func (cpu *CPU) ins_fdcb0068(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IY+offset16(d)) & (1 << 5)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 6,(iy+00)
 func (cpu *CPU) ins_fdcb0070(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IY+offset16(d)) & (1 << 6)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 
 // bit 7,(iy+00)
 func (cpu *CPU) ins_fdcb0078(d uint8) int {
 	bit := cpu.mem.Rd8(cpu.IY+offset16(d)) & (1 << 7)
-	var zf uint8
+	var flags uint8
 	if bit == 0 {
-		zf = _ZF
+		flags = _ZF | _PF
+	} else {
+		flags = _SF
 	}
-	cpu.F = (cpu.F & _CF) | _HF | zf
+	cpu.F = (cpu.F & _CF) | _HF | flags
 	return 8
 }
 

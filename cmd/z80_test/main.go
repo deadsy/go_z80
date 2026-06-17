@@ -196,9 +196,8 @@ func cmpState(cpu *z80.CPU, s *State) error {
 	if cpu.Alt_HL != s.Alt_HL {
 		return fmt.Errorf("Alt_HL")
 	}
-
 	if cpu.PC != s.PC {
-		return fmt.Errorf("PC")
+		return fmt.Errorf("PC, expected 0x%04x(%d), actual 0x%04x(%d)", s.PC, s.PC, cpu.PC, cpu.PC)
 	}
 	if cpu.SP != s.SP {
 		return fmt.Errorf("SP")
@@ -217,7 +216,7 @@ func cmpState(cpu *z80.CPU, s *State) error {
 		return fmt.Errorf("I")
 	}
 	if cpu.R != s.R {
-		return fmt.Errorf("R")
+		return fmt.Errorf("R, expected 0x%02x(%d), actual 0x%02x(%d)", s.R, s.R, cpu.R, cpu.R)
 	}
 	if cpu.IFF1 != s.IFF1 {
 		return fmt.Errorf("IFF1")
