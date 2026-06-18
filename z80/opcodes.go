@@ -6299,17 +6299,22 @@ func (cpu *CPU) ins_dd23() int {
 
 // inc ixh
 func (cpu *CPU) ins_dd24() int {
-	panic("unimplemented instruction")
+	cpu.IX += 0x0100
+	cpu.F = (cpu.F & _CF) | flagsSZHVinc[cpu.IX>>8]
+	return 8
 }
 
 // dec ixh
 func (cpu *CPU) ins_dd25() int {
-	panic("unimplemented instruction")
+	cpu.IX -= 0x0100
+	cpu.F = (cpu.F & _CF) | flagsSZHVdec[cpu.IX>>8]
+	return 8
 }
 
 // ld ixh,00
 func (cpu *CPU) ins_dd26() int {
-	panic("unimplemented instruction")
+	cpu.IX = (uint16(cpu.get_n()) << 8) | (cpu.IX & 0xff)
+	return 11
 }
 
 // jr z,0003
@@ -6348,17 +6353,22 @@ func (cpu *CPU) ins_dd2b() int {
 
 // inc ixl
 func (cpu *CPU) ins_dd2c() int {
-	panic("unimplemented instruction")
+	cpu.IX = (cpu.IX & 0xff00) | ((cpu.IX + 1) & 0xff)
+	cpu.F = (cpu.F & _CF) | flagsSZHVinc[cpu.IX&0xff]
+	return 8
 }
 
 // dec ixl
 func (cpu *CPU) ins_dd2d() int {
-	panic("unimplemented instruction")
+	cpu.IX = (cpu.IX & 0xff00) | ((cpu.IX - 1) & 0xff)
+	cpu.F = (cpu.F & _CF) | flagsSZHVdec[cpu.IX&0xff]
+	return 8
 }
 
 // ld ixl,00
 func (cpu *CPU) ins_dd2e() int {
-	panic("unimplemented instruction")
+	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.get_n())
+	return 11
 }
 
 // jr nc,0003
@@ -6418,12 +6428,14 @@ func (cpu *CPU) ins_dd39() int {
 
 // ld b,ixh
 func (cpu *CPU) ins_dd44() int {
-	panic("unimplemented instruction")
+	cpu.B = uint8(cpu.IX >> 8)
+	return 8
 }
 
 // ld b,ixl
 func (cpu *CPU) ins_dd45() int {
-	panic("unimplemented instruction")
+	cpu.B = uint8(cpu.IX & 0xff)
+	return 8
 }
 
 // ld b,(ix+00)
@@ -6435,12 +6447,14 @@ func (cpu *CPU) ins_dd46() int {
 
 // ld c,ixh
 func (cpu *CPU) ins_dd4c() int {
-	panic("unimplemented instruction")
+	cpu.C = uint8(cpu.IX >> 8)
+	return 8
 }
 
 // ld c,ixl
 func (cpu *CPU) ins_dd4d() int {
-	panic("unimplemented instruction")
+	cpu.C = uint8(cpu.IX & 0xff)
+	return 8
 }
 
 // ld c,(ix+00)
@@ -6452,12 +6466,14 @@ func (cpu *CPU) ins_dd4e() int {
 
 // ld d,ixh
 func (cpu *CPU) ins_dd54() int {
-	panic("unimplemented instruction")
+	cpu.D = uint8(cpu.IX >> 8)
+	return 8
 }
 
 // ld d,ixl
 func (cpu *CPU) ins_dd55() int {
-	panic("unimplemented instruction")
+	cpu.D = uint8(cpu.IX & 0xff)
+	return 8
 }
 
 // ld d,(ix+00)
@@ -6469,12 +6485,14 @@ func (cpu *CPU) ins_dd56() int {
 
 // ld e,ixh
 func (cpu *CPU) ins_dd5c() int {
-	panic("unimplemented instruction")
+	cpu.E = uint8(cpu.IX >> 8)
+	return 8
 }
 
 // ld e,ixl
 func (cpu *CPU) ins_dd5d() int {
-	panic("unimplemented instruction")
+	cpu.E = uint8(cpu.IX & 0xff)
+	return 8
 }
 
 // ld e,(ix+00)
@@ -6486,32 +6504,37 @@ func (cpu *CPU) ins_dd5e() int {
 
 // ld ixh,b
 func (cpu *CPU) ins_dd60() int {
-	panic("unimplemented instruction")
+	cpu.IX = (uint16(cpu.B) << 8) | (cpu.IX & 0xff)
+	return 8
 }
 
 // ld ixh,c
 func (cpu *CPU) ins_dd61() int {
-	panic("unimplemented instruction")
+	cpu.IX = (uint16(cpu.C) << 8) | (cpu.IX & 0xff)
+	return 8
 }
 
 // ld ixh,d
 func (cpu *CPU) ins_dd62() int {
-	panic("unimplemented instruction")
+	cpu.IX = (uint16(cpu.D) << 8) | (cpu.IX & 0xff)
+	return 8
 }
 
 // ld ixh,e
 func (cpu *CPU) ins_dd63() int {
-	panic("unimplemented instruction")
+	cpu.IX = (uint16(cpu.E) << 8) | (cpu.IX & 0xff)
+	return 8
 }
 
 // ld ixh,ixh
 func (cpu *CPU) ins_dd64() int {
-	panic("unimplemented instruction")
+	return 8
 }
 
 // ld ixh,ixl
 func (cpu *CPU) ins_dd65() int {
-	panic("unimplemented instruction")
+	cpu.IX = ((cpu.IX & 0xff) << 8) | (cpu.IX & 0xff)
+	return 8
 }
 
 // ld h,(ix+00)
@@ -6523,37 +6546,43 @@ func (cpu *CPU) ins_dd66() int {
 
 // ld ixh,a
 func (cpu *CPU) ins_dd67() int {
-	panic("unimplemented instruction")
+	cpu.IX = (uint16(cpu.A) << 8) | (cpu.IX & 0xff)
+	return 8
 }
 
 // ld ixl,b
 func (cpu *CPU) ins_dd68() int {
-	panic("unimplemented instruction")
+	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.B)
+	return 8
 }
 
 // ld ixl,c
 func (cpu *CPU) ins_dd69() int {
-	panic("unimplemented instruction")
+	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.C)
+	return 8
 }
 
 // ld ixl,d
 func (cpu *CPU) ins_dd6a() int {
-	panic("unimplemented instruction")
+	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.D)
+	return 8
 }
 
 // ld ixl,e
 func (cpu *CPU) ins_dd6b() int {
-	panic("unimplemented instruction")
+	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.E)
+	return 8
 }
 
 // ld ixl,ixh
 func (cpu *CPU) ins_dd6c() int {
-	panic("unimplemented instruction")
+	cpu.IX = (cpu.IX & 0xff00) | (cpu.IX >> 8)
+	return 8
 }
 
 // ld ixl,ixl
 func (cpu *CPU) ins_dd6d() int {
-	panic("unimplemented instruction")
+	return 8
 }
 
 // ld l,(ix+00)
@@ -6565,7 +6594,8 @@ func (cpu *CPU) ins_dd6e() int {
 
 // ld ixl,a
 func (cpu *CPU) ins_dd6f() int {
-	panic("unimplemented instruction")
+	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.A)
+	return 8
 }
 
 // ld (ix+00),b
@@ -6619,12 +6649,14 @@ func (cpu *CPU) ins_dd77() int {
 
 // ld a,ixh
 func (cpu *CPU) ins_dd7c() int {
-	panic("unimplemented instruction")
+	cpu.A = uint8(cpu.IX >> 8)
+	return 8
 }
 
 // ld a,ixl
 func (cpu *CPU) ins_dd7d() int {
-	panic("unimplemented instruction")
+	cpu.A = uint8(cpu.IX & 0xff)
+	return 8
 }
 
 // ld a,(ix+00)
@@ -6636,12 +6668,20 @@ func (cpu *CPU) ins_dd7e() int {
 
 // add a,ixh
 func (cpu *CPU) ins_dd84() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX >> 8)
+	result := int(cpu.A) + int(val)
+	cpu.addFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // add a,ixl
 func (cpu *CPU) ins_dd85() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX & 0xff)
+	result := int(cpu.A) + int(val)
+	cpu.addFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // add a,(ix+00)
@@ -6655,12 +6695,20 @@ func (cpu *CPU) ins_dd86() int {
 
 // adc a,ixh
 func (cpu *CPU) ins_dd8c() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX >> 8)
+	result := int(cpu.A) + int(val) + int(cpu.F&_CF)
+	cpu.addFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // adc a,ixl
 func (cpu *CPU) ins_dd8d() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX & 0xff)
+	result := int(cpu.A) + int(val) + int(cpu.F&_CF)
+	cpu.addFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // adc a,(ix+00)
@@ -6674,12 +6722,20 @@ func (cpu *CPU) ins_dd8e() int {
 
 // sub ixh
 func (cpu *CPU) ins_dd94() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX >> 8)
+	result := int(cpu.A) - int(val)
+	cpu.subFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // sub ixl
 func (cpu *CPU) ins_dd95() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX & 0xff)
+	result := int(cpu.A) - int(val)
+	cpu.subFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // sub (ix+00)
@@ -6693,12 +6749,20 @@ func (cpu *CPU) ins_dd96() int {
 
 // sbc a,ixh
 func (cpu *CPU) ins_dd9c() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX >> 8)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
+	cpu.subFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // sbc a,ixl
 func (cpu *CPU) ins_dd9d() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX & 0xff)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
+	cpu.subFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // sbc a,(ix+00)
@@ -6712,12 +6776,18 @@ func (cpu *CPU) ins_dd9e() int {
 
 // and ixh
 func (cpu *CPU) ins_dda4() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX >> 8)
+	cpu.A &= val
+	cpu.F = flagsSZP[cpu.A] | _HF
+	return 8
 }
 
 // and ixl
 func (cpu *CPU) ins_dda5() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX & 0xff)
+	cpu.A &= val
+	cpu.F = flagsSZP[cpu.A] | _HF
+	return 8
 }
 
 // and (ix+00)
@@ -6730,12 +6800,18 @@ func (cpu *CPU) ins_dda6() int {
 
 // xor ixh
 func (cpu *CPU) ins_ddac() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX >> 8)
+	cpu.A ^= val
+	cpu.F = flagsSZP[cpu.A]
+	return 8
 }
 
 // xor ixl
 func (cpu *CPU) ins_ddad() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX & 0xff)
+	cpu.A ^= val
+	cpu.F = flagsSZP[cpu.A]
+	return 8
 }
 
 // xor (ix+00)
@@ -6748,12 +6824,18 @@ func (cpu *CPU) ins_ddae() int {
 
 // or ixh
 func (cpu *CPU) ins_ddb4() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX >> 8)
+	cpu.A |= val
+	cpu.F = flagsSZP[cpu.A]
+	return 8
 }
 
 // or ixl
 func (cpu *CPU) ins_ddb5() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX & 0xff)
+	cpu.A |= val
+	cpu.F = flagsSZP[cpu.A]
+	return 8
 }
 
 // or (ix+00)
@@ -6766,12 +6848,18 @@ func (cpu *CPU) ins_ddb6() int {
 
 // cp ixh
 func (cpu *CPU) ins_ddbc() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX >> 8)
+	result := int(cpu.A) - int(val)
+	cpu.subFlags(result, val)
+	return 8
 }
 
 // cp ixl
 func (cpu *CPU) ins_ddbd() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IX & 0xff)
+	result := int(cpu.A) - int(val)
+	cpu.subFlags(result, val)
+	return 8
 }
 
 // cp (ix+00)
@@ -6810,7 +6898,8 @@ func (cpu *CPU) ins_dde9() int {
 
 // ld sp,ix
 func (cpu *CPU) ins_ddf9() int {
-	panic("unimplemented instruction")
+	cpu.SP = cpu.IX
+	return 10
 }
 
 // rlc (ix+00),b
@@ -8961,9 +9050,18 @@ func (cpu *CPU) ins_ed43() int {
 
 // neg
 func (cpu *CPU) ins_ed44() int {
-	result := -int(cpu.A)
-	cpu.subFlags(result, cpu.A)
-	cpu.A = uint8(result)
+	cpu.F = _NF
+	if cpu.A != 0 {
+		cpu.F |= _CF
+	}
+	if (cpu.A & 0x0f) != 0 {
+		cpu.F |= _HF
+	}
+	if cpu.A == 0x80 {
+		cpu.F |= _VF
+	}
+	cpu.A = -cpu.A
+	cpu.F |= flagsSZ[cpu.A]
 	return 4
 }
 
@@ -9532,17 +9630,22 @@ func (cpu *CPU) ins_fd23() int {
 
 // inc iyh
 func (cpu *CPU) ins_fd24() int {
-	panic("unimplemented instruction")
+	cpu.IY += 0x0100
+	cpu.F = (cpu.F & _CF) | flagsSZHVinc[cpu.IY>>8]
+	return 8
 }
 
 // dec iyh
 func (cpu *CPU) ins_fd25() int {
-	panic("unimplemented instruction")
+	cpu.IY -= 0x0100
+	cpu.F = (cpu.F & _CF) | flagsSZHVdec[cpu.IY>>8]
+	return 8
 }
 
 // ld iyh,00
 func (cpu *CPU) ins_fd26() int {
-	panic("unimplemented instruction")
+	cpu.IY = (uint16(cpu.get_n()) << 8) | (cpu.IY & 0xff)
+	return 11
 }
 
 // add iy,iy
@@ -9571,17 +9674,22 @@ func (cpu *CPU) ins_fd2b() int {
 
 // inc iyl
 func (cpu *CPU) ins_fd2c() int {
-	panic("unimplemented instruction")
+	cpu.IY = (cpu.IY & 0xff00) | ((cpu.IY + 1) & 0xff)
+	cpu.F = (cpu.F & _CF) | flagsSZHVinc[cpu.IY&0xff]
+	return 8
 }
 
 // dec iyl
 func (cpu *CPU) ins_fd2d() int {
-	panic("unimplemented instruction")
+	cpu.IY = (cpu.IY & 0xff00) | ((cpu.IY - 1) & 0xff)
+	cpu.F = (cpu.F & _CF) | flagsSZHVdec[cpu.IY&0xff]
+	return 8
 }
 
 // ld iyl,00
 func (cpu *CPU) ins_fd2e() int {
-	panic("unimplemented instruction")
+	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.get_n())
+	return 11
 }
 
 // inc (iy+00)
@@ -9621,12 +9729,14 @@ func (cpu *CPU) ins_fd39() int {
 
 // ld b,iyh
 func (cpu *CPU) ins_fd44() int {
-	panic("unimplemented instruction")
+	cpu.B = uint8(cpu.IY >> 8)
+	return 8
 }
 
 // ld b,iyl
 func (cpu *CPU) ins_fd45() int {
-	panic("unimplemented instruction")
+	cpu.B = uint8(cpu.IY & 0xff)
+	return 8
 }
 
 // ld b,(iy+00)
@@ -9638,12 +9748,14 @@ func (cpu *CPU) ins_fd46() int {
 
 // ld c,iyh
 func (cpu *CPU) ins_fd4c() int {
-	panic("unimplemented instruction")
+	cpu.C = uint8(cpu.IY >> 8)
+	return 8
 }
 
 // ld c,iyl
 func (cpu *CPU) ins_fd4d() int {
-	panic("unimplemented instruction")
+	cpu.C = uint8(cpu.IY & 0xff)
+	return 8
 }
 
 // ld c,(iy+00)
@@ -9655,12 +9767,14 @@ func (cpu *CPU) ins_fd4e() int {
 
 // ld d,iyh
 func (cpu *CPU) ins_fd54() int {
-	panic("unimplemented instruction")
+	cpu.D = uint8(cpu.IY >> 8)
+	return 8
 }
 
 // ld d,iyl
 func (cpu *CPU) ins_fd55() int {
-	panic("unimplemented instruction")
+	cpu.D = uint8(cpu.IY & 0xff)
+	return 8
 }
 
 // ld d,(iy+00)
@@ -9672,12 +9786,14 @@ func (cpu *CPU) ins_fd56() int {
 
 // ld e,iyh
 func (cpu *CPU) ins_fd5c() int {
-	panic("unimplemented instruction")
+	cpu.E = uint8(cpu.IY >> 8)
+	return 8
 }
 
 // ld e,iyl
 func (cpu *CPU) ins_fd5d() int {
-	panic("unimplemented instruction")
+	cpu.E = uint8(cpu.IY & 0xff)
+	return 8
 }
 
 // ld e,(iy+00)
@@ -9689,32 +9805,37 @@ func (cpu *CPU) ins_fd5e() int {
 
 // ld iyh,b
 func (cpu *CPU) ins_fd60() int {
-	panic("unimplemented instruction")
+	cpu.IY = (uint16(cpu.B) << 8) | (cpu.IY & 0xff)
+	return 8
 }
 
 // ld iyh,c
 func (cpu *CPU) ins_fd61() int {
-	panic("unimplemented instruction")
+	cpu.IY = (uint16(cpu.C) << 8) | (cpu.IY & 0xff)
+	return 8
 }
 
 // ld iyh,d
 func (cpu *CPU) ins_fd62() int {
-	panic("unimplemented instruction")
+	cpu.IY = (uint16(cpu.D) << 8) | (cpu.IY & 0xff)
+	return 8
 }
 
 // ld iyh,e
 func (cpu *CPU) ins_fd63() int {
-	panic("unimplemented instruction")
+	cpu.IY = (uint16(cpu.E) << 8) | (cpu.IY & 0xff)
+	return 8
 }
 
 // ld iyh,iyh
 func (cpu *CPU) ins_fd64() int {
-	panic("unimplemented instruction")
+	return 8
 }
 
 // ld iyh,iyl
 func (cpu *CPU) ins_fd65() int {
-	panic("unimplemented instruction")
+	cpu.IY = ((cpu.IY & 0xff) << 8) | (cpu.IY & 0xff)
+	return 8
 }
 
 // ld h,(iy+00)
@@ -9726,37 +9847,43 @@ func (cpu *CPU) ins_fd66() int {
 
 // ld iyh,a
 func (cpu *CPU) ins_fd67() int {
-	panic("unimplemented instruction")
+	cpu.IY = (uint16(cpu.A) << 8) | (cpu.IY & 0xff)
+	return 8
 }
 
 // ld iyl,b
 func (cpu *CPU) ins_fd68() int {
-	panic("unimplemented instruction")
+	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.B)
+	return 8
 }
 
 // ld iyl,c
 func (cpu *CPU) ins_fd69() int {
-	panic("unimplemented instruction")
+	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.C)
+	return 8
 }
 
 // ld iyl,d
 func (cpu *CPU) ins_fd6a() int {
-	panic("unimplemented instruction")
+	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.D)
+	return 8
 }
 
 // ld iyl,e
 func (cpu *CPU) ins_fd6b() int {
-	panic("unimplemented instruction")
+	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.E)
+	return 8
 }
 
 // ld iyl,iyh
 func (cpu *CPU) ins_fd6c() int {
-	panic("unimplemented instruction")
+	cpu.IY = (cpu.IY & 0xff00) | (cpu.IY >> 8)
+	return 8
 }
 
 // ld iyl,iyl
 func (cpu *CPU) ins_fd6d() int {
-	panic("unimplemented instruction")
+	return 8
 }
 
 // ld l,(iy+00)
@@ -9768,7 +9895,8 @@ func (cpu *CPU) ins_fd6e() int {
 
 // ld iyl,a
 func (cpu *CPU) ins_fd6f() int {
-	panic("unimplemented instruction")
+	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.A)
+	return 8
 }
 
 // ld (iy+00),b
@@ -9822,12 +9950,14 @@ func (cpu *CPU) ins_fd77() int {
 
 // ld a,iyh
 func (cpu *CPU) ins_fd7c() int {
-	panic("unimplemented instruction")
+	cpu.A = uint8(cpu.IY >> 8)
+	return 8
 }
 
 // ld a,iyl
 func (cpu *CPU) ins_fd7d() int {
-	panic("unimplemented instruction")
+	cpu.A = uint8(cpu.IY & 0xff)
+	return 8
 }
 
 // ld a,(iy+00)
@@ -9839,12 +9969,20 @@ func (cpu *CPU) ins_fd7e() int {
 
 // add a,iyh
 func (cpu *CPU) ins_fd84() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY >> 8)
+	result := int(cpu.A) + int(val)
+	cpu.addFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // add a,iyl
 func (cpu *CPU) ins_fd85() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY & 0xff)
+	result := int(cpu.A) + int(val)
+	cpu.addFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // add a,(iy+00)
@@ -9858,12 +9996,20 @@ func (cpu *CPU) ins_fd86() int {
 
 // adc a,iyh
 func (cpu *CPU) ins_fd8c() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY >> 8)
+	result := int(cpu.A) + int(val) + int(cpu.F&_CF)
+	cpu.addFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // adc a,iyl
 func (cpu *CPU) ins_fd8d() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY & 0xff)
+	result := int(cpu.A) + int(val) + int(cpu.F&_CF)
+	cpu.addFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // adc a,(iy+00)
@@ -9877,12 +10023,20 @@ func (cpu *CPU) ins_fd8e() int {
 
 // sub iyh
 func (cpu *CPU) ins_fd94() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY >> 8)
+	result := int(cpu.A) - int(val)
+	cpu.subFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // sub iyl
 func (cpu *CPU) ins_fd95() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY & 0xff)
+	result := int(cpu.A) - int(val)
+	cpu.subFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // sub (iy+00)
@@ -9896,12 +10050,20 @@ func (cpu *CPU) ins_fd96() int {
 
 // sbc a,iyh
 func (cpu *CPU) ins_fd9c() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY >> 8)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
+	cpu.subFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // sbc a,iyl
 func (cpu *CPU) ins_fd9d() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY & 0xff)
+	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
+	cpu.subFlags(result, val)
+	cpu.A = uint8(result)
+	return 8
 }
 
 // sbc a,(iy+00)
@@ -9915,12 +10077,18 @@ func (cpu *CPU) ins_fd9e() int {
 
 // and iyh
 func (cpu *CPU) ins_fda4() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY >> 8)
+	cpu.A &= val
+	cpu.F = flagsSZP[cpu.A] | _HF
+	return 8
 }
 
 // and iyl
 func (cpu *CPU) ins_fda5() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY & 0xff)
+	cpu.A &= val
+	cpu.F = flagsSZP[cpu.A] | _HF
+	return 8
 }
 
 // and (iy+00)
@@ -9933,12 +10101,18 @@ func (cpu *CPU) ins_fda6() int {
 
 // xor iyh
 func (cpu *CPU) ins_fdac() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY >> 8)
+	cpu.A ^= val
+	cpu.F = flagsSZP[cpu.A]
+	return 8
 }
 
 // xor iyl
 func (cpu *CPU) ins_fdad() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY & 0xff)
+	cpu.A ^= val
+	cpu.F = flagsSZP[cpu.A]
+	return 8
 }
 
 // xor (iy+00)
@@ -9951,12 +10125,18 @@ func (cpu *CPU) ins_fdae() int {
 
 // or iyh
 func (cpu *CPU) ins_fdb4() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY >> 8)
+	cpu.A |= val
+	cpu.F = flagsSZP[cpu.A]
+	return 8
 }
 
 // or iyl
 func (cpu *CPU) ins_fdb5() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY & 0xff)
+	cpu.A |= val
+	cpu.F = flagsSZP[cpu.A]
+	return 8
 }
 
 // or (iy+00)
@@ -9969,12 +10149,18 @@ func (cpu *CPU) ins_fdb6() int {
 
 // cp iyh
 func (cpu *CPU) ins_fdbc() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY >> 8)
+	result := int(cpu.A) - int(val)
+	cpu.subFlags(result, val)
+	return 8
 }
 
 // cp iyl
 func (cpu *CPU) ins_fdbd() int {
-	panic("unimplemented instruction")
+	val := uint8(cpu.IY & 0xff)
+	result := int(cpu.A) - int(val)
+	cpu.subFlags(result, val)
+	return 8
 }
 
 // cp (iy+00)
@@ -10013,7 +10199,8 @@ func (cpu *CPU) ins_fde9() int {
 
 // ld sp,iy
 func (cpu *CPU) ins_fdf9() int {
-	panic("unimplemented instruction")
+	cpu.SP = cpu.IY
+	return 10
 }
 
 // rlc (iy+00),b

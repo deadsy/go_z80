@@ -252,7 +252,6 @@ func (cpu *CPU) execute_fd() int {
 }
 
 func (cpu *CPU) execute_ddcb() int {
-	cpu.inc_r()
 	d := cpu.get_n()
 	code := cpu.get_n()
 	return 8 + opcodes_ddcb00[code](cpu, d)

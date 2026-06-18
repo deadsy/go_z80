@@ -76,7 +76,7 @@ _rp2 = ("bc", "de", "hl", "af")
 _direct_rp = ("sp", "ix", "iy")
 _cc = ("nz", "z", "nc", "c", "po", "pe", "p", "m")
 _alu = ("add", "adc", "sub", "sbc", "and", "xor", "or", "cp")
-_alux = ("a,", "a,", "", "a,", "", "", "", "")
+_alux = ("a", "a", "", "a", "", "", "", "")
 _rot = ("rlc", "rrc", "rl", "rr", "sla", "sra", "sll", "srl")
 _rota = ("rlca", "rrca", "rla", "rra", "daa", "cpl", "scf", "ccf")
 _im = ("0", "0", "1", "2", "0", "0", "1", "2")
@@ -99,6 +99,50 @@ def emit_ld_r_n(out, r):
     else:
         out.put("cpu.%s = cpu.get_n()\n" % r.upper())
         out.put("return 7\n")
+
+
+def emit_ld_hilo_immediate(out, r):
+    hi = r[2] == "h"
+    r = r[:-1].upper()
+    if hi:
+        out.put(f"cpu.{r} = (uint16(cpu.get_n()) << 8) | (cpu.{r} & 0xff)\n")
+    else:
+        out.put(f"cpu.{r} = (cpu.{r} & 0xff00) | uint16(cpu.get_n())\n")
+    out.put("return 11\n")
+
+
+def emit_ld_r_hilo(out, dst, src):
+    if dst == src:
+        out.put("return 8\n")
+        return
+
+    if dst in _r:
+        dst = dst.upper()
+        hi = src[2] == "h"
+        src = src[:-1].upper()
+        select = ("& 0xff", ">> 8")[hi]
+        out.put(f"cpu.{dst} = uint8(cpu.{src} {select})\n")
+        out.put("return 8\n")
+        return
+
+    if src in _r:
+        src = src.upper()
+        hi = dst[2] == "h"
+        dst = dst[:-1].upper()
+        if hi:
+            out.put(f"cpu.{dst} = (uint16(cpu.{src}) << 8) | (cpu.{dst} & 0xff)\n")
+        else:
+            out.put(f"cpu.{dst} = (cpu.{dst} & 0xff00) | uint16(cpu.{src})\n")
+        out.put("return 8\n")
+        return
+
+    lo2hi = (dst[2] == "h") and (src[2] == "l")
+    dst = dst[:-1].upper()
+    if lo2hi:
+        out.put(f"cpu.{dst} = ((cpu.{dst} & 0xff) << 8) | (cpu.{dst} & 0xff)\n")
+    else:
+        out.put(f"cpu.{dst} = (cpu.{dst} & 0xff00) | (cpu.{dst} >> 8)\n")
+    out.put("return 8\n")
 
 
 def emit_ld_mem_xx_n(out, r):
@@ -199,6 +243,10 @@ def emit_ld_sp_hl(out):
     out.put("cpu.SP = cpu.get_hl()\n")
     out.put("return 6\n")
 
+def emit_ld_index(out, r):
+    """ld sp, ix/iy"""
+    out.put(f"cpu.SP = cpu.{r.upper()}\n")
+    out.put("return 10\n")
 
 def emit_pop_rp(out, rp):
     """pop rp"""
@@ -435,7 +483,6 @@ def emit_alu_r(out, op, r):
     else:
         assert False
 
-
 def emit_alu_n(out, op):
     """alu operation with immediate"""
     out.put("val := cpu.get_n()\n")
@@ -460,10 +507,10 @@ def emit_alu_n(out, op):
         out.put("cpu.F =  flagsSZP[cpu.A] | _HF\n")
     elif op == "xor":
         out.put("cpu.A ^= val\n")
-        out.put("cpu.F =  flagsSZP[cpu.A]\n")
+        out.put("cpu.F = flagsSZP[cpu.A]\n")
     elif op == "or":
         out.put("cpu.A |= val\n")
-        out.put("cpu.F =  flagsSZP[cpu.A]\n")
+        out.put("cpu.F = flagsSZP[cpu.A]\n")
     elif op == "cp":
         out.put("result := int(cpu.A) - int(val)\n")
         out.put("cpu.subFlags(result, val)\n")
@@ -471,6 +518,45 @@ def emit_alu_n(out, op):
         assert False
     out.put("return 7\n")
 
+
+def emit_alu_hilo(out, op, dst, src):
+
+    hi = src[2] == "h"
+    select = ("& 0xff", ">> 8")[hi]
+    src = src[:-1].upper()
+    out.put(f"val := uint8(cpu.{src} {select})\n")
+
+    if op == "add":
+        out.put("result := int(cpu.A) + int(val)\n")
+        out.put("cpu.addFlags(result, val)\n")
+        out.put("cpu.A = uint8(result)\n")
+    elif op == "adc":
+        out.put("result := int(cpu.A) + int(val) + int(cpu.F & _CF)\n")
+        out.put("cpu.addFlags(result, val)\n")
+        out.put("cpu.A = uint8(result)\n")
+    elif op == "sub":
+        out.put("result := int(cpu.A) - int(val)\n")
+        out.put("cpu.subFlags(result, val)\n")
+        out.put("cpu.A = uint8(result)\n")
+    elif op == "sbc":
+        out.put("result := int(cpu.A) - int(val) - int(cpu.F & _CF)\n")
+        out.put("cpu.subFlags(result, val)\n")
+        out.put("cpu.A = uint8(result)\n")
+    elif op == "and":
+        out.put("cpu.A &= val\n")
+        out.put("cpu.F = flagsSZP[cpu.A] | _HF\n")
+    elif op == "xor":
+        out.put("cpu.A ^= val\n")
+        out.put("cpu.F = flagsSZP[cpu.A]\n")
+    elif op == "or":
+        out.put("cpu.A |= val\n")
+        out.put("cpu.F = flagsSZP[cpu.A]\n")
+    elif op == "cp":
+        out.put("result := int(cpu.A) - int(val)\n")
+        out.put("cpu.subFlags(result, val)\n")
+    else:
+        assert(False)
+    out.put("return 8\n")
 
 # -----------------------------------------------------------------------------
 # General-Purpose Arithmetic and CPU Control Groups
@@ -563,11 +649,13 @@ def emit_daa(out):
 
 def emit_neg(out):
     """neg"""
-    out.put("result := -int(cpu.A)\n")
-    out.put("cpu.subFlags(result, cpu.A)\n")
-    out.put("cpu.A = uint8(result)\n")
+    out.put("cpu.F = _NF\n")
+    out.put("if cpu.A != 0 {cpu.F |= _CF}\n")
+    out.put("if (cpu.A & 0x0f) != 0 {cpu.F |= _HF}\n")
+    out.put("if cpu.A == 0x80 {cpu.F |= _VF}\n")
+    out.put("cpu.A = -cpu.A\n")
+    out.put("cpu.F |= flagsSZ[cpu.A]\n")
     out.put("return 4\n")
-
 
 # -----------------------------------------------------------------------------
 # 16-Bit Arithmetic Group
@@ -615,6 +703,22 @@ def emit_inc_rp(out, rp):
     else:
         out.put("cpu.set_%s(cpu.get_%s() + 1)\n" % (rp, rp))
     out.put("return 6\n")
+
+
+def emit_inc_dec_r_hilo(out, r, op):
+    """inc/dec high/low byte of ix or iy register"""
+    flags = ("flagsSZHVinc", "flagsSZHVdec")[op == "dec"]
+    hi = r[2] == "h"
+    select = ("& 0xff", ">> 8")[hi]
+    r = r[:-1].upper()
+    if hi:
+        delta = ("+= 0x0100", "-= 0x0100")[op == "dec"]
+        out.put(f"cpu.{r} {delta}\n")
+    else:
+        delta = ("+ 1", "- 1")[op == "dec"]
+        out.put(f"cpu.{r} = (cpu.{r} & 0xff00) | ((cpu.{r} {delta}) & 0xff)\n")
+    out.put(f"cpu.F = (cpu.F & _CF) | {flags}[cpu.{r} {select}]\n")
+    out.put("return 8\n")
 
 
 # -----------------------------------------------------------------------------
@@ -1211,20 +1315,17 @@ def emit_index(out, code, ir):
             if y == 6:
                 return emit_inc_dec_r(out, alt0_r[y], "inc")
             else:
-                # return ('inc', alt1_r[y], 2)
-                return emit_unimplemented(out)
+                return emit_inc_dec_r_hilo(out, alt1_r[y], "inc")
         elif z == 5:
             if y == 6:
                 return emit_inc_dec_r(out, alt0_r[y], "dec")
             else:
-                # return ('dec', alt1_r[y], 2)
-                return emit_unimplemented(out)
+                return emit_inc_dec_r_hilo(out, alt1_r[y], "dec")
         elif z == 6:
             if y == 6:
                 return emit_ld_mem_xx_n(out, ir)
             else:
-                # return ('ld', '%s,%02x' % (alt1_r[y], n0), 3)
-                return emit_unimplemented(out)
+                return emit_ld_hilo_immediate(out, alt1_r[y])
         else:
             # return (_rota[y], '', 2)
             return emit_unimplemented(out)
@@ -1234,17 +1335,14 @@ def emit_index(out, code, ir):
             return emit_unimplemented(out)
         else:
             if (y == 6) or (z == 6):
-                # return ('ld', '%s,%s' % (alt0_r[y], alt0_r[z]), 3)
                 return emit_ld_r_r(out, alt0_r[y], alt0_r[z])
             else:
-                # return ('ld', '%s,%s' % (alt1_r[y], alt1_r[z]), 2)
-                return emit_unimplemented(out)
+                return emit_ld_r_hilo(out, alt1_r[y], alt1_r[z])
     elif x == 2:
         if z == 6:
             return emit_alu_r(out, _alu[y], alt0_r[z])
         else:
-            # return (_alu[y], '%s%s' % (_alux[y], alt1_r[z]), 2)
-            return emit_unimplemented(out)
+            return emit_alu_hilo(out, _alu[y], _alux[y], alt1_r[z])
     else:
         if z == 0:
             # return ('ret', _cc[y], 2)
@@ -1261,8 +1359,7 @@ def emit_index(out, code, ir):
                 elif p == 2:
                     return emit_jp_rp(out, ir)
                 else:
-                    # return ('ld', 'sp,%s' % ir, 2)
-                    return emit_unimplemented(out)
+                    return emit_ld_index(out, ir)
         elif z == 2:
             return emit_jp_cc_nn(out, _cc[y])
         elif z == 3:
