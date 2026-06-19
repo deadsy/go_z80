@@ -3470,7 +3470,7 @@ func (cpu *CPU) ins_d2() int {
 // out (00),a
 func (cpu *CPU) ins_d3() int {
 	cpu.io.Wr8((uint16(cpu.A)<<8)|uint16(cpu.get_n()), cpu.A)
-	return 7
+	return 11
 }
 
 // call nc,0000
@@ -3543,7 +3543,7 @@ func (cpu *CPU) ins_da() int {
 // in a,(00)
 func (cpu *CPU) ins_db() int {
 	cpu.A = cpu.io.Rd8((uint16(cpu.A) << 8) | uint16(cpu.get_n()))
-	return 7
+	return 11
 }
 
 // call c,0000
@@ -3669,7 +3669,7 @@ func (cpu *CPU) ins_ea() int {
 func (cpu *CPU) ins_eb() int {
 	cpu.D, cpu.H = cpu.H, cpu.D
 	cpu.E, cpu.L = cpu.L, cpu.E
-	return 6
+	return 4
 }
 
 // call pe,0000
@@ -6301,20 +6301,20 @@ func (cpu *CPU) ins_dd23() int {
 func (cpu *CPU) ins_dd24() int {
 	cpu.IX += 0x0100
 	cpu.F = (cpu.F & _CF) | flagsSZHVinc[cpu.IX>>8]
-	return 8
+	return 4
 }
 
 // dec ixh
 func (cpu *CPU) ins_dd25() int {
 	cpu.IX -= 0x0100
 	cpu.F = (cpu.F & _CF) | flagsSZHVdec[cpu.IX>>8]
-	return 8
+	return 4
 }
 
 // ld ixh,00
 func (cpu *CPU) ins_dd26() int {
 	cpu.IX = (uint16(cpu.get_n()) << 8) | (cpu.IX & 0xff)
-	return 11
+	return 7
 }
 
 // jr z,0003
@@ -6355,20 +6355,20 @@ func (cpu *CPU) ins_dd2b() int {
 func (cpu *CPU) ins_dd2c() int {
 	cpu.IX = (cpu.IX & 0xff00) | ((cpu.IX + 1) & 0xff)
 	cpu.F = (cpu.F & _CF) | flagsSZHVinc[cpu.IX&0xff]
-	return 8
+	return 4
 }
 
 // dec ixl
 func (cpu *CPU) ins_dd2d() int {
 	cpu.IX = (cpu.IX & 0xff00) | ((cpu.IX - 1) & 0xff)
 	cpu.F = (cpu.F & _CF) | flagsSZHVdec[cpu.IX&0xff]
-	return 8
+	return 4
 }
 
 // ld ixl,00
 func (cpu *CPU) ins_dd2e() int {
 	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.get_n())
-	return 11
+	return 7
 }
 
 // jr nc,0003
@@ -6429,13 +6429,13 @@ func (cpu *CPU) ins_dd39() int {
 // ld b,ixh
 func (cpu *CPU) ins_dd44() int {
 	cpu.B = uint8(cpu.IX >> 8)
-	return 8
+	return 4
 }
 
 // ld b,ixl
 func (cpu *CPU) ins_dd45() int {
 	cpu.B = uint8(cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld b,(ix+00)
@@ -6448,13 +6448,13 @@ func (cpu *CPU) ins_dd46() int {
 // ld c,ixh
 func (cpu *CPU) ins_dd4c() int {
 	cpu.C = uint8(cpu.IX >> 8)
-	return 8
+	return 4
 }
 
 // ld c,ixl
 func (cpu *CPU) ins_dd4d() int {
 	cpu.C = uint8(cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld c,(ix+00)
@@ -6467,13 +6467,13 @@ func (cpu *CPU) ins_dd4e() int {
 // ld d,ixh
 func (cpu *CPU) ins_dd54() int {
 	cpu.D = uint8(cpu.IX >> 8)
-	return 8
+	return 4
 }
 
 // ld d,ixl
 func (cpu *CPU) ins_dd55() int {
 	cpu.D = uint8(cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld d,(ix+00)
@@ -6486,13 +6486,13 @@ func (cpu *CPU) ins_dd56() int {
 // ld e,ixh
 func (cpu *CPU) ins_dd5c() int {
 	cpu.E = uint8(cpu.IX >> 8)
-	return 8
+	return 4
 }
 
 // ld e,ixl
 func (cpu *CPU) ins_dd5d() int {
 	cpu.E = uint8(cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld e,(ix+00)
@@ -6505,36 +6505,36 @@ func (cpu *CPU) ins_dd5e() int {
 // ld ixh,b
 func (cpu *CPU) ins_dd60() int {
 	cpu.IX = (uint16(cpu.B) << 8) | (cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld ixh,c
 func (cpu *CPU) ins_dd61() int {
 	cpu.IX = (uint16(cpu.C) << 8) | (cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld ixh,d
 func (cpu *CPU) ins_dd62() int {
 	cpu.IX = (uint16(cpu.D) << 8) | (cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld ixh,e
 func (cpu *CPU) ins_dd63() int {
 	cpu.IX = (uint16(cpu.E) << 8) | (cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld ixh,ixh
 func (cpu *CPU) ins_dd64() int {
-	return 8
+	return 4
 }
 
 // ld ixh,ixl
 func (cpu *CPU) ins_dd65() int {
 	cpu.IX = ((cpu.IX & 0xff) << 8) | (cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld h,(ix+00)
@@ -6547,42 +6547,42 @@ func (cpu *CPU) ins_dd66() int {
 // ld ixh,a
 func (cpu *CPU) ins_dd67() int {
 	cpu.IX = (uint16(cpu.A) << 8) | (cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld ixl,b
 func (cpu *CPU) ins_dd68() int {
 	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.B)
-	return 8
+	return 4
 }
 
 // ld ixl,c
 func (cpu *CPU) ins_dd69() int {
 	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.C)
-	return 8
+	return 4
 }
 
 // ld ixl,d
 func (cpu *CPU) ins_dd6a() int {
 	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.D)
-	return 8
+	return 4
 }
 
 // ld ixl,e
 func (cpu *CPU) ins_dd6b() int {
 	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.E)
-	return 8
+	return 4
 }
 
 // ld ixl,ixh
 func (cpu *CPU) ins_dd6c() int {
 	cpu.IX = (cpu.IX & 0xff00) | (cpu.IX >> 8)
-	return 8
+	return 4
 }
 
 // ld ixl,ixl
 func (cpu *CPU) ins_dd6d() int {
-	return 8
+	return 4
 }
 
 // ld l,(ix+00)
@@ -6595,7 +6595,7 @@ func (cpu *CPU) ins_dd6e() int {
 // ld ixl,a
 func (cpu *CPU) ins_dd6f() int {
 	cpu.IX = (cpu.IX & 0xff00) | uint16(cpu.A)
-	return 8
+	return 4
 }
 
 // ld (ix+00),b
@@ -6650,13 +6650,13 @@ func (cpu *CPU) ins_dd77() int {
 // ld a,ixh
 func (cpu *CPU) ins_dd7c() int {
 	cpu.A = uint8(cpu.IX >> 8)
-	return 8
+	return 4
 }
 
 // ld a,ixl
 func (cpu *CPU) ins_dd7d() int {
 	cpu.A = uint8(cpu.IX & 0xff)
-	return 8
+	return 4
 }
 
 // ld a,(ix+00)
@@ -6672,7 +6672,7 @@ func (cpu *CPU) ins_dd84() int {
 	result := int(cpu.A) + int(val)
 	cpu.addFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // add a,ixl
@@ -6681,7 +6681,7 @@ func (cpu *CPU) ins_dd85() int {
 	result := int(cpu.A) + int(val)
 	cpu.addFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // add a,(ix+00)
@@ -6699,7 +6699,7 @@ func (cpu *CPU) ins_dd8c() int {
 	result := int(cpu.A) + int(val) + int(cpu.F&_CF)
 	cpu.addFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // adc a,ixl
@@ -6708,7 +6708,7 @@ func (cpu *CPU) ins_dd8d() int {
 	result := int(cpu.A) + int(val) + int(cpu.F&_CF)
 	cpu.addFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // adc a,(ix+00)
@@ -6726,7 +6726,7 @@ func (cpu *CPU) ins_dd94() int {
 	result := int(cpu.A) - int(val)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // sub ixl
@@ -6735,7 +6735,7 @@ func (cpu *CPU) ins_dd95() int {
 	result := int(cpu.A) - int(val)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // sub (ix+00)
@@ -6753,7 +6753,7 @@ func (cpu *CPU) ins_dd9c() int {
 	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // sbc a,ixl
@@ -6762,7 +6762,7 @@ func (cpu *CPU) ins_dd9d() int {
 	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // sbc a,(ix+00)
@@ -6779,7 +6779,7 @@ func (cpu *CPU) ins_dda4() int {
 	val := uint8(cpu.IX >> 8)
 	cpu.A &= val
 	cpu.F = flagsSZP[cpu.A] | _HF
-	return 8
+	return 4
 }
 
 // and ixl
@@ -6787,7 +6787,7 @@ func (cpu *CPU) ins_dda5() int {
 	val := uint8(cpu.IX & 0xff)
 	cpu.A &= val
 	cpu.F = flagsSZP[cpu.A] | _HF
-	return 8
+	return 4
 }
 
 // and (ix+00)
@@ -6803,7 +6803,7 @@ func (cpu *CPU) ins_ddac() int {
 	val := uint8(cpu.IX >> 8)
 	cpu.A ^= val
 	cpu.F = flagsSZP[cpu.A]
-	return 8
+	return 4
 }
 
 // xor ixl
@@ -6811,7 +6811,7 @@ func (cpu *CPU) ins_ddad() int {
 	val := uint8(cpu.IX & 0xff)
 	cpu.A ^= val
 	cpu.F = flagsSZP[cpu.A]
-	return 8
+	return 4
 }
 
 // xor (ix+00)
@@ -6827,7 +6827,7 @@ func (cpu *CPU) ins_ddb4() int {
 	val := uint8(cpu.IX >> 8)
 	cpu.A |= val
 	cpu.F = flagsSZP[cpu.A]
-	return 8
+	return 4
 }
 
 // or ixl
@@ -6835,7 +6835,7 @@ func (cpu *CPU) ins_ddb5() int {
 	val := uint8(cpu.IX & 0xff)
 	cpu.A |= val
 	cpu.F = flagsSZP[cpu.A]
-	return 8
+	return 4
 }
 
 // or (ix+00)
@@ -6851,7 +6851,7 @@ func (cpu *CPU) ins_ddbc() int {
 	val := uint8(cpu.IX >> 8)
 	result := int(cpu.A) - int(val)
 	cpu.subFlags(result, val)
-	return 8
+	return 4
 }
 
 // cp ixl
@@ -6859,7 +6859,7 @@ func (cpu *CPU) ins_ddbd() int {
 	val := uint8(cpu.IX & 0xff)
 	result := int(cpu.A) - int(val)
 	cpu.subFlags(result, val)
-	return 8
+	return 4
 }
 
 // cp (ix+00)
@@ -6899,7 +6899,7 @@ func (cpu *CPU) ins_dde9() int {
 // ld sp,ix
 func (cpu *CPU) ins_ddf9() int {
 	cpu.SP = cpu.IX
-	return 10
+	return 6
 }
 
 // rlc (ix+00),b
@@ -9067,7 +9067,9 @@ func (cpu *CPU) ins_ed44() int {
 
 // retn
 func (cpu *CPU) ins_ed45() int {
-	panic("unimplemented instruction")
+	cpu.IFF1 = cpu.IFF2
+	cpu.PC = cpu.pop16()
+	return 10
 }
 
 // im 0
@@ -9079,7 +9081,7 @@ func (cpu *CPU) ins_ed46() int {
 // ld i,a
 func (cpu *CPU) ins_ed47() int {
 	cpu.I = cpu.A
-	return 9
+	return 5
 }
 
 // in c,(c)
@@ -9116,13 +9118,15 @@ func (cpu *CPU) ins_ed4b() int {
 
 // reti
 func (cpu *CPU) ins_ed4d() int {
-	panic("unimplemented instruction")
+	cpu.IFF1 = cpu.IFF2
+	cpu.PC = cpu.pop16()
+	return 10
 }
 
 // ld r,a
 func (cpu *CPU) ins_ed4f() int {
 	cpu.R = cpu.A
-	return 9
+	return 5
 }
 
 // in d,(c)
@@ -9167,7 +9171,7 @@ func (cpu *CPU) ins_ed56() int {
 func (cpu *CPU) ins_ed57() int {
 	cpu.A = cpu.I
 	cpu.F = (cpu.F & _CF) | (flagsSZ[cpu.A]) | (cpu.IFF2 << 2)
-	return 9
+	return 5
 }
 
 // in e,(c)
@@ -9212,7 +9216,7 @@ func (cpu *CPU) ins_ed5e() int {
 func (cpu *CPU) ins_ed5f() int {
 	cpu.A = cpu.R
 	cpu.F = (cpu.F & _CF) | (flagsSZ[cpu.A]) | (cpu.IFF2 << 2)
-	return 9
+	return 5
 }
 
 // in h,(c)
@@ -9371,38 +9375,52 @@ func (cpu *CPU) ins_eda0() int {
 
 // cpi
 func (cpu *CPU) ins_eda1() int {
-	s := cpu.get_hl()
+	src := cpu.get_hl()
+	val := cpu.mem.Rd8(src)
+	res := int(cpu.A) - int(val)
+	cpu.set_hl(src + 1)
 	n := cpu.get_bc() - 1
-	val := cpu.mem.Rd8(s)
-	res := cpu.A - val
-	cpu.F = (cpu.F & _CF) | _NF
-	cpu.F |= (flagsSZ[res] &^ (_YF | _XF))
-	cpu.F |= ((cpu.A ^ val ^ res) & _HF)
-	if (cpu.F & _HF) != 0 {
-		res -= 1
-	}
-	if (res & 0x02) != 0 {
-		cpu.F |= _YF
-	}
-	if (res & 0x08) != 0 {
-		cpu.F |= _XF
-	}
-	cpu.set_hl(s + 1)
 	cpu.set_bc(n)
-	if n != 0 {
-		cpu.F |= _VF
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.A == val {
+		cpu.F |= _ZF
 	}
+	if n != 0 {
+		cpu.F |= _PF
+	}
+	if res&0x80 != 0 {
+		cpu.F |= _SF
+	}
+	cpu.F |= (cpu.A ^ val ^ uint8(res)) & _HF
 	return 12
 }
 
 // ini
 func (cpu *CPU) ins_eda2() int {
-	panic("unimplemented instruction")
+	dst := cpu.get_hl()
+	val := cpu.io.Rd8(cpu.get_bc())
+	cpu.mem.Wr8(dst, val)
+	cpu.set_hl(dst + 1)
+	cpu.B -= 1
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.B == 0 {
+		cpu.F |= _ZF
+	}
+	return 12
 }
 
 // outi
 func (cpu *CPU) ins_eda3() int {
-	panic("unimplemented instruction")
+	src := cpu.get_hl()
+	val := cpu.mem.Rd8(src)
+	cpu.B -= 1
+	cpu.io.Wr8(cpu.get_bc(), val)
+	cpu.set_hl(src + 1)
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.B == 0 {
+		cpu.F |= _ZF
+	}
+	return 12
 }
 
 // ldd
@@ -9430,38 +9448,52 @@ func (cpu *CPU) ins_eda8() int {
 
 // cpd
 func (cpu *CPU) ins_eda9() int {
-	s := cpu.get_hl()
+	src := cpu.get_hl()
+	val := cpu.mem.Rd8(src)
+	res := int(cpu.A) - int(val)
+	cpu.set_hl(src - 1)
 	n := cpu.get_bc() - 1
-	val := cpu.mem.Rd8(s)
-	res := cpu.A - val
-	cpu.F = (cpu.F & _CF) | _NF
-	cpu.F |= (flagsSZ[res] &^ (_YF | _XF))
-	cpu.F |= ((cpu.A ^ val ^ res) & _HF)
-	if (cpu.F & _HF) != 0 {
-		res -= 1
-	}
-	if (res & 0x02) != 0 {
-		cpu.F |= _YF
-	}
-	if (res & 0x08) != 0 {
-		cpu.F |= _XF
-	}
-	cpu.set_hl(s - 1)
 	cpu.set_bc(n)
-	if n != 0 {
-		cpu.F |= _VF
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.A == val {
+		cpu.F |= _ZF
 	}
+	if n != 0 {
+		cpu.F |= _PF
+	}
+	if res&0x80 != 0 {
+		cpu.F |= _SF
+	}
+	cpu.F |= (cpu.A ^ val ^ uint8(res)) & _HF
 	return 12
 }
 
 // ind
 func (cpu *CPU) ins_edaa() int {
-	panic("unimplemented instruction")
+	dst := cpu.get_hl()
+	val := cpu.io.Rd8(cpu.get_bc())
+	cpu.mem.Wr8(dst, val)
+	cpu.set_hl(dst - 1)
+	cpu.B -= 1
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.B == 0 {
+		cpu.F |= _ZF
+	}
+	return 12
 }
 
 // outd
 func (cpu *CPU) ins_edab() int {
-	panic("unimplemented instruction")
+	src := cpu.get_hl()
+	val := cpu.mem.Rd8(src)
+	cpu.B -= 1
+	cpu.io.Wr8(cpu.get_bc(), val)
+	cpu.set_hl(src - 1)
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.B == 0 {
+		cpu.F |= _ZF
+	}
+	return 12
 }
 
 // ldir
@@ -9491,25 +9523,24 @@ func (cpu *CPU) ins_edb0() int {
 
 // cpir
 func (cpu *CPU) ins_edb1() int {
-	s := cpu.get_hl()
+	src := cpu.get_hl()
+	val := cpu.mem.Rd8(src)
+	res := int(cpu.A) - int(val)
+	cpu.set_hl(src + 1)
 	n := cpu.get_bc() - 1
-	val := cpu.mem.Rd8(s)
-	res := cpu.A - val
-	cpu.F = (cpu.F & _CF) | _NF
-	cpu.F |= (flagsSZ[res] &^ (_YF | _XF))
-	cpu.F |= ((cpu.A ^ val ^ res) & _HF)
-	if (cpu.F & _HF) != 0 {
-		res -= 1
-	}
-	if (res & 0x02) != 0 {
-		cpu.F |= _YF
-	}
-	if (res & 0x08) != 0 {
-		cpu.F |= _XF
-	}
-	cpu.set_hl(s + 1)
 	cpu.set_bc(n)
-	if (n != 0) && ((cpu.F & _ZF) == 0) {
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.A == val {
+		cpu.F |= _ZF
+	}
+	if n != 0 {
+		cpu.F |= _PF
+	}
+	if res&0x80 != 0 {
+		cpu.F |= _SF
+	}
+	cpu.F |= (cpu.A ^ val ^ uint8(res)) & _HF
+	if (cpu.A != val) && (n != 0) {
 		cpu.PC -= 2
 		return 17
 	}
@@ -9518,12 +9549,38 @@ func (cpu *CPU) ins_edb1() int {
 
 // inir
 func (cpu *CPU) ins_edb2() int {
-	panic("unimplemented instruction")
+	dst := cpu.get_hl()
+	val := cpu.io.Rd8(cpu.get_bc())
+	cpu.mem.Wr8(dst, val)
+	cpu.set_hl(dst + 1)
+	cpu.B -= 1
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.B == 0 {
+		cpu.F |= _ZF
+	}
+	if cpu.B != 0 {
+		cpu.PC -= 2
+		return 17
+	}
+	return 12
 }
 
 // otir
 func (cpu *CPU) ins_edb3() int {
-	panic("unimplemented instruction")
+	src := cpu.get_hl()
+	val := cpu.mem.Rd8(src)
+	cpu.B -= 1
+	cpu.io.Wr8(cpu.get_bc(), val)
+	cpu.set_hl(src + 1)
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.B == 0 {
+		cpu.F |= _ZF
+	}
+	if cpu.B != 0 {
+		cpu.PC -= 2
+		return 17
+	}
+	return 12
 }
 
 // lddr
@@ -9553,25 +9610,24 @@ func (cpu *CPU) ins_edb8() int {
 
 // cpdr
 func (cpu *CPU) ins_edb9() int {
-	s := cpu.get_hl()
+	src := cpu.get_hl()
+	val := cpu.mem.Rd8(src)
+	res := int(cpu.A) - int(val)
+	cpu.set_hl(src - 1)
 	n := cpu.get_bc() - 1
-	val := cpu.mem.Rd8(s)
-	res := cpu.A - val
-	cpu.F = (cpu.F & _CF) | _NF
-	cpu.F |= (flagsSZ[res] &^ (_YF | _XF))
-	cpu.F |= ((cpu.A ^ val ^ res) & _HF)
-	if (cpu.F & _HF) != 0 {
-		res -= 1
-	}
-	if (res & 0x02) != 0 {
-		cpu.F |= _YF
-	}
-	if (res & 0x08) != 0 {
-		cpu.F |= _XF
-	}
-	cpu.set_hl(s - 1)
 	cpu.set_bc(n)
-	if (n != 0) && ((cpu.F & _ZF) == 0) {
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.A == val {
+		cpu.F |= _ZF
+	}
+	if n != 0 {
+		cpu.F |= _PF
+	}
+	if res&0x80 != 0 {
+		cpu.F |= _SF
+	}
+	cpu.F |= (cpu.A ^ val ^ uint8(res)) & _HF
+	if (cpu.A != val) && (n != 0) {
 		cpu.PC -= 2
 		return 17
 	}
@@ -9580,12 +9636,38 @@ func (cpu *CPU) ins_edb9() int {
 
 // indr
 func (cpu *CPU) ins_edba() int {
-	panic("unimplemented instruction")
+	dst := cpu.get_hl()
+	val := cpu.io.Rd8(cpu.get_bc())
+	cpu.mem.Wr8(dst, val)
+	cpu.set_hl(dst - 1)
+	cpu.B -= 1
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.B == 0 {
+		cpu.F |= _ZF
+	}
+	if cpu.B != 0 {
+		cpu.PC -= 2
+		return 17
+	}
+	return 12
 }
 
 // otdr
 func (cpu *CPU) ins_edbb() int {
-	panic("unimplemented instruction")
+	src := cpu.get_hl()
+	val := cpu.mem.Rd8(src)
+	cpu.B -= 1
+	cpu.io.Wr8(cpu.get_bc(), val)
+	cpu.set_hl(src - 1)
+	cpu.F = (cpu.F & _CF) | _NF
+	if cpu.B == 0 {
+		cpu.F |= _ZF
+	}
+	if cpu.B != 0 {
+		cpu.PC -= 2
+		return 17
+	}
+	return 12
 }
 
 // add iy,bc
@@ -9632,20 +9714,20 @@ func (cpu *CPU) ins_fd23() int {
 func (cpu *CPU) ins_fd24() int {
 	cpu.IY += 0x0100
 	cpu.F = (cpu.F & _CF) | flagsSZHVinc[cpu.IY>>8]
-	return 8
+	return 4
 }
 
 // dec iyh
 func (cpu *CPU) ins_fd25() int {
 	cpu.IY -= 0x0100
 	cpu.F = (cpu.F & _CF) | flagsSZHVdec[cpu.IY>>8]
-	return 8
+	return 4
 }
 
 // ld iyh,00
 func (cpu *CPU) ins_fd26() int {
 	cpu.IY = (uint16(cpu.get_n()) << 8) | (cpu.IY & 0xff)
-	return 11
+	return 7
 }
 
 // add iy,iy
@@ -9676,20 +9758,20 @@ func (cpu *CPU) ins_fd2b() int {
 func (cpu *CPU) ins_fd2c() int {
 	cpu.IY = (cpu.IY & 0xff00) | ((cpu.IY + 1) & 0xff)
 	cpu.F = (cpu.F & _CF) | flagsSZHVinc[cpu.IY&0xff]
-	return 8
+	return 4
 }
 
 // dec iyl
 func (cpu *CPU) ins_fd2d() int {
 	cpu.IY = (cpu.IY & 0xff00) | ((cpu.IY - 1) & 0xff)
 	cpu.F = (cpu.F & _CF) | flagsSZHVdec[cpu.IY&0xff]
-	return 8
+	return 4
 }
 
 // ld iyl,00
 func (cpu *CPU) ins_fd2e() int {
 	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.get_n())
-	return 11
+	return 7
 }
 
 // inc (iy+00)
@@ -9730,13 +9812,13 @@ func (cpu *CPU) ins_fd39() int {
 // ld b,iyh
 func (cpu *CPU) ins_fd44() int {
 	cpu.B = uint8(cpu.IY >> 8)
-	return 8
+	return 4
 }
 
 // ld b,iyl
 func (cpu *CPU) ins_fd45() int {
 	cpu.B = uint8(cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld b,(iy+00)
@@ -9749,13 +9831,13 @@ func (cpu *CPU) ins_fd46() int {
 // ld c,iyh
 func (cpu *CPU) ins_fd4c() int {
 	cpu.C = uint8(cpu.IY >> 8)
-	return 8
+	return 4
 }
 
 // ld c,iyl
 func (cpu *CPU) ins_fd4d() int {
 	cpu.C = uint8(cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld c,(iy+00)
@@ -9768,13 +9850,13 @@ func (cpu *CPU) ins_fd4e() int {
 // ld d,iyh
 func (cpu *CPU) ins_fd54() int {
 	cpu.D = uint8(cpu.IY >> 8)
-	return 8
+	return 4
 }
 
 // ld d,iyl
 func (cpu *CPU) ins_fd55() int {
 	cpu.D = uint8(cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld d,(iy+00)
@@ -9787,13 +9869,13 @@ func (cpu *CPU) ins_fd56() int {
 // ld e,iyh
 func (cpu *CPU) ins_fd5c() int {
 	cpu.E = uint8(cpu.IY >> 8)
-	return 8
+	return 4
 }
 
 // ld e,iyl
 func (cpu *CPU) ins_fd5d() int {
 	cpu.E = uint8(cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld e,(iy+00)
@@ -9806,36 +9888,36 @@ func (cpu *CPU) ins_fd5e() int {
 // ld iyh,b
 func (cpu *CPU) ins_fd60() int {
 	cpu.IY = (uint16(cpu.B) << 8) | (cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld iyh,c
 func (cpu *CPU) ins_fd61() int {
 	cpu.IY = (uint16(cpu.C) << 8) | (cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld iyh,d
 func (cpu *CPU) ins_fd62() int {
 	cpu.IY = (uint16(cpu.D) << 8) | (cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld iyh,e
 func (cpu *CPU) ins_fd63() int {
 	cpu.IY = (uint16(cpu.E) << 8) | (cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld iyh,iyh
 func (cpu *CPU) ins_fd64() int {
-	return 8
+	return 4
 }
 
 // ld iyh,iyl
 func (cpu *CPU) ins_fd65() int {
 	cpu.IY = ((cpu.IY & 0xff) << 8) | (cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld h,(iy+00)
@@ -9848,42 +9930,42 @@ func (cpu *CPU) ins_fd66() int {
 // ld iyh,a
 func (cpu *CPU) ins_fd67() int {
 	cpu.IY = (uint16(cpu.A) << 8) | (cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld iyl,b
 func (cpu *CPU) ins_fd68() int {
 	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.B)
-	return 8
+	return 4
 }
 
 // ld iyl,c
 func (cpu *CPU) ins_fd69() int {
 	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.C)
-	return 8
+	return 4
 }
 
 // ld iyl,d
 func (cpu *CPU) ins_fd6a() int {
 	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.D)
-	return 8
+	return 4
 }
 
 // ld iyl,e
 func (cpu *CPU) ins_fd6b() int {
 	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.E)
-	return 8
+	return 4
 }
 
 // ld iyl,iyh
 func (cpu *CPU) ins_fd6c() int {
 	cpu.IY = (cpu.IY & 0xff00) | (cpu.IY >> 8)
-	return 8
+	return 4
 }
 
 // ld iyl,iyl
 func (cpu *CPU) ins_fd6d() int {
-	return 8
+	return 4
 }
 
 // ld l,(iy+00)
@@ -9896,7 +9978,7 @@ func (cpu *CPU) ins_fd6e() int {
 // ld iyl,a
 func (cpu *CPU) ins_fd6f() int {
 	cpu.IY = (cpu.IY & 0xff00) | uint16(cpu.A)
-	return 8
+	return 4
 }
 
 // ld (iy+00),b
@@ -9951,13 +10033,13 @@ func (cpu *CPU) ins_fd77() int {
 // ld a,iyh
 func (cpu *CPU) ins_fd7c() int {
 	cpu.A = uint8(cpu.IY >> 8)
-	return 8
+	return 4
 }
 
 // ld a,iyl
 func (cpu *CPU) ins_fd7d() int {
 	cpu.A = uint8(cpu.IY & 0xff)
-	return 8
+	return 4
 }
 
 // ld a,(iy+00)
@@ -9973,7 +10055,7 @@ func (cpu *CPU) ins_fd84() int {
 	result := int(cpu.A) + int(val)
 	cpu.addFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // add a,iyl
@@ -9982,7 +10064,7 @@ func (cpu *CPU) ins_fd85() int {
 	result := int(cpu.A) + int(val)
 	cpu.addFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // add a,(iy+00)
@@ -10000,7 +10082,7 @@ func (cpu *CPU) ins_fd8c() int {
 	result := int(cpu.A) + int(val) + int(cpu.F&_CF)
 	cpu.addFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // adc a,iyl
@@ -10009,7 +10091,7 @@ func (cpu *CPU) ins_fd8d() int {
 	result := int(cpu.A) + int(val) + int(cpu.F&_CF)
 	cpu.addFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // adc a,(iy+00)
@@ -10027,7 +10109,7 @@ func (cpu *CPU) ins_fd94() int {
 	result := int(cpu.A) - int(val)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // sub iyl
@@ -10036,7 +10118,7 @@ func (cpu *CPU) ins_fd95() int {
 	result := int(cpu.A) - int(val)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // sub (iy+00)
@@ -10054,7 +10136,7 @@ func (cpu *CPU) ins_fd9c() int {
 	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // sbc a,iyl
@@ -10063,7 +10145,7 @@ func (cpu *CPU) ins_fd9d() int {
 	result := int(cpu.A) - int(val) - int(cpu.F&_CF)
 	cpu.subFlags(result, val)
 	cpu.A = uint8(result)
-	return 8
+	return 4
 }
 
 // sbc a,(iy+00)
@@ -10080,7 +10162,7 @@ func (cpu *CPU) ins_fda4() int {
 	val := uint8(cpu.IY >> 8)
 	cpu.A &= val
 	cpu.F = flagsSZP[cpu.A] | _HF
-	return 8
+	return 4
 }
 
 // and iyl
@@ -10088,7 +10170,7 @@ func (cpu *CPU) ins_fda5() int {
 	val := uint8(cpu.IY & 0xff)
 	cpu.A &= val
 	cpu.F = flagsSZP[cpu.A] | _HF
-	return 8
+	return 4
 }
 
 // and (iy+00)
@@ -10104,7 +10186,7 @@ func (cpu *CPU) ins_fdac() int {
 	val := uint8(cpu.IY >> 8)
 	cpu.A ^= val
 	cpu.F = flagsSZP[cpu.A]
-	return 8
+	return 4
 }
 
 // xor iyl
@@ -10112,7 +10194,7 @@ func (cpu *CPU) ins_fdad() int {
 	val := uint8(cpu.IY & 0xff)
 	cpu.A ^= val
 	cpu.F = flagsSZP[cpu.A]
-	return 8
+	return 4
 }
 
 // xor (iy+00)
@@ -10128,7 +10210,7 @@ func (cpu *CPU) ins_fdb4() int {
 	val := uint8(cpu.IY >> 8)
 	cpu.A |= val
 	cpu.F = flagsSZP[cpu.A]
-	return 8
+	return 4
 }
 
 // or iyl
@@ -10136,7 +10218,7 @@ func (cpu *CPU) ins_fdb5() int {
 	val := uint8(cpu.IY & 0xff)
 	cpu.A |= val
 	cpu.F = flagsSZP[cpu.A]
-	return 8
+	return 4
 }
 
 // or (iy+00)
@@ -10152,7 +10234,7 @@ func (cpu *CPU) ins_fdbc() int {
 	val := uint8(cpu.IY >> 8)
 	result := int(cpu.A) - int(val)
 	cpu.subFlags(result, val)
-	return 8
+	return 4
 }
 
 // cp iyl
@@ -10160,7 +10242,7 @@ func (cpu *CPU) ins_fdbd() int {
 	val := uint8(cpu.IY & 0xff)
 	result := int(cpu.A) - int(val)
 	cpu.subFlags(result, val)
-	return 8
+	return 4
 }
 
 // cp (iy+00)
@@ -10200,7 +10282,7 @@ func (cpu *CPU) ins_fde9() int {
 // ld sp,iy
 func (cpu *CPU) ins_fdf9() int {
 	cpu.SP = cpu.IY
-	return 10
+	return 6
 }
 
 // rlc (iy+00),b

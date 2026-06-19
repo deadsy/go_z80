@@ -108,12 +108,12 @@ def emit_ld_hilo_immediate(out, r):
         out.put(f"cpu.{r} = (uint16(cpu.get_n()) << 8) | (cpu.{r} & 0xff)\n")
     else:
         out.put(f"cpu.{r} = (cpu.{r} & 0xff00) | uint16(cpu.get_n())\n")
-    out.put("return 11\n")
+    out.put("return 7\n")
 
 
 def emit_ld_r_hilo(out, dst, src):
     if dst == src:
-        out.put("return 8\n")
+        out.put("return 4\n")
         return
 
     if dst in _r:
@@ -122,7 +122,7 @@ def emit_ld_r_hilo(out, dst, src):
         src = src[:-1].upper()
         select = ("& 0xff", ">> 8")[hi]
         out.put(f"cpu.{dst} = uint8(cpu.{src} {select})\n")
-        out.put("return 8\n")
+        out.put("return 4\n")
         return
 
     if src in _r:
@@ -133,7 +133,7 @@ def emit_ld_r_hilo(out, dst, src):
             out.put(f"cpu.{dst} = (uint16(cpu.{src}) << 8) | (cpu.{dst} & 0xff)\n")
         else:
             out.put(f"cpu.{dst} = (cpu.{dst} & 0xff00) | uint16(cpu.{src})\n")
-        out.put("return 8\n")
+        out.put("return 4\n")
         return
 
     lo2hi = (dst[2] == "h") and (src[2] == "l")
@@ -142,7 +142,7 @@ def emit_ld_r_hilo(out, dst, src):
         out.put(f"cpu.{dst} = ((cpu.{dst} & 0xff) << 8) | (cpu.{dst} & 0xff)\n")
     else:
         out.put(f"cpu.{dst} = (cpu.{dst} & 0xff00) | (cpu.{dst} >> 8)\n")
-    out.put("return 8\n")
+    out.put("return 4\n")
 
 
 def emit_ld_mem_xx_n(out, r):
@@ -198,7 +198,7 @@ def emit_ld_ira(out, d, s):
     out.put("cpu.%s = cpu.%s\n" % (d.upper(), s.upper()))
     if d == "a":
         out.put("cpu.F =  (cpu.F & _CF) | (flagsSZ[cpu.A]) | (cpu.IFF2 << 2)\n")
-    out.put("return 9\n")
+    out.put("return 5\n")
 
 
 # -----------------------------------------------------------------------------
@@ -243,10 +243,12 @@ def emit_ld_sp_hl(out):
     out.put("cpu.SP = cpu.get_hl()\n")
     out.put("return 6\n")
 
+
 def emit_ld_index(out, r):
     """ld sp, ix/iy"""
     out.put(f"cpu.SP = cpu.{r.upper()}\n")
-    out.put("return 10\n")
+    out.put("return 6\n")
+
 
 def emit_pop_rp(out, rp):
     """pop rp"""
@@ -278,7 +280,7 @@ def emit_ex_de_hl(out):
     """ex de,hl"""
     out.put("cpu.D, cpu.H = cpu.H, cpu.D\n")
     out.put("cpu.E, cpu.L = cpu.L, cpu.E\n")
-    out.put("return 6\n")
+    out.put("return 4\n")
 
 
 def emit_ex_af_af(out):
@@ -316,57 +318,81 @@ def emit_ldxx(out, op):
     out.put("return 12\n")
 
 
-def emit_cpxx(out, op):
-    """cpi, cpd, cpir, cpdr"""
-    dirn = ("-", "+")[op in ("cpi", "cpir")]
-    out.put("s := cpu.get_hl()\n")
+def emit_cp_mem(out, inc, rep):
+    delta = ("-1", "+1")[inc]
+    out.put("src := cpu.get_hl()\n")
+    out.put("val := cpu.mem.Rd8(src)\n")
+    out.put("res := int(cpu.A) - int(val)\n")
+    out.put(f"cpu.set_hl(src {delta})\n")
     out.put("n := cpu.get_bc() - 1\n")
-    out.put("val := cpu.mem.Rd8(s)\n")
-    out.put("res := cpu.A - val\n")
-    out.put("cpu.F =  (cpu.F & _CF) | _NF\n")
-    out.put("cpu.F |= (flagsSZ[res] &^ (_YF | _XF))\n")
-    out.put("cpu.F |= ((cpu.A ^ val ^ res) & _HF)\n")
-
-    out.put("if (cpu.F & _HF) != 0 {res -= 1}\n")
-    out.put("if (res & 0x02) != 0 {cpu.F |= _YF}\n")
-    out.put("if (res & 0x08) != 0 {cpu.F |= _XF}\n")
-    out.put("cpu.set_hl(s %s 1)\n" % dirn)
     out.put("cpu.set_bc(n)\n")
+    out.put("cpu.F =  (cpu.F & _CF) | _NF\n")
+    out.put("if cpu.A == val {cpu.F |= _ZF}\n")
+    out.put("if n != 0 {cpu.F |= _PF}\n")
+    out.put("if res & 0x80 != 0 {cpu.F |= _SF}\n")
+    out.put("cpu.F |= (cpu.A ^ val ^ uint8(res)) & _HF\n")
+    if rep:
+        out.put("if (cpu.A != val) && (n != 0) {cpu.PC -= 2; return 17}\n")
+    out.put("return 12\n")
 
-    if op in ("cpi", "cpd"):
-        out.put("if n != 0 {cpu.F |= _VF}\n")
-        out.put("return 12\n")
-    else:
-        out.put("if (n != 0) && ((cpu.F & _ZF) == 0) {\n")
-        out.put("    cpu.PC -= 2\n")
-        out.put("    return 17\n")
-        out.put("}\n")
-        out.put("return 12\n")
+
+def emit_in_io(out, inc, rep):
+    delta = ("-1", "+ 1")[inc]
+    out.put("dst := cpu.get_hl()\n")
+    out.put("val := cpu.io.Rd8(cpu.get_bc())\n")
+    out.put("cpu.mem.Wr8(dst, val)\n")
+    out.put(f"cpu.set_hl(dst {delta})\n")
+    out.put("cpu.B -= 1\n")
+    out.put("cpu.F = (cpu.F & _CF) | _NF\n")
+    out.put("if cpu.B == 0 {cpu.F |= _ZF}\n")
+    if rep:
+        out.put("if cpu.B != 0 {cpu.PC -= 2; return 17}\n")
+    out.put("return 12\n")
+
+
+def emit_out_io(out, inc, rep):
+    delta = ("-1", "+ 1")[inc]
+    out.put("src := cpu.get_hl()\n")
+    out.put("val := cpu.mem.Rd8(src)\n")
+    out.put("cpu.B -= 1\n")
+    out.put("cpu.io.Wr8(cpu.get_bc(), val)\n")
+    out.put(f"cpu.set_hl(src {delta})\n")
+    out.put("cpu.F = (cpu.F & _CF) | _NF\n")
+    out.put("if cpu.B == 0 {cpu.F |= _ZF}\n")
+    if rep:
+        out.put("if cpu.B != 0 {cpu.PC -= 2; return 17}\n")
+    out.put("return 12\n")
 
 
 def emit_bli(out, op):
     """block instructions"""
     if op in ("ldi", "ldir", "ldd", "lddr"):
         return emit_ldxx(out, op)
-    if op in ("cpi", "cpir", "cpd", "cpdr"):
-        return emit_cpxx(out, op)
 
-    if op == "ini":
-        out.put('panic("unimplemented instruction")\n')
-    elif op == "ind":
-        out.put('panic("unimplemented instruction")\n')
+    if op == "cpi":
+        emit_cp_mem(out, True, False)
+    elif op == "cpir":
+        emit_cp_mem(out, True, True)
+    elif op == "cpd":
+        emit_cp_mem(out, False, False)
+    elif op == "cpdr":
+        emit_cp_mem(out, False, True)
+    elif op == "ini":
+        emit_in_io(out, True, False)
     elif op == "inir":
-        out.put('panic("unimplemented instruction")\n')
+        emit_in_io(out, True, True)
+    elif op == "ind":
+        emit_in_io(out, False, False)
     elif op == "indr":
-        out.put('panic("unimplemented instruction")\n')
+        emit_in_io(out, False, True)
     elif op == "outi":
-        out.put('panic("unimplemented instruction")\n')
-    elif op == "outd":
-        out.put('panic("unimplemented instruction")\n')
+        emit_out_io(out, True, False)
     elif op == "otir":
-        out.put('panic("unimplemented instruction")\n')
+        emit_out_io(out, True, True)
+    elif op == "outd":
+        emit_out_io(out, False, False)
     elif op == "otdr":
-        out.put('panic("unimplemented instruction")\n')
+        emit_out_io(out, False, True)
     else:
         assert False
 
@@ -483,6 +509,7 @@ def emit_alu_r(out, op, r):
     else:
         assert False
 
+
 def emit_alu_n(out, op):
     """alu operation with immediate"""
     out.put("val := cpu.get_n()\n")
@@ -555,8 +582,9 @@ def emit_alu_hilo(out, op, dst, src):
         out.put("result := int(cpu.A) - int(val)\n")
         out.put("cpu.subFlags(result, val)\n")
     else:
-        assert(False)
-    out.put("return 8\n")
+        assert False
+    out.put("return 4\n")
+
 
 # -----------------------------------------------------------------------------
 # General-Purpose Arithmetic and CPU Control Groups
@@ -657,6 +685,7 @@ def emit_neg(out):
     out.put("cpu.F |= flagsSZ[cpu.A]\n")
     out.put("return 4\n")
 
+
 # -----------------------------------------------------------------------------
 # 16-Bit Arithmetic Group
 
@@ -718,7 +747,7 @@ def emit_inc_dec_r_hilo(out, r, op):
         delta = ("+ 1", "- 1")[op == "dec"]
         out.put(f"cpu.{r} = (cpu.{r} & 0xff00) | ((cpu.{r} {delta}) & 0xff)\n")
     out.put(f"cpu.F = (cpu.F & _CF) | {flags}[cpu.{r} {select}]\n")
-    out.put("return 8\n")
+    out.put("return 4\n")
 
 
 # -----------------------------------------------------------------------------
@@ -1079,6 +1108,20 @@ def emit_ret(out):
     out.put("return 10\n")
 
 
+def emit_retn(out):
+    """retn"""
+    out.put("cpu.IFF1 = cpu.IFF2\n")
+    out.put("cpu.PC = cpu.pop16()\n")
+    out.put("return 10\n")
+
+
+def emit_reti(out):
+    """reti"""
+    out.put("cpu.IFF1 = cpu.IFF2\n")
+    out.put("cpu.PC = cpu.pop16()\n")
+    out.put("return 10\n")
+
+
 # -----------------------------------------------------------------------------
 # Input and Output Group
 
@@ -1095,13 +1138,13 @@ def emit_in_r_c(out, r):
 def emit_in_a_n(out):
     """in a,(n)"""
     out.put("cpu.A = cpu.io.Rd8((uint16(cpu.A) << 8) | uint16(cpu.get_n()))   \n")
-    out.put("return 7\n")
+    out.put("return 11\n")
 
 
 def emit_out_n_a(out):
     """out (n),a"""
     out.put("cpu.io.Wr8((uint16(cpu.A) << 8) | uint16(cpu.get_n()), cpu.A)\n")
-    out.put("return 7\n")
+    out.put("return 11\n")
 
 
 def emit_out_c_r(out, r):
@@ -1493,11 +1536,9 @@ def emit_ed_prefix(out, code):
             return emit_neg(out)
         elif z == 5:
             if y == 1:
-                # return ('reti', '', 2)
-                return emit_unimplemented(out)
+                return emit_reti(out)
             else:
-                # return ('retn', '', 2)
-                return emit_unimplemented(out)
+                return emit_retn(out)
         elif z == 6:
             return emit_im(out, _im[y])
         else:

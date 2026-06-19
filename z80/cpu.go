@@ -113,15 +113,15 @@ func (cpu *CPU) String() string {
 //-----------------------------------------------------------------------------
 // flags
 
-const _CF = 0x01 // carry
-const _NF = 0x02 // subtract
-const _PF = 0x04 // parity
+const _CF = uint8(0x01) // carry
+const _NF = uint8(0x02) // subtract
+const _PF = uint8(0x04) // parity
 const _VF = _PF  // overflow
-const _XF = 0x08 // bit3 - undocumented
-const _HF = 0x10 // half carry (bcd)
-const _YF = 0x20 // bit5 - undocumented
-const _ZF = 0x40 // zero
-const _SF = 0x80 // sign
+const _XF = uint8(0x08) // bit3 - undocumented
+const _HF = uint8(0x10) // half carry (bcd)
+const _YF = uint8(0x20) // bit5 - undocumented
+const _ZF = uint8(0x40) // zero
+const _SF = uint8(0x80) // sign
 
 func flagBit(val, bit uint8, s string) string {
 	if val&bit != 0 {
@@ -258,7 +258,6 @@ func (cpu *CPU) execute_ddcb() int {
 }
 
 func (cpu *CPU) execute_fdcb() int {
-	cpu.inc_r()
 	d := cpu.get_n()
 	code := cpu.get_n()
 	return 8 + opcodes_fdcb00[code](cpu, d)
