@@ -33,6 +33,16 @@ var _bli = [][]string{
 
 //-----------------------------------------------------------------------------
 
+func getSign(d uint16) string {
+	if int16(d) < 0 {
+		// fmt.Sprintf("%02x") will add the "-"
+		return ""
+	}
+	return "+"
+}
+
+//-----------------------------------------------------------------------------
+
 // SymbolTable maps an address to a symbol.
 type SymbolTable map[uint16]string
 
@@ -78,18 +88,14 @@ func da_Index(mem Memory, pc uint16, ir string) Decode {
 	nn := uint16(m2)<<8 | uint16(m1)
 
 	d := offset16(m1)
-
-	sign := ""
-	if int16(d) >= 0 {
-		sign = "+"
-	}
+	sign := getSign(d)
 
 	dj := pc + d + 2
 
 	// if using (hl) then: (hl)->(ix+d), h and l unchanged
 	alt0r := make([]string, len(_r))
 	copy(alt0r, _r)
-	alt0r[6] = fmt.Sprintf("(%s%s%02x)", ir, sign, uint8(d))
+	alt0r[6] = fmt.Sprintf("(%s%s%02x)", ir, sign, int8(d))
 
 	// if not using (hl) then: hl->ix, h->ixh, l->ixl
 	alt1r := make([]string, len(_r))
@@ -236,13 +242,9 @@ func da_ddcb_fdcb_Prefix(mem Memory, pc uint16, ir string) Decode {
 	z := m1 & 7
 
 	d := offset16(m0)
+	sign := getSign(d)
 
-	sign := ""
-	if int16(d) >= 0 {
-		sign = "+"
-	}
-
-	disp := fmt.Sprintf("(%s%s%02x)", ir, sign, uint8(d))
+	disp := fmt.Sprintf("(%s%s%02x)", ir, sign, int8(d))
 
 	if x == 0 {
 		if z == 6 {

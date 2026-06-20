@@ -5,7 +5,6 @@
 package z80
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -15,10 +14,17 @@ type memory struct {
 	data []byte
 }
 
+const memPad = 8
+
 func newMemory(data []byte) *memory {
-	return &memory{
-		data: data,
+	n := len(data) + memPad
+	m := &memory{
+		data: make([]byte, n),
 	}
+	for i := range data {
+		m.data[i] = data[i]
+	}
+	return m
 }
 
 func (m *memory) Rd8(adr uint16) uint8 {
@@ -33,10 +39,10 @@ func (m *memory) Rd16(adr uint16) uint16      { return 0 }
 
 func Test_Disassemble(t *testing.T) {
 	tests := []struct {
-		bytes     []byte
-		mneumonic string
-		operands  string
-		extraLen  int // optional 3rd tuple element (0 means not set)
+		bytes      []byte
+		mnemonic   string
+		operands   string
+		specialLen int // optional 3rd tuple element (0 means not set)
 	}{
 		// documented opcodes
 		{[]byte{(1 << 6) | (0 << 3) | 0}, "ld", "b,b", 0},
@@ -1665,10 +1671,25 @@ func Test_Disassemble(t *testing.T) {
 		{[]byte{0xFF}, "rst", "38", 0},
 	}
 
-	for _, v := range tests {
+	for i, v := range tests {
 		m := newMemory(v.bytes)
 		d := daInstruction(m, 0)
-		fmt.Printf("%s %s %d\n", d.Mnemonic, d.Operands, d.Length)
+		if d.Mnemonic != v.mnemonic {
+			t.Fatalf("case %d: bad mnemonic, expected %s, actual %s", i, v.mnemonic, d.Mnemonic)
+		}
+		if d.Operands != v.operands {
+			t.Fatalf("case %d: bad operands, expected %s, actual %s", i, v.operands, d.Operands)
+		}
+
+		if v.specialLen == 0 {
+			if d.Length != len(v.bytes) {
+				t.Fatalf("case %d: bad length, expected %d, actual %d", i, len(v.bytes), d.Length)
+			}
+		} else {
+			if d.Length != v.specialLen {
+				t.Fatalf("case %d: bad length, expected %d, actual %d", i, v.specialLen, d.Length)
+			}
+		}
 	}
 
 }
