@@ -116,7 +116,7 @@ func (cpu *CPU) String() string {
 const _CF = uint8(0x01) // carry
 const _NF = uint8(0x02) // subtract
 const _PF = uint8(0x04) // parity
-const _VF = _PF  // overflow
+const _VF = _PF         // overflow
 const _XF = uint8(0x08) // bit3 - undocumented
 const _HF = uint8(0x10) // half carry (bcd)
 const _YF = uint8(0x20) // bit5 - undocumented
