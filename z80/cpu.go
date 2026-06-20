@@ -43,9 +43,11 @@ type CPU struct {
 	Alt_AF, Alt_BC, Alt_DE, Alt_HL uint16
 	PC, SP, IX, IY                 uint16
 	IM, I, R, IFF1, IFF2           uint8
-	halt                           bool
-	io                             IO
-	mem                            Memory
+
+	halt        bool
+	io          IO
+	mem         Memory
+	totalCycles int
 }
 
 func New(io IO, mem Memory) *CPU {
@@ -198,7 +200,7 @@ func (cpu *CPU) inc_r() {
 
 // Execute a single instruction at the current mem[pc] location.
 // Return the number of clock cycles taken.
-func (cpu *CPU) Execute() int {
+func (cpu *CPU) execute() int {
 	cpu.inc_r()
 	code := cpu.get_n()
 	return opcodes[code](cpu)
@@ -365,6 +367,15 @@ func (cpu *CPU) get_n() uint8 {
 	n := cpu.mem.Rd8(cpu.PC)
 	cpu.PC += 1
 	return n
+}
+
+//-----------------------------------------------------------------------------
+
+// Run the Z80 CPU for a single instruction.
+func (cpu *CPU) Run() error {
+	cycles := cpu.execute()
+	cpu.totalCycles += cycles
+	return nil
 }
 
 //-----------------------------------------------------------------------------

@@ -57,7 +57,7 @@ type Disassembly struct {
 
 func (da *Disassembly) String() string {
 	s := make([]string, 2)
-	s[0] = fmt.Sprintf("%-16s %8s %-13s", da.Dump, da.Symbol, da.Instruction)
+	s[0] = fmt.Sprintf("%-18s %8s %-13s", da.Dump, da.Symbol, da.Instruction)
 	if da.Comment != "" {
 		s[1] = fmt.Sprintf(" ; %s", da.Comment)
 	}
