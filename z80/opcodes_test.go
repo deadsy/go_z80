@@ -1,8 +1,15 @@
 //-----------------------------------------------------------------------------
+/*
 
+Test z80 opcodes
+
+Single steps each opcode and check final machine, memory and IO state.
+Uses JSON test vectors from https://github.com/SingleStepTests/z80
+
+*/
 //-----------------------------------------------------------------------------
 
-package main
+package z80
 
 import (
 	"encoding/json"
@@ -11,8 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/deadsy/go_z80/z80"
+	"testing"
 )
 
 //-----------------------------------------------------------------------------
@@ -21,19 +27,96 @@ const KiB = 1024
 
 //-----------------------------------------------------------------------------
 
+// ignore the undocumented XY flags
+const ignore_XY_Flags = true
+
+// ignore state errors for these tests
+var ignoreStateErrors = []string{
+	"ED A2",
+	"ED A3",
+	"ED AA",
+	"ED AB",
+	"ED B2",
+	"ED B3",
+	"ED BA",
+	"ED BB",
+}
+
+func ignoreState(name string) bool {
+	for _, v := range ignoreStateErrors {
+		if strings.HasPrefix(name, v) {
+			return true
+		}
+	}
+	return false
+}
+
+//-----------------------------------------------------------------------------
+// Opcode Test Memory
+
+type otMemory struct {
+	mem [64 * KiB]uint8
+}
+
+func newOpcodeTestMemory() Memory {
+	return &otMemory{}
+}
+
+func (m *otMemory) Wr8(addr uint16, val uint8) {
+	//log.Printf("mem wr8 [%04x] = %02x", addr, val)
+	m.mem[addr] = val
+}
+
+func (m *otMemory) Rd8(addr uint16) uint8 {
+	return m.mem[addr]
+}
+
+func (m *otMemory) Wr16(addr uint16, val uint16) {
+	//log.Printf("mem wr16 [%04x] = %04x", addr, val)
+	m.mem[addr] = uint8(val)
+	m.mem[addr+1] = uint8(val >> 8)
+}
+
+func (m *otMemory) Rd16(addr uint16) uint16 {
+	return uint16(m.mem[addr]) + (uint16(m.mem[addr+1]) << 8)
+}
+
+func (m *otMemory) Set(ram [][2]int) {
+	for _, x := range ram {
+		addr := uint16(x[0])
+		val := uint8(x[1])
+		m.Wr8(addr, val)
+	}
+}
+
+func (m *otMemory) Check(ram [][2]int) error {
+	for _, x := range ram {
+		addr := uint16(x[0])
+		expected := uint8(x[1])
+		actual := m.Rd8(addr)
+		if actual != expected {
+			return fmt.Errorf("[%04x] is %02x, expected %02x", addr, actual, expected)
+		}
+	}
+	return nil
+}
+
+//-----------------------------------------------------------------------------
+// Opcode Test IO
+
 const ioRead = uint8(1 << 0)
 const ioWrite = uint8(1 << 1)
 
-type IO struct {
+type otIO struct {
 	port [64 * KiB]uint8
 	op   [64 * KiB]uint8
 }
 
-func NewIO() z80.IO {
-	return &IO{}
+func newOpcodeTestIO() IO {
+	return &otIO{}
 }
 
-func (io *IO) Wr8(addr uint16, val uint8) {
+func (io *otIO) Wr8(addr uint16, val uint8) {
 	//log.Printf("io wr8 [%04x] = %02x", addr, val)
 	if io.op[addr]&ioWrite != 0 {
 		io.port[addr] = val
@@ -42,7 +125,7 @@ func (io *IO) Wr8(addr uint16, val uint8) {
 	}
 }
 
-func (io *IO) Rd8(addr uint16) uint8 {
+func (io *otIO) Rd8(addr uint16) uint8 {
 	//log.Printf("io rd8 [%04x]", addr)
 	if io.op[addr]&ioRead != 0 {
 		return io.port[addr]
@@ -51,7 +134,7 @@ func (io *IO) Rd8(addr uint16) uint8 {
 	return 0
 }
 
-func (io *IO) Set(ports [][3]any) {
+func (io *otIO) Set(ports [][3]any) {
 	for _, x := range ports {
 		addr := uint16(x[0].(float64))
 		val := uint8(x[1].(float64))
@@ -69,58 +152,10 @@ func (io *IO) Set(ports [][3]any) {
 }
 
 //-----------------------------------------------------------------------------
-
-type Memory struct {
-	mem [64 * KiB]uint8
-}
-
-func NewMemory() z80.Memory {
-	return &Memory{}
-}
-
-func (m *Memory) Wr8(addr uint16, val uint8) {
-	//log.Printf("mem wr8 [%04x] = %02x", addr, val)
-	m.mem[addr] = val
-}
-
-func (m *Memory) Rd8(addr uint16) uint8 {
-	return m.mem[addr]
-}
-
-func (m *Memory) Wr16(addr uint16, val uint16) {
-	//log.Printf("mem wr16 [%04x] = %04x", addr, val)
-	m.mem[addr] = uint8(val)
-	m.mem[addr+1] = uint8(val >> 8)
-}
-
-func (m *Memory) Rd16(addr uint16) uint16 {
-	return uint16(m.mem[addr]) + (uint16(m.mem[addr+1]) << 8)
-}
-
-func (m *Memory) Set(ram [][2]int) {
-	for _, x := range ram {
-		addr := uint16(x[0])
-		val := uint8(x[1])
-		m.Wr8(addr, val)
-	}
-}
-
-func (m *Memory) Check(ram [][2]int) error {
-	for _, x := range ram {
-		addr := uint16(x[0])
-		expected := uint8(x[1])
-		actual := m.Rd8(addr)
-		if actual != expected {
-			return fmt.Errorf("[%04x] is %02x, expected %02x", addr, actual, expected)
-		}
-	}
-	return nil
-}
-
-//-----------------------------------------------------------------------------
+// Opcode Test State
 
 // State matches the register values before and after an instruction executes
-type State struct {
+type otState struct {
 	A byte `json:"a"`
 	F byte `json:"f"`
 	B byte `json:"b"`
@@ -154,16 +189,16 @@ type State struct {
 	Ram [][2]int `json:"ram"`
 }
 
-// Z80Test represents a single standalone test vector
-type Z80Test struct {
+// opcodeTest represents a single standalone test vector
+type opcodeTest struct {
 	Name    string   `json:"name"`
-	Initial State    `json:"initial"`
-	Final   State    `json:"final"`
+	Initial otState  `json:"initial"`
+	Final   otState  `json:"final"`
 	Cycles  [][3]any `json:"cycles"`
 	Ports   [][3]any `json:"ports"`
 }
 
-func setState(cpu *z80.CPU, s *State) {
+func (s *otState) set(cpu *CPU) {
 
 	cpu.A = s.A
 	cpu.F = s.F
@@ -191,11 +226,13 @@ func setState(cpu *z80.CPU, s *State) {
 	cpu.IFF2 = s.IFF2
 }
 
-func cmpState(cpu *z80.CPU, s *State) error {
+func (s *otState) compare(cpu *CPU) error {
 
-	// clear the troublesome undocumented flag bits
-	cpu.F = cpu.F &^ 0x28
-	s.F = s.F &^ 0x28
+	if ignore_XY_Flags {
+		// clear the undocumented flag bits
+		cpu.F = cpu.F &^ (_XF | _YF)
+		s.F = s.F &^ (_XF | _YF)
+	}
 
 	if cpu.A != s.A {
 		return fmt.Errorf("A, expected 0x%02x(%d), actual 0x%02x(%d)", s.A, s.A, cpu.A, cpu.A)
@@ -266,85 +303,52 @@ func cmpState(cpu *z80.CPU, s *State) error {
 	return nil
 }
 
-//-----------------------------------------------------------------------------
-
-func ignoreState(name string) bool {
-	if strings.HasPrefix(name, "ED A2") {
-		return true
-	}
-	if strings.HasPrefix(name, "ED A3") {
-		return true
-	}
-	if strings.HasPrefix(name, "ED AA") {
-		return true
-	}
-	if strings.HasPrefix(name, "ED AB") {
-		return true
-	}
-	if strings.HasPrefix(name, "ED B2") {
-		return true
-	}
-	if strings.HasPrefix(name, "ED B3") {
-		return true
-	}
-	if strings.HasPrefix(name, "ED BA") {
-		return true
-	}
-	if strings.HasPrefix(name, "ED BB") {
-		return true
-	}
-
-	return false
-}
-
-//-----------------------------------------------------------------------------
-
-func runTest(fname string) error {
+func runTest(t *testing.T, fname string) error {
 
 	data, err := os.ReadFile(fname)
 	if err != nil {
 		return fmt.Errorf("failed to load test file: %v", err)
 	}
 
-	var tests []Z80Test
+	var tests []opcodeTest
 	if err := json.Unmarshal(data, &tests); err != nil {
 		return fmt.Errorf("failed to parse test JSON: %v", err)
 	}
 
-	for i, t := range tests {
-		fmt.Printf("%s, test %d: %s\n", fname, i, t.Name)
+	for _, v := range tests {
+		t.Logf("%s, %s\n", fname, v.Name)
 
-		io := NewIO()
-		mem := NewMemory()
-		cpu := z80.New(io, mem)
+		io := newOpcodeTestIO()
+		mem := newOpcodeTestMemory()
+		cpu := New(io, mem)
 
 		// setup ram state
-		mem.(*Memory).Set(t.Initial.Ram)
+		mem.(*otMemory).Set(v.Initial.Ram)
 
 		// setup io state
-		io.(*IO).Set(t.Ports)
+		io.(*otIO).Set(v.Ports)
 
 		// setup cpu state
-		setState(cpu, &t.Initial)
+		v.Initial.set(cpu)
 
-		cycles := cpu.Execute()
+		cycles := cpu.execute()
 
-		if cycles != len(t.Cycles) {
-			return fmt.Errorf("cycles, expected %d, actual %d", len(t.Cycles), cycles)
+		if cycles != len(v.Cycles) {
+			return fmt.Errorf("cycles, expected %d, actual %d", len(v.Cycles), cycles)
 		}
 
 		// check cpu state
-		err = cmpState(cpu, &t.Final)
+		err = v.Final.compare(cpu)
 		if err != nil {
-			if ignoreState(t.Name) {
-				log.Printf("error: %s", err)
+			if ignoreState(v.Name) {
+				t.Logf("%s (ignored)\n", err.Error())
 			} else {
 				return err
 			}
 		}
 
 		// check ram state
-		err = mem.(*Memory).Check(t.Final.Ram)
+		err = mem.(*otMemory).Check(v.Final.Ram)
 		if err != nil {
 			return err
 		}
@@ -356,20 +360,19 @@ func runTest(fname string) error {
 
 //-----------------------------------------------------------------------------
 
-func main() {
-	pattern := filepath.Join("/home/jasonh/personal/go_z80/ext/z80step/v1", "*.json")
+func Test_Opcodes(t *testing.T) {
+
+	pattern := filepath.Join("../ext/z80step/v1", "*.json")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	for _, match := range matches {
-
-		err = runTest(match)
+		err = runTest(t, match)
 		if err != nil {
-			log.Fatalf("error: %s", err)
+			t.Fatalf("error: %s", err)
 		}
 	}
-
 }
 
 //-----------------------------------------------------------------------------

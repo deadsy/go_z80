@@ -2,3 +2,4 @@
 /dl
 /ext/z80step
 /ext/.stamp*
+/cmd/emu/history.txt
