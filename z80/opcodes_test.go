@@ -152,6 +152,20 @@ func (io *otIO) Set(ports [][3]any) {
 }
 
 //-----------------------------------------------------------------------------
+// Opcode Test Bus
+
+type otBus struct {
+}
+
+func newOpcodeTestBus() Bus {
+	return &otBus{}
+}
+
+func (bus *otBus) ReadIV() uint8 {
+	return 0xff
+}
+
+//-----------------------------------------------------------------------------
 // Opcode Test State
 
 // State matches the register values before and after an instruction executes
@@ -222,8 +236,8 @@ func (s *otState) set(cpu *CPU) {
 	cpu.IM = s.IM
 	cpu.I = s.I
 	cpu.R = s.R
-	cpu.IFF1 = s.IFF1
-	cpu.IFF2 = s.IFF2
+	cpu.IFF1 = byte2bool(s.IFF1)
+	cpu.IFF2 = byte2bool(s.IFF2)
 }
 
 func (s *otState) compare(cpu *CPU) error {
@@ -293,11 +307,11 @@ func (s *otState) compare(cpu *CPU) error {
 	if cpu.R != s.R {
 		return fmt.Errorf("R, expected 0x%02x(%d), actual 0x%02x(%d)", s.R, s.R, cpu.R, cpu.R)
 	}
-	if cpu.IFF1 != s.IFF1 {
-		return fmt.Errorf("IFF1, expected 0x%02x(%d), actual 0x%02x(%d)", s.IFF1, s.IFF1, cpu.IFF1, cpu.IFF1)
+	if cpu.IFF1 != byte2bool(s.IFF1) {
+		return fmt.Errorf("IFF1, expected %t, actual %t", byte2bool(s.IFF1), cpu.IFF1)
 	}
-	if cpu.IFF2 != s.IFF2 {
-		return fmt.Errorf("IFF2, expected 0x%02x(%d), actual 0x%02x(%d)", s.IFF2, s.IFF2, cpu.IFF2, cpu.IFF2)
+	if cpu.IFF2 != byte2bool(s.IFF2) {
+		return fmt.Errorf("IFF2, expected %t, actual %t", byte2bool(s.IFF2), cpu.IFF2)
 	}
 
 	return nil
@@ -320,7 +334,8 @@ func runTest(t *testing.T, fname string) error {
 
 		io := newOpcodeTestIO()
 		mem := newOpcodeTestMemory()
-		cpu := New(io, mem)
+		bus := newOpcodeTestBus()
+		cpu := New(io, mem, bus)
 
 		// setup ram state
 		mem.(*otMemory).Set(v.Initial.Ram)

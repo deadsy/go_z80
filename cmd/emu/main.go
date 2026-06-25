@@ -35,7 +35,8 @@ type userApp struct {
 func newUserApp() *userApp {
 	io := newIO()
 	mem := newMemory()
-	cpu := z80.New(io, mem)
+	bus := newBus()
+	cpu := z80.New(io, mem, bus)
 	return &userApp{
 		io:  io,
 		mem: mem,

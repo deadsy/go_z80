@@ -2170,9 +2170,9 @@ func (cpu *CPU) ins_26() int {
 
 // daa
 func (cpu *CPU) ins_27() int {
-	cf := int2bool(int(cpu.F & _CF))
-	nf := int2bool(int(cpu.F & _NF))
-	hf := int2bool(int(cpu.F & _HF))
+	cf := byte2bool(cpu.F & _CF)
+	nf := byte2bool(cpu.F & _NF)
+	hf := byte2bool(cpu.F & _HF)
 	lo := cpu.A & 0xf
 	var correction uint8
 	var flags uint8
@@ -3726,8 +3726,8 @@ func (cpu *CPU) ins_f2() int {
 
 // di
 func (cpu *CPU) ins_f3() int {
-	cpu.IFF1 = 0
-	cpu.IFF2 = 0
+	cpu.IFF1 = false
+	cpu.IFF2 = false
 	return 4
 }
 
@@ -3791,8 +3791,8 @@ func (cpu *CPU) ins_fa() int {
 
 // ei
 func (cpu *CPU) ins_fb() int {
-	cpu.IFF1 = 1
-	cpu.IFF2 = 1
+	cpu.IFF1 = true
+	cpu.IFF2 = true
 	return 4
 }
 
@@ -9170,7 +9170,7 @@ func (cpu *CPU) ins_ed56() int {
 // ld a,i
 func (cpu *CPU) ins_ed57() int {
 	cpu.A = cpu.I
-	cpu.F = (cpu.F & _CF) | (flagsSZ[cpu.A]) | (cpu.IFF2 << 2)
+	cpu.F = (cpu.F & _CF) | (flagsSZ[cpu.A]) | (bool2byte(cpu.IFF2) << 2)
 	return 5
 }
 
@@ -9215,7 +9215,7 @@ func (cpu *CPU) ins_ed5e() int {
 // ld a,r
 func (cpu *CPU) ins_ed5f() int {
 	cpu.A = cpu.R
-	cpu.F = (cpu.F & _CF) | (flagsSZ[cpu.A]) | (cpu.IFF2 << 2)
+	cpu.F = (cpu.F & _CF) | (flagsSZ[cpu.A]) | (bool2byte(cpu.IFF2) << 2)
 	return 5
 }
 

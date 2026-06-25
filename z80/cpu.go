@@ -13,11 +13,11 @@ func offset16(ofs uint8) uint16 {
 	return uint16(int8(ofs))
 }
 
-func int2bool(x int) bool {
+func byte2bool(x byte) bool {
 	return x != 0
 }
 
-func bool2int(x bool) int {
+func bool2byte(x bool) byte {
 	if x {
 		return 1
 	}
@@ -38,22 +38,42 @@ type Memory interface {
 	Read16(adr uint16) uint16
 }
 
+type Bus interface {
+	ReadIV() uint8
+}
+
+// nmiAddress is the non-maskable interrupt address
+const nmiAddress = uint16(0x0066)
+
+// im0Address is the IM0 interrupt address
+const im0Address = uint16(0x0038)
+
+// rstAddress is the reset address
+const rstAddress = uint16(0)
+
 type CPU struct {
 	A, F, B, C, D, E, H, L         uint8
 	Alt_AF, Alt_BC, Alt_DE, Alt_HL uint16
 	PC, SP, IX, IY                 uint16
-	IM, I, R, IFF1, IFF2           uint8
+	IM, I, R                       uint8
+	IFF1, IFF2                     bool
 
-	halt        bool
-	io          IO
-	mem         Memory
-	totalCycles int
+	halt bool // halt state
+	nmi  bool // nmi state
+	irq  bool // irq state
+
+	io  IO     // io of target system
+	mem Memory // memory of target system
+	bus Bus    // bus of target system
+
+	cycles int // total number of cpu cycles run
 }
 
-func New(io IO, mem Memory) *CPU {
+func New(io IO, mem Memory, bus Bus) *CPU {
 	cpu := &CPU{}
 	cpu.io = io
 	cpu.mem = mem
+	cpu.bus = bus
 	cpu.Reset()
 	return cpu
 }
@@ -74,18 +94,11 @@ func (cpu *CPU) Reset() {
 	cpu.Alt_DE = 0xffff
 	cpu.Alt_HL = 0xffff
 
-	cpu.PC = 0
+	cpu.PC = rstAddress
 	cpu.SP = 0xffff
 	cpu.IX = 0xffff
 	cpu.IY = 0xffff
 
-	cpu.IM = 0
-	cpu.I = 0
-	cpu.R = 0
-	cpu.IFF1 = 0
-	cpu.IFF2 = 0
-
-	cpu.halt = false
 }
 
 // Return a string with processor state
@@ -102,8 +115,8 @@ func (cpu *CPU) String() string {
 	s = append(s, fmt.Sprintf("h'l' : %02x %02x", cpu.Alt_HL>>8, cpu.Alt_HL&0xff))
 	s = append(s, fmt.Sprintf("i    : %02x", cpu.I))
 	s = append(s, fmt.Sprintf("im   : %d", cpu.IM))
-	s = append(s, fmt.Sprintf("iff1 : %d", cpu.IFF1))
-	s = append(s, fmt.Sprintf("iff2 : %d", cpu.IFF2))
+	s = append(s, fmt.Sprintf("iff1 : %t", cpu.IFF1))
+	s = append(s, fmt.Sprintf("iff2 : %t", cpu.IFF2))
 	s = append(s, fmt.Sprintf("r    : %02x", cpu.R))
 	s = append(s, fmt.Sprintf("ix   : %04x", cpu.IX))
 	s = append(s, fmt.Sprintf("iy   : %04x", cpu.IY))
@@ -371,10 +384,98 @@ func (cpu *CPU) get_n() uint8 {
 
 //-----------------------------------------------------------------------------
 
+// IM0 interrupt mode handling
+func (cpu *CPU) handleIM0() error {
+	cpu.inc_r()
+	// read an opcode from the bus
+	code := cpu.bus.ReadIV()
+	// execute the opcode
+	cycles := opcodes[code](cpu)
+	cpu.cycles += cycles + 2
+	return nil
+}
+
+// IM1 interrupt mode handling
+func (cpu *CPU) handleIM1() error {
+	cpu.push16(cpu.PC)
+	// Jump to fixed vector
+	cpu.PC = im0Address
+	cpu.cycles += 13
+	return nil
+}
+
+// IM2 interrupt mode handling
+func (cpu *CPU) handleIM2() error {
+	cpu.push16(cpu.PC)
+	// Get the low byte from the hardware bus (16-bit aligned)
+	vec := cpu.bus.ReadIV() & 0xfe
+	// work out the table address
+	table := (uint16(cpu.I) << 8) | uint16(vec)
+	// jump to the pc stored in the lookup table
+	cpu.PC = cpu.mem.Read16(table)
+	cpu.cycles += 19
+	return nil
+}
+
+func (cpu *CPU) irqHandling() error {
+
+	// A low INT line wakes the CPU from HALT, even if interrupts are disabled
+	if cpu.irq && cpu.halt {
+		cpu.halt = false
+		// Move past the HALT instruction
+		cpu.PC++
+	}
+
+	// Only process the routine if master interrupts are enabled and the line is active
+	if !cpu.IFF1 || !cpu.irq {
+		return nil
+	}
+
+	// Acknowledge sequence disables future interrupts automatically
+	cpu.IFF1 = false
+	cpu.IFF2 = false
+
+	// Service the specific mode
+	switch cpu.IM {
+	case 0:
+		cpu.handleIM0()
+	case 1:
+		cpu.handleIM1()
+	case 2:
+		cpu.handleIM2()
+	}
+	return fmt.Errorf("invalid IM mode %d", cpu.IM)
+}
+
+func (cpu *CPU) nmiHandling() error {
+	// Backup the maskable interrupt state
+	cpu.IFF2 = cpu.IFF1
+	// Disable future maskable interrupts during NMI execution
+	cpu.IFF1 = false
+	// Push current Program Counter to the stack
+	cpu.push16(cpu.PC)
+	// Jump to the hardcoded NMI vector address
+	cpu.PC = nmiAddress
+	// Account for internal CPU clock cycles (NMI takes 11 T-states)
+	cpu.cycles += 11
+	return nil
+}
+
 // Run the Z80 CPU for a single instruction.
 func (cpu *CPU) Run() error {
+
+	if cpu.nmi {
+		cpu.nmi = false
+		return nil
+	}
+
+	if cpu.irq {
+		cpu.irq = false
+		return nil
+	}
+
 	cycles := cpu.execute()
-	cpu.totalCycles += cycles
+	cpu.cycles += cycles
 	return nil
 }
 

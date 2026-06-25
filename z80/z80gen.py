@@ -197,7 +197,7 @@ def emit_ld_ira(out, d, s):
     """ld i/r/a, i/r/a"""
     out.put("cpu.%s = cpu.%s\n" % (d.upper(), s.upper()))
     if d == "a":
-        out.put("cpu.F =  (cpu.F & _CF) | (flagsSZ[cpu.A]) | (cpu.IFF2 << 2)\n")
+        out.put("cpu.F =  (cpu.F & _CF) | (flagsSZ[cpu.A]) | (bool2byte(cpu.IFF2) << 2)\n")
     out.put("return 5\n")
 
 
@@ -597,15 +597,15 @@ def emit_nop(out):
 
 def emit_di(out):
     """disable interrupts"""
-    out.put("cpu.IFF1 = 0\n")
-    out.put("cpu.IFF2 = 0\n")
+    out.put("cpu.IFF1 = false\n")
+    out.put("cpu.IFF2 = false\n")
     out.put("return 4\n")
 
 
 def emit_ei(out):
     """enable interrupts"""
-    out.put("cpu.IFF1 = 1\n")
-    out.put("cpu.IFF2 = 1\n")
+    out.put("cpu.IFF1 = true\n")
+    out.put("cpu.IFF2 = true\n")
     out.put("return 4\n")
 
 
@@ -624,9 +624,9 @@ def emit_halt(out):
 
 def emit_daa(out):
     """daa"""
-    out.put("cf := int2bool(int(cpu.F & _CF))\n")
-    out.put("nf := int2bool(int(cpu.F & _NF))\n")
-    out.put("hf := int2bool(int(cpu.F & _HF))\n")
+    out.put("cf := byte2bool(cpu.F & _CF)\n")
+    out.put("nf := byte2bool(cpu.F & _NF)\n")
+    out.put("hf := byte2bool(cpu.F & _HF)\n")
     out.put("lo := cpu.A & 0xf\n")
 
     out.put("var correction uint8\n")
