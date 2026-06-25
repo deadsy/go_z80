@@ -52,7 +52,7 @@ func (u *userApp) loadRaw(filename string, x []uint8) (string, error) {
 	// copy the code to the load address
 	var loadAdr uint16
 	for i, v := range x {
-		u.mem.Wr8(loadAdr+uint16(i), v)
+		u.mem.Write8(loadAdr+uint16(i), v)
 	}
 	endAdr := loadAdr + uint16(len(x)) - 1
 

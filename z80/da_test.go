@@ -31,13 +31,19 @@ func newMemory(data []byte) *memory {
 	return m
 }
 
-func (m *memory) Rd8(adr uint16) uint8 {
+func (m *memory) Read8(adr uint16) uint8 {
 	return m.data[adr]
 }
 
-func (m *memory) Wr8(adr uint16, val uint8)   {}
-func (m *memory) Wr16(adr uint16, val uint16) {}
-func (m *memory) Rd16(adr uint16) uint16      { return 0 }
+func (m *memory) Read16(adr uint16) uint16 {
+	return 0
+}
+
+func (m *memory) Write8(adr uint16, val uint8) {
+}
+
+func (m *memory) Write16(adr uint16, val uint16) {
+}
 
 //-----------------------------------------------------------------------------
 

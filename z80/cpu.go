@@ -27,15 +27,15 @@ func bool2int(x bool) int {
 //-----------------------------------------------------------------------------
 
 type IO interface {
-	Wr8(adr uint16, val uint8)
-	Rd8(adr uint16) uint8
+	Write8(adr uint16, val uint8)
+	Read8(adr uint16) uint8
 }
 
 type Memory interface {
-	Wr8(adr uint16, val uint8)
-	Rd8(adr uint16) uint8
-	Wr16(adr uint16, val uint16)
-	Rd16(adr uint16) uint16
+	Write8(adr uint16, val uint8)
+	Read8(adr uint16) uint8
+	Write16(adr uint16, val uint16)
+	Read16(adr uint16) uint16
 }
 
 type CPU struct {
@@ -332,39 +332,39 @@ func (cpu *CPU) leave_halt() {
 // push an 8-bit quantity onto the stack
 func (cpu *CPU) push8(val uint8) {
 	cpu.SP -= 1
-	cpu.mem.Wr8(cpu.SP, val)
+	cpu.mem.Write8(cpu.SP, val)
 }
 
 // push a 16-bit quantity onto the stack
 func (cpu *CPU) push16(val uint16) {
 	cpu.SP -= 2
-	cpu.mem.Wr16(cpu.SP, val)
+	cpu.mem.Write16(cpu.SP, val)
 }
 
 // pop an 8-bit quantity from the stack
 func (cpu *CPU) pop8() uint8 {
-	val := cpu.mem.Rd8(cpu.SP)
+	val := cpu.mem.Read8(cpu.SP)
 	cpu.SP += 1
 	return val
 }
 
 // pop a 16-bit quantity from the stack
 func (cpu *CPU) pop16() uint16 {
-	val := cpu.mem.Rd16(cpu.SP)
+	val := cpu.mem.Read16(cpu.SP)
 	cpu.SP += 2
 	return val
 }
 
 // return the 16 bit immediate at mem[pc], pc += 2
 func (cpu *CPU) get_nn() uint16 {
-	nn := cpu.mem.Rd16(cpu.PC)
+	nn := cpu.mem.Read16(cpu.PC)
 	cpu.PC += 2
 	return nn
 }
 
 // return the 8 bit immediate at mem[pc], pc += 1
 func (cpu *CPU) get_n() uint8 {
-	n := cpu.mem.Rd8(cpu.PC)
+	n := cpu.mem.Read8(cpu.PC)
 	cpu.PC += 1
 	return n
 }

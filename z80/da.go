@@ -73,9 +73,9 @@ type Decode struct {
 }
 
 func da_Index(mem Memory, pc uint16, ir string) Decode {
-	m0 := mem.Rd8(pc)
-	m1 := mem.Rd8(pc + 1)
-	m2 := mem.Rd8(pc + 2)
+	m0 := mem.Read8(pc)
+	m1 := mem.Read8(pc + 1)
+	m2 := mem.Read8(pc + 2)
 
 	x := (m0 >> 6) & 3
 	y := (m0 >> 3) & 7
@@ -234,8 +234,8 @@ func da_Index(mem Memory, pc uint16, ir string) Decode {
 
 func da_ddcb_fdcb_Prefix(mem Memory, pc uint16, ir string) Decode {
 
-	m0 := mem.Rd8(pc)
-	m1 := mem.Rd8(pc + 1)
+	m0 := mem.Read8(pc)
+	m1 := mem.Read8(pc + 1)
 
 	x := (m1 >> 6) & 3
 	y := (m1 >> 3) & 7
@@ -268,7 +268,7 @@ func da_ddcb_fdcb_Prefix(mem Memory, pc uint16, ir string) Decode {
 
 // 0xCB <opcode>
 func da_cb_Prefix(mem Memory, pc uint16) Decode {
-	m0 := mem.Rd8(pc)
+	m0 := mem.Read8(pc)
 
 	x := (m0 >> 6) & 3
 	y := (m0 >> 3) & 7
@@ -287,7 +287,7 @@ func da_cb_Prefix(mem Memory, pc uint16) Decode {
 // 0xDD <x>
 // 0xFD <x>
 func da_dd_fd_Prefix(mem Memory, pc uint16, ir string) Decode {
-	m0 := mem.Rd8(pc)
+	m0 := mem.Read8(pc)
 
 	if m0 == 0xdd || m0 == 0xed || m0 == 0xfd {
 		return Decode{"nop", "", 1}
@@ -302,9 +302,9 @@ func da_dd_fd_Prefix(mem Memory, pc uint16, ir string) Decode {
 // 0xED <opcode> <nn>
 func da_ed_Prefix(mem Memory, pc uint16) Decode {
 
-	m0 := mem.Rd8(pc)
-	m1 := mem.Rd8(pc + 1)
-	m2 := mem.Rd8(pc + 2)
+	m0 := mem.Read8(pc)
+	m1 := mem.Read8(pc + 1)
+	m2 := mem.Read8(pc + 2)
 
 	x := (m0 >> 6) & 3
 	y := (m0 >> 3) & 7
@@ -371,9 +371,9 @@ func da_ed_Prefix(mem Memory, pc uint16) Decode {
 // Normal decode with no prefixes
 func da_Normal(mem Memory, pc uint16) Decode {
 
-	m0 := mem.Rd8(pc)
-	m1 := mem.Rd8(pc + 1)
-	m2 := mem.Rd8(pc + 2)
+	m0 := mem.Read8(pc)
+	m1 := mem.Read8(pc + 1)
+	m2 := mem.Read8(pc + 2)
 
 	x := (m0 >> 6) & 3
 	y := (m0 >> 3) & 7
@@ -496,7 +496,7 @@ func da_Normal(mem Memory, pc uint16) Decode {
 // Disassemble z80 opcodes starting at mem[pc].
 // Return a (operation, operands, nbytes) tuple.
 func daInstruction(mem Memory, pc uint16) Decode {
-	m0 := mem.Rd8(pc)
+	m0 := mem.Read8(pc)
 	if m0 == 0xCB {
 		return da_cb_Prefix(mem, pc+1)
 	} else if m0 == 0xDD {
@@ -531,7 +531,7 @@ func Disassemble(mem Memory, pc uint16, st SymbolTable) *Disassembly {
 	decode := daInstruction(mem, pc)
 	bytes := make([]uint8, decode.Length)
 	for i := 0; i < decode.Length; i++ {
-		bytes[i] = mem.Rd8(pc + uint16(i))
+		bytes[i] = mem.Read8(pc + uint16(i))
 	}
 	return &Disassembly{
 		Dump:        daDump(pc, bytes),

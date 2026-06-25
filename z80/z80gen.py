@@ -94,7 +94,7 @@ _bli = (
 def emit_ld_r_n(out, r):
     """load immediate register n"""
     if r == "(hl)":
-        out.put("cpu.mem.Wr8(cpu.get_hl(), cpu.get_n())\n")
+        out.put("cpu.mem.Write8(cpu.get_hl(), cpu.get_n())\n")
         out.put("return 10\n")
     else:
         out.put("cpu.%s = cpu.get_n()\n" % r.upper())
@@ -148,33 +148,33 @@ def emit_ld_r_hilo(out, dst, src):
 def emit_ld_mem_xx_n(out, r):
     """ld (xx),n where xx is ix+d, iy+d"""
     out.put("d := offset16(cpu.get_n())\n")
-    out.put("cpu.mem.Wr8(cpu.%s + d, cpu.get_n())\n" % r.upper())
+    out.put("cpu.mem.Write8(cpu.%s + d, cpu.get_n())\n" % r.upper())
     out.put("return 15\n")
 
 
 def emit_ld_r_r(out, rd, rs):
     """load register to register"""
     if rd == "(hl)":
-        out.put("cpu.mem.Wr8(cpu.get_hl(), cpu.%s)\n" % rs.upper())
+        out.put("cpu.mem.Write8(cpu.get_hl(), cpu.%s)\n" % rs.upper())
         out.put("return 7\n")
     elif rd == "(ix+d)":
         out.put("d := offset16(cpu.get_n())\n")
-        out.put("cpu.mem.Wr8(cpu.IX + d, cpu.%s)\n" % rs.upper())
+        out.put("cpu.mem.Write8(cpu.IX + d, cpu.%s)\n" % rs.upper())
         out.put("return 15\n")
     elif rd == "(iy+d)":
         out.put("d := offset16(cpu.get_n())\n")
-        out.put("cpu.mem.Wr8(cpu.IY + d, cpu.%s)\n" % rs.upper())
+        out.put("cpu.mem.Write8(cpu.IY + d, cpu.%s)\n" % rs.upper())
         out.put("return 15\n")
     elif rs == "(hl)":
-        out.put("cpu.%s = cpu.mem.Rd8(cpu.get_hl())\n" % rd.upper())
+        out.put("cpu.%s = cpu.mem.Read8(cpu.get_hl())\n" % rd.upper())
         out.put("return 7\n")
     elif rs == "(ix+d)":
         out.put("d := offset16(cpu.get_n())\n")
-        out.put("cpu.%s = cpu.mem.Rd8(cpu.IX + d)\n" % rd.upper())
+        out.put("cpu.%s = cpu.mem.Read8(cpu.IX + d)\n" % rd.upper())
         out.put("return 15\n")
     elif rs == "(iy+d)":
         out.put("d := offset16(cpu.get_n())\n")
-        out.put("cpu.%s = cpu.mem.Rd8(cpu.IY + d)\n" % rd.upper())
+        out.put("cpu.%s = cpu.mem.Read8(cpu.IY + d)\n" % rd.upper())
         out.put("return 15\n")
     else:
         out.put("cpu.%s = cpu.%s\n" % (rd.upper(), rs.upper()))
@@ -183,13 +183,13 @@ def emit_ld_r_r(out, rd, rs):
 
 def emit_ld_a_mem_xx(out, xx):
     """ld a,(xx) where xx in (bc,de,nn)"""
-    out.put("cpu.A = cpu.mem.Rd8(cpu.get_%s())\n" % xx)
+    out.put("cpu.A = cpu.mem.Read8(cpu.get_%s())\n" % xx)
     out.put("return %d\n" % (7, 13)[xx == "nn"])
 
 
 def emit_ld_mem_xx_a(out, xx):
     """ld (xx),a - where xx in (bc,de,nn)"""
-    out.put("cpu.mem.Wr8(cpu.get_%s(), cpu.A)\n" % xx)
+    out.put("cpu.mem.Write8(cpu.get_%s(), cpu.A)\n" % xx)
     out.put("return %d\n" % (7, 13)[xx == "nn"])
 
 
@@ -218,11 +218,11 @@ def emit_ld_mem_nn_rp(out, rp):
     """ld (nn), rp"""
     out.put("nn := cpu.get_nn()\n")
     if rp in _direct_rp:
-        out.put("cpu.mem.Wr8(nn, uint8(cpu.%s))\n" % rp.upper())
-        out.put("cpu.mem.Wr8(nn + 1, uint8(cpu.%s >> 8))\n" % rp.upper())
+        out.put("cpu.mem.Write8(nn, uint8(cpu.%s))\n" % rp.upper())
+        out.put("cpu.mem.Write8(nn + 1, uint8(cpu.%s >> 8))\n" % rp.upper())
     else:
-        out.put("cpu.mem.Wr8(nn, cpu.%s)\n" % rp[1].upper())
-        out.put("cpu.mem.Wr8(nn + 1, cpu.%s)\n" % rp[0].upper())
+        out.put("cpu.mem.Write8(nn, cpu.%s)\n" % rp[1].upper())
+        out.put("cpu.mem.Write8(nn + 1, cpu.%s)\n" % rp[0].upper())
     out.put("return 16\n")
 
 
@@ -230,11 +230,11 @@ def emit_ld_rp_mem_nn(out, rp):
     """ld rp,(nn)"""
     out.put("nn := cpu.get_nn()\n")
     if rp in _direct_rp:
-        out.put("cpu.%s = uint16(cpu.mem.Rd8(nn + 1)) << 8\n" % rp.upper())
-        out.put("cpu.%s |= uint16(cpu.mem.Rd8(nn))\n" % rp.upper())
+        out.put("cpu.%s = uint16(cpu.mem.Read8(nn + 1)) << 8\n" % rp.upper())
+        out.put("cpu.%s |= uint16(cpu.mem.Read8(nn))\n" % rp.upper())
     else:
-        out.put("cpu.%s = cpu.mem.Rd8(nn + 1)\n" % rp[0].upper())
-        out.put("cpu.%s = cpu.mem.Rd8(nn)\n" % rp[1].upper())
+        out.put("cpu.%s = cpu.mem.Read8(nn + 1)\n" % rp[0].upper())
+        out.put("cpu.%s = cpu.mem.Read8(nn)\n" % rp[1].upper())
     out.put("return 16\n")
 
 
@@ -255,8 +255,8 @@ def emit_pop_rp(out, rp):
     if rp in _direct_rp:
         out.put("cpu.%s = cpu.pop16()\n" % rp.upper())
     else:
-        out.put("cpu.%s = cpu.mem.Rd8(cpu.SP + 1)\n" % rp[0].upper())
-        out.put("cpu.%s = cpu.mem.Rd8(cpu.SP)\n" % rp[1].upper())
+        out.put("cpu.%s = cpu.mem.Read8(cpu.SP + 1)\n" % rp[0].upper())
+        out.put("cpu.%s = cpu.mem.Read8(cpu.SP)\n" % rp[1].upper())
         out.put("cpu.SP += 2\n")
     out.put("return 10\n")
 
@@ -266,8 +266,8 @@ def emit_push_rp(out, rp):
     if rp in _direct_rp:
         out.put("cpu.push16(cpu.%s)\n" % rp.upper())
     else:
-        out.put("cpu.mem.Wr8(cpu.SP - 1, cpu.%s)\n" % rp[0].upper())
-        out.put("cpu.mem.Wr8(cpu.SP - 2, cpu.%s)\n" % rp[1].upper())
+        out.put("cpu.mem.Write8(cpu.SP - 1, cpu.%s)\n" % rp[0].upper())
+        out.put("cpu.mem.Write8(cpu.SP - 2, cpu.%s)\n" % rp[1].upper())
         out.put("cpu.SP -= 2\n")
     out.put("return 11\n")
 
@@ -297,8 +297,8 @@ def emit_ldxx(out, op):
     out.put("d := cpu.get_de()\n")
     out.put("s := cpu.get_hl()\n")
     out.put("n := cpu.get_bc() - 1\n")
-    out.put("val := cpu.mem.Rd8(s)\n")
-    out.put("cpu.mem.Wr8(d, val)\n")
+    out.put("val := cpu.mem.Read8(s)\n")
+    out.put("cpu.mem.Write8(d, val)\n")
     out.put("cpu.F &= (_SF | _ZF | _CF)\n")
 
     out.put("if ((cpu.A + val) & 0x02) != 0 {cpu.F |= _YF}\n")
@@ -321,7 +321,7 @@ def emit_ldxx(out, op):
 def emit_cp_mem(out, inc, rep):
     delta = ("-1", "+1")[inc]
     out.put("src := cpu.get_hl()\n")
-    out.put("val := cpu.mem.Rd8(src)\n")
+    out.put("val := cpu.mem.Read8(src)\n")
     out.put("res := int(cpu.A) - int(val)\n")
     out.put(f"cpu.set_hl(src {delta})\n")
     out.put("n := cpu.get_bc() - 1\n")
@@ -339,8 +339,8 @@ def emit_cp_mem(out, inc, rep):
 def emit_in_io(out, inc, rep):
     delta = ("-1", "+ 1")[inc]
     out.put("dst := cpu.get_hl()\n")
-    out.put("val := cpu.io.Rd8(cpu.get_bc())\n")
-    out.put("cpu.mem.Wr8(dst, val)\n")
+    out.put("val := cpu.io.Read8(cpu.get_bc())\n")
+    out.put("cpu.mem.Write8(dst, val)\n")
     out.put(f"cpu.set_hl(dst {delta})\n")
     out.put("cpu.B -= 1\n")
     out.put("cpu.F = (cpu.F & _CF) | _NF\n")
@@ -353,9 +353,9 @@ def emit_in_io(out, inc, rep):
 def emit_out_io(out, inc, rep):
     delta = ("-1", "+ 1")[inc]
     out.put("src := cpu.get_hl()\n")
-    out.put("val := cpu.mem.Rd8(src)\n")
+    out.put("val := cpu.mem.Read8(src)\n")
     out.put("cpu.B -= 1\n")
-    out.put("cpu.io.Wr8(cpu.get_bc(), val)\n")
+    out.put("cpu.io.Write8(cpu.get_bc(), val)\n")
     out.put(f"cpu.set_hl(src {delta})\n")
     out.put("cpu.F = (cpu.F & _CF) | _NF\n")
     out.put("if cpu.B == 0 {cpu.F |= _ZF}\n")
@@ -399,12 +399,12 @@ def emit_bli(out, op):
 
 def emit_ex_mem_sp_r(out, r):
     """ex (sp),r"""
-    out.put("tmp := cpu.mem.Rd16(cpu.SP)\n")
+    out.put("tmp := cpu.mem.Read16(cpu.SP)\n")
     if r == "hl":
-        out.put("cpu.mem.Wr16(cpu.SP, cpu.get_hl())\n")
+        out.put("cpu.mem.Write16(cpu.SP, cpu.get_hl())\n")
         out.put("cpu.set_hl(tmp)\n")
     else:
-        out.put("cpu.mem.Wr16(cpu.SP, cpu.%s)\n" % r.upper())
+        out.put("cpu.mem.Write16(cpu.SP, cpu.%s)\n" % r.upper())
         out.put("cpu.%s = tmp\n" % r.upper())
     out.put("return 19\n")
 
@@ -433,20 +433,20 @@ def emit_inc_dec_r(out, r, op):
     flags = ("flagsSZHVinc", "flagsSZHVdec")[op == "dec"]
     if r == "(hl)":
         out.put("hl := cpu.get_hl()\n")
-        out.put("n := cpu.mem.Rd8(hl) %s\n" % delta)
-        out.put("cpu.mem.Wr8(hl, n)\n")
+        out.put("n := cpu.mem.Read8(hl) %s\n" % delta)
+        out.put("cpu.mem.Write8(hl, n)\n")
         out.put("cpu.F = (cpu.F & _CF) | %s[n]\n" % flags)
         out.put("return 11\n")
     elif r == "(ix+d)":
         out.put("adr := cpu.IX + offset16(cpu.get_n())\n")
-        out.put("n := cpu.mem.Rd8(adr) %s\n" % delta)
-        out.put("cpu.mem.Wr8(adr, n)\n")
+        out.put("n := cpu.mem.Read8(adr) %s\n" % delta)
+        out.put("cpu.mem.Write8(adr, n)\n")
         out.put("cpu.F = (cpu.F & _CF) | %s[n]\n" % flags)
         out.put("return 19\n")
     elif r == "(iy+d)":
         out.put("adr := cpu.IY + offset16(cpu.get_n())\n")
-        out.put("n := cpu.mem.Rd8(adr) %s\n" % delta)
-        out.put("cpu.mem.Wr8(adr,n)\n")
+        out.put("n := cpu.mem.Read8(adr) %s\n" % delta)
+        out.put("cpu.mem.Write8(adr,n)\n")
         out.put("cpu.F = (cpu.F & _CF) | %s[n]\n" % flags)
         out.put("return 19\n")
     else:
@@ -459,13 +459,13 @@ def emit_inc_dec_r(out, r, op):
 def emit_alu_r(out, op, r):
     """alu operation with register"""
     if r == "(ix+d)":
-        out.put("val := cpu.mem.Rd8(cpu.IX + offset16(cpu.get_n()))\n")
+        out.put("val := cpu.mem.Read8(cpu.IX + offset16(cpu.get_n()))\n")
         tclks = 15
     elif r == "(iy+d)":
-        out.put("val := cpu.mem.Rd8(cpu.IY + offset16(cpu.get_n()))\n")
+        out.put("val := cpu.mem.Read8(cpu.IY + offset16(cpu.get_n()))\n")
         tclks = 15
     elif r == "(hl)":
-        out.put("val := cpu.mem.Rd8(cpu.get_hl())\n")
+        out.put("val := cpu.mem.Read8(cpu.get_hl())\n")
         tclks = 7
     else:
         out.put("val := cpu.%s\n" % r.upper())
@@ -793,11 +793,11 @@ def emit_rota(out, op):
 def emit_rot_r_x(out, op, r, x):
     """rotate operation on r - optionally store in x also"""
     if r == "(ix+d)":
-        out.put("res := cpu.mem.Rd8(cpu.IX + offset16(d))\n")
+        out.put("res := cpu.mem.Read8(cpu.IX + offset16(d))\n")
     elif r == "(iy+d)":
-        out.put("res := cpu.mem.Rd8(cpu.IY + offset16(d))\n")
+        out.put("res := cpu.mem.Read8(cpu.IY + offset16(d))\n")
     elif r == "(hl)":
-        out.put("res := cpu.mem.Rd8(cpu.get_hl())\n")
+        out.put("res := cpu.mem.Read8(cpu.get_hl())\n")
     else:
         out.put("res := cpu.%s\n" % r.upper())
 
@@ -840,13 +840,13 @@ def emit_rot_r_x(out, op, r, x):
     if x != "":
         out.put("cpu.%s = res\n" % x.upper())
     if r == "(ix+d)":
-        out.put("cpu.mem.Wr8(cpu.IX + offset16(d), res)\n")
+        out.put("cpu.mem.Write8(cpu.IX + offset16(d), res)\n")
         out.put("return 11\n")
     elif r == "(iy+d)":
-        out.put("cpu.mem.Wr8(cpu.IY + offset16(d), res)\n")
+        out.put("cpu.mem.Write8(cpu.IY + offset16(d), res)\n")
         out.put("return 11\n")
     elif r == "(hl)":
-        out.put("cpu.mem.Wr8(cpu.get_hl(), res)\n")
+        out.put("cpu.mem.Write8(cpu.get_hl(), res)\n")
         out.put("return 11\n")
     else:
         out.put("cpu.%s = res\n" % r.upper())
@@ -856,12 +856,12 @@ def emit_rot_r_x(out, op, r, x):
 def emit_rxd(out, op):
     """rld, rrd"""
     out.put("adr := cpu.get_hl()\n")
-    out.put("n := cpu.mem.Rd8(adr)\n")
+    out.put("n := cpu.mem.Read8(adr)\n")
     if op == "rrd":
-        out.put("cpu.mem.Wr8(adr, ((n >> 4) | (cpu.A << 4)) & 0xff)\n")
+        out.put("cpu.mem.Write8(adr, ((n >> 4) | (cpu.A << 4)) & 0xff)\n")
         out.put("cpu.A = (cpu.A & 0xf0) | (n & 0x0f)\n")
     elif op == "rld":
-        out.put("cpu.mem.Wr8(adr, ((n << 4) | (cpu.A & 0x0f)) & 0xff)\n")
+        out.put("cpu.mem.Write8(adr, ((n << 4) | (cpu.A & 0x0f)) & 0xff)\n")
         out.put("cpu.A = (cpu.A & 0xf0) | (n >> 4)\n")
     else:
         assert False
@@ -876,13 +876,13 @@ def emit_rxd(out, op):
 def emit_bit_b_r(out, b, r):
     """bit test operation on r"""
     if r == "(ix+d)":
-        out.put("bit := cpu.mem.Rd8(cpu.IX + offset16(d)) & (1 << %d)\n" % b)
+        out.put("bit := cpu.mem.Read8(cpu.IX + offset16(d)) & (1 << %d)\n" % b)
         t = 8
     elif r == "(iy+d)":
-        out.put("bit := cpu.mem.Rd8(cpu.IY + offset16(d)) & (1 << %d)\n" % b)
+        out.put("bit := cpu.mem.Read8(cpu.IY + offset16(d)) & (1 << %d)\n" % b)
         t = 8
     elif r == "(hl)":
-        out.put("bit := cpu.mem.Rd8(cpu.get_hl()) & (1 << %d)\n" % b)
+        out.put("bit := cpu.mem.Read8(cpu.get_hl()) & (1 << %d)\n" % b)
         t = 8
     else:
         out.put("bit := cpu.%s & (1 << %d)\n" % (r.upper(), b))
@@ -901,18 +901,18 @@ def emit_set_b_r(out, b, r, x):
     """bit set operation on r"""
     if r == "(ix+d)":
         out.put("n := cpu.IX + offset16(d)\n")
-        out.put("val := cpu.mem.Rd8(n) | (1 << %d)\n" % b)
-        out.put("cpu.mem.Wr8(n, val)\n")
+        out.put("val := cpu.mem.Read8(n) | (1 << %d)\n" % b)
+        out.put("cpu.mem.Write8(n, val)\n")
         t = 11
     elif r == "(iy+d)":
         out.put("n := cpu.IY + offset16(d)\n")
-        out.put("val := cpu.mem.Rd8(n) | (1 << %d)\n" % b)
-        out.put("cpu.mem.Wr8(n, val)\n")
+        out.put("val := cpu.mem.Read8(n) | (1 << %d)\n" % b)
+        out.put("cpu.mem.Write8(n, val)\n")
         t = 11
     elif r == "(hl)":
         out.put("n := cpu.get_hl()\n")
-        out.put("val := cpu.mem.Rd8(n) | (1 << %d)\n" % b)
-        out.put("cpu.mem.Wr8(n, val)\n")
+        out.put("val := cpu.mem.Read8(n) | (1 << %d)\n" % b)
+        out.put("cpu.mem.Write8(n, val)\n")
         t = 11
     else:
         out.put("val := cpu.%s | (1 << %d)\n" % (r.upper(), b))
@@ -927,18 +927,18 @@ def emit_res_b_r(out, b, r, x):
     """bit reset operation on r"""
     if r == "(ix+d)":
         out.put("n := cpu.IX + offset16(d)\n")
-        out.put("val := cpu.mem.Rd8(n) &^ (1 << %d)\n" % b)
-        out.put("cpu.mem.Wr8(n, val)\n")
+        out.put("val := cpu.mem.Read8(n) &^ (1 << %d)\n" % b)
+        out.put("cpu.mem.Write8(n, val)\n")
         t = 11
     elif r == "(iy+d)":
         out.put("n := cpu.IY + offset16(d)\n")
-        out.put("val := cpu.mem.Rd8(n) &^ (1 << %d)\n" % b)
-        out.put("cpu.mem.Wr8(n, val)\n")
+        out.put("val := cpu.mem.Read8(n) &^ (1 << %d)\n" % b)
+        out.put("cpu.mem.Write8(n, val)\n")
         t = 11
     elif r == "(hl)":
         out.put("n := cpu.get_hl()\n")
-        out.put("val := cpu.mem.Rd8(n) &^ (1 << %d)\n" % b)
-        out.put("cpu.mem.Wr8(n, val)\n")
+        out.put("val := cpu.mem.Read8(n) &^ (1 << %d)\n" % b)
+        out.put("cpu.mem.Write8(n, val)\n")
         t = 11
     else:
         out.put("cpu.%s = cpu.%s &^ (1 << %d)\n" % (r.upper(), r.upper(), b))
@@ -1128,7 +1128,7 @@ def emit_reti(out):
 
 def emit_in_r_c(out, r):
     """in r,(c)"""
-    out.put("val := cpu.io.Rd8(cpu.get_bc())\n")
+    out.put("val := cpu.io.Read8(cpu.get_bc())\n")
     if r != "":
         out.put("cpu.%s = val\n" % r.upper())
     out.put("cpu.F =  (cpu.F & _CF) | flagsSZP[val]\n")
@@ -1137,21 +1137,21 @@ def emit_in_r_c(out, r):
 
 def emit_in_a_n(out):
     """in a,(n)"""
-    out.put("cpu.A = cpu.io.Rd8((uint16(cpu.A) << 8) | uint16(cpu.get_n()))   \n")
+    out.put("cpu.A = cpu.io.Read8((uint16(cpu.A) << 8) | uint16(cpu.get_n()))   \n")
     out.put("return 11\n")
 
 
 def emit_out_n_a(out):
     """out (n),a"""
-    out.put("cpu.io.Wr8((uint16(cpu.A) << 8) | uint16(cpu.get_n()), cpu.A)\n")
+    out.put("cpu.io.Write8((uint16(cpu.A) << 8) | uint16(cpu.get_n()), cpu.A)\n")
     out.put("return 11\n")
 
 
 def emit_out_c_r(out, r):
     if r == "":
-        out.put("cpu.io.Wr8(cpu.get_bc(), 0)\n")
+        out.put("cpu.io.Write8(cpu.get_bc(), 0)\n")
     else:
-        out.put("cpu.io.Wr8(cpu.get_bc(), cpu.%s)\n" % r.upper())
+        out.put("cpu.io.Write8(cpu.get_bc(), cpu.%s)\n" % r.upper())
     out.put("return 8\n")
 
 

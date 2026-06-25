@@ -30,7 +30,7 @@ type Memory struct {
 }
 
 // Rd8 reads a byte from memory.
-func (m *Memory) Rd8(adr uint16) uint8 {
+func (m *Memory) Read8(adr uint16) uint8 {
 	if addressIsWithin(adr, romStart, romSize) {
 		return m.rom[adr-romStart]
 	}
@@ -41,7 +41,7 @@ func (m *Memory) Rd8(adr uint16) uint8 {
 	return 0xff
 }
 
-func (m *Memory) Wr8(adr uint16, val uint8) {
+func (m *Memory) Write8(adr uint16, val uint8) {
 	if addressIsWithin(adr, romStart, romSize) {
 		if m.romWriteable {
 			m.rom[adr-romStart] = val
@@ -61,15 +61,15 @@ func (m *Memory) WriteROM(flag bool) {
 	m.romWriteable = flag
 }
 
-func (m *Memory) Rd16(adr uint16) uint16 {
-	l := uint16(m.Rd8(adr))
-	h := uint16(m.Rd8(adr + 1))
+func (m *Memory) Read16(adr uint16) uint16 {
+	l := uint16(m.Read8(adr))
+	h := uint16(m.Read8(adr + 1))
 	return (h << 8) | l
 }
 
-func (m *Memory) Wr16(adr uint16, val uint16) {
-	m.Wr8(adr, uint8(val))
-	m.Wr8(adr+1, uint8(val>>8))
+func (m *Memory) Write16(adr uint16, val uint16) {
+	m.Write8(adr, uint8(val))
+	m.Write8(adr+1, uint8(val>>8))
 }
 
 func newMemory() *Memory {
@@ -91,16 +91,16 @@ type IO struct {
 }
 
 // Rd8 reads a byte from an IO port.
-func (io *IO) Rd8(adr uint16) uint8 {
+func (io *IO) Read8(adr uint16) uint8 {
 	adr &= 0xff
-	fmt.Printf("io.Rd8 [%02x]\n", adr)
+	fmt.Printf("io.Read8 [%02x]\n", adr)
 	return 0
 }
 
 // Wr8 writes a byte to an IO port.
-func (io *IO) Wr8(adr uint16, val uint8) {
+func (io *IO) Write8(adr uint16, val uint8) {
 	adr &= 0xff
-	fmt.Printf("io.Wr8 [%02x] = %02x\n", adr, val)
+	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
 func newIO() *IO {

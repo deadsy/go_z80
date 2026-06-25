@@ -62,22 +62,22 @@ func newOpcodeTestMemory() Memory {
 	return &otMemory{}
 }
 
-func (m *otMemory) Wr8(addr uint16, val uint8) {
+func (m *otMemory) Write8(addr uint16, val uint8) {
 	//log.Printf("mem wr8 [%04x] = %02x", addr, val)
 	m.mem[addr] = val
 }
 
-func (m *otMemory) Rd8(addr uint16) uint8 {
+func (m *otMemory) Read8(addr uint16) uint8 {
 	return m.mem[addr]
 }
 
-func (m *otMemory) Wr16(addr uint16, val uint16) {
+func (m *otMemory) Write16(addr uint16, val uint16) {
 	//log.Printf("mem wr16 [%04x] = %04x", addr, val)
 	m.mem[addr] = uint8(val)
 	m.mem[addr+1] = uint8(val >> 8)
 }
 
-func (m *otMemory) Rd16(addr uint16) uint16 {
+func (m *otMemory) Read16(addr uint16) uint16 {
 	return uint16(m.mem[addr]) + (uint16(m.mem[addr+1]) << 8)
 }
 
@@ -85,7 +85,7 @@ func (m *otMemory) Set(ram [][2]int) {
 	for _, x := range ram {
 		addr := uint16(x[0])
 		val := uint8(x[1])
-		m.Wr8(addr, val)
+		m.Write8(addr, val)
 	}
 }
 
@@ -93,7 +93,7 @@ func (m *otMemory) Check(ram [][2]int) error {
 	for _, x := range ram {
 		addr := uint16(x[0])
 		expected := uint8(x[1])
-		actual := m.Rd8(addr)
+		actual := m.Read8(addr)
 		if actual != expected {
 			return fmt.Errorf("[%04x] is %02x, expected %02x", addr, actual, expected)
 		}
@@ -116,7 +116,7 @@ func newOpcodeTestIO() IO {
 	return &otIO{}
 }
 
-func (io *otIO) Wr8(addr uint16, val uint8) {
+func (io *otIO) Write8(addr uint16, val uint8) {
 	//log.Printf("io wr8 [%04x] = %02x", addr, val)
 	if io.op[addr]&ioWrite != 0 {
 		io.port[addr] = val
@@ -125,7 +125,7 @@ func (io *otIO) Wr8(addr uint16, val uint8) {
 	}
 }
 
-func (io *otIO) Rd8(addr uint16) uint8 {
+func (io *otIO) Read8(addr uint16) uint8 {
 	//log.Printf("io rd8 [%04x]", addr)
 	if io.op[addr]&ioRead != 0 {
 		return io.port[addr]

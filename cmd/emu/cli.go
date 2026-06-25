@@ -92,7 +92,7 @@ var cmdMemDisplay = cli.Leaf{
 			var data [16]string
 			var ascii [16]string
 			for j := 0; j < 16; j++ {
-				x := c.User.(*userApp).mem.Rd8(adr + uint16(j))
+				x := c.User.(*userApp).mem.Read8(adr + uint16(j))
 				data[j] = fmt.Sprintf("%02x", x)
 				if x >= 32 && x <= 126 {
 					ascii[j] = fmt.Sprintf("%c", x)
