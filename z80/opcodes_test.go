@@ -346,10 +346,10 @@ func runTest(t *testing.T, fname string) error {
 		// setup cpu state
 		v.Initial.set(cpu)
 
-		cycles := cpu.execute()
+		cpu.Run()
 
-		if cycles != len(v.Cycles) {
-			return fmt.Errorf("cycles, expected %d, actual %d", len(v.Cycles), cycles)
+		if cpu.cycles != len(v.Cycles) {
+			return fmt.Errorf("cycles, expected %d, actual %d", len(v.Cycles), cpu.cycles)
 		}
 
 		// check cpu state

@@ -617,8 +617,7 @@ def emit_im(out, n):
 
 def emit_halt(out):
     """halt"""
-    out.put("cpu.enter_halt()\n")
-    out.put("cpu.PC += 1\n")
+    out.put("cpu.halt = true\n")
     out.put("return 4\n")
 
 

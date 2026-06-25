@@ -99,6 +99,17 @@ func (cpu *CPU) Reset() {
 	cpu.IX = 0xffff
 	cpu.IY = 0xffff
 
+	cpu.IM = 0
+	cpu.I = 0
+	cpu.R = 0
+	cpu.IFF1 = false
+	cpu.IFF2 = false
+
+	cpu.halt = false
+	cpu.nmi = false
+	cpu.irq = false
+
+	cpu.cycles = 0
 }
 
 // Return a string with processor state
@@ -211,14 +222,6 @@ func (cpu *CPU) inc_r() {
 	cpu.R = (cpu.R + 1) & 0x7F
 }
 
-// Execute a single instruction at the current mem[pc] location.
-// Return the number of clock cycles taken.
-func (cpu *CPU) execute() int {
-	cpu.inc_r()
-	code := cpu.get_n()
-	return opcodes[code](cpu)
-}
-
 // A prefix code hase been repeated. NOP and re-run the current prefix
 func (cpu *CPU) repeated_prefix() int {
 	cpu.inc_r()
@@ -326,22 +329,6 @@ func (cpu *CPU) get_hl() uint16 {
 
 //-----------------------------------------------------------------------------
 
-// enter halt mode
-func (cpu *CPU) enter_halt() {
-	cpu.halt = true
-	cpu.PC -= 1
-}
-
-// leave halt mode
-func (cpu *CPU) leave_halt() {
-	if cpu.halt {
-		cpu.PC += 1
-		cpu.halt = false
-	}
-}
-
-//-----------------------------------------------------------------------------
-
 // push an 8-bit quantity onto the stack
 func (cpu *CPU) push8(val uint8) {
 	cpu.SP -= 1
@@ -384,9 +371,18 @@ func (cpu *CPU) get_n() uint8 {
 
 //-----------------------------------------------------------------------------
 
+// NMI starts the non-maskable interrupt processing.
+func (cpu *CPU) NMI() {
+	cpu.nmi = true
+}
+
+// IRQ starts the maskable interrupt processing.
+func (cpu *CPU) IRQ() {
+	cpu.irq = true
+}
+
 // IM0 interrupt mode handling
 func (cpu *CPU) handleIM0() error {
-	cpu.inc_r()
 	// read an opcode from the bus
 	code := cpu.bus.ReadIV()
 	// execute the opcode
@@ -418,36 +414,26 @@ func (cpu *CPU) handleIM2() error {
 }
 
 func (cpu *CPU) irqHandling() error {
-
-	// A low INT line wakes the CPU from HALT, even if interrupts are disabled
-	if cpu.irq && cpu.halt {
-		cpu.halt = false
-		// Move past the HALT instruction
-		cpu.PC++
-	}
-
-	// Only process the routine if master interrupts are enabled and the line is active
-	if !cpu.IFF1 || !cpu.irq {
-		return nil
-	}
-
-	// Acknowledge sequence disables future interrupts automatically
+	// taken out of halt
+	cpu.halt = false
+	// disable interrupts
 	cpu.IFF1 = false
 	cpu.IFF2 = false
-
-	// Service the specific mode
+	// Service the specific interrupt mode
 	switch cpu.IM {
 	case 0:
-		cpu.handleIM0()
+		return cpu.handleIM0()
 	case 1:
-		cpu.handleIM1()
+		return cpu.handleIM1()
 	case 2:
-		cpu.handleIM2()
+		return cpu.handleIM2()
 	}
 	return fmt.Errorf("invalid IM mode %d", cpu.IM)
 }
 
 func (cpu *CPU) nmiHandling() error {
+	// taken out of halt
+	cpu.halt = false
 	// Backup the maskable interrupt state
 	cpu.IFF2 = cpu.IFF1
 	// Disable future maskable interrupts during NMI execution
@@ -464,18 +450,27 @@ func (cpu *CPU) nmiHandling() error {
 // Run the Z80 CPU for a single instruction.
 func (cpu *CPU) Run() error {
 
+	// increment r
+	cpu.inc_r()
+
 	if cpu.nmi {
 		cpu.nmi = false
-		return nil
+		return cpu.nmiHandling()
 	}
 
-	if cpu.irq {
+	if cpu.irq && cpu.IFF1 {
 		cpu.irq = false
+		return cpu.irqHandling()
+	}
+
+	if cpu.halt {
+		cpu.cycles += 4 // nop
 		return nil
 	}
 
-	cycles := cpu.execute()
-	cpu.cycles += cycles
+	// execute the next opcode
+	code := cpu.get_n()
+	cpu.cycles += opcodes[code](cpu)
 	return nil
 }
 

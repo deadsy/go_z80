@@ -2712,8 +2712,7 @@ func (cpu *CPU) ins_75() int {
 
 // halt
 func (cpu *CPU) ins_76() int {
-	cpu.enter_halt()
-	cpu.PC += 1
+	cpu.halt = true
 	return 4
 }
 
