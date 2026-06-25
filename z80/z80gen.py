@@ -177,7 +177,8 @@ def emit_ld_r_r(out, rd, rs):
         out.put("cpu.%s = cpu.mem.Read8(cpu.IY + d)\n" % rd.upper())
         out.put("return 15\n")
     else:
-        out.put("cpu.%s = cpu.%s\n" % (rd.upper(), rs.upper()))
+        if rd != rs:
+            out.put("cpu.%s = cpu.%s\n" % (rd.upper(), rs.upper()))
         out.put("return 4\n")
 
 

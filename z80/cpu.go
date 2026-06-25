@@ -45,8 +45,8 @@ type Bus interface {
 // nmiAddress is the non-maskable interrupt address
 const nmiAddress = uint16(0x0066)
 
-// im0Address is the IM0 interrupt address
-const im0Address = uint16(0x0038)
+// im1Address is the IM1 interrupt address
+const im1Address = uint16(0x0038)
 
 // rstAddress is the reset address
 const rstAddress = uint16(0)
@@ -383,7 +383,7 @@ func (cpu *CPU) IRQ() {
 
 // IM0 interrupt mode handling
 func (cpu *CPU) handleIM0() error {
-	// read an opcode from the bus
+	// read an opcode from the bus (single byte only)
 	code := cpu.bus.ReadIV()
 	// execute the opcode
 	cycles := opcodes[code](cpu)
@@ -395,7 +395,7 @@ func (cpu *CPU) handleIM0() error {
 func (cpu *CPU) handleIM1() error {
 	cpu.push16(cpu.PC)
 	// Jump to fixed vector
-	cpu.PC = im0Address
+	cpu.PC = im1Address
 	cpu.cycles += 13
 	return nil
 }
@@ -406,9 +406,9 @@ func (cpu *CPU) handleIM2() error {
 	// Get the low byte from the hardware bus (16-bit aligned)
 	vec := cpu.bus.ReadIV() & 0xfe
 	// work out the table address
-	table := (uint16(cpu.I) << 8) | uint16(vec)
+	adr := (uint16(cpu.I) << 8) | uint16(vec)
 	// jump to the pc stored in the lookup table
-	cpu.PC = cpu.mem.Read16(table)
+	cpu.PC = cpu.mem.Read16(adr)
 	cpu.cycles += 19
 	return nil
 }

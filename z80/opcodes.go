@@ -2388,7 +2388,6 @@ func (cpu *CPU) ins_3f() int {
 
 // ld b,b
 func (cpu *CPU) ins_40() int {
-	cpu.B = cpu.B
 	return 4
 }
 
@@ -2442,7 +2441,6 @@ func (cpu *CPU) ins_48() int {
 
 // ld c,c
 func (cpu *CPU) ins_49() int {
-	cpu.C = cpu.C
 	return 4
 }
 
@@ -2496,7 +2494,6 @@ func (cpu *CPU) ins_51() int {
 
 // ld d,d
 func (cpu *CPU) ins_52() int {
-	cpu.D = cpu.D
 	return 4
 }
 
@@ -2550,7 +2547,6 @@ func (cpu *CPU) ins_5a() int {
 
 // ld e,e
 func (cpu *CPU) ins_5b() int {
-	cpu.E = cpu.E
 	return 4
 }
 
@@ -2604,7 +2600,6 @@ func (cpu *CPU) ins_63() int {
 
 // ld h,h
 func (cpu *CPU) ins_64() int {
-	cpu.H = cpu.H
 	return 4
 }
 
@@ -2658,7 +2653,6 @@ func (cpu *CPU) ins_6c() int {
 
 // ld l,l
 func (cpu *CPU) ins_6d() int {
-	cpu.L = cpu.L
 	return 4
 }
 
@@ -2766,7 +2760,6 @@ func (cpu *CPU) ins_7e() int {
 
 // ld a,a
 func (cpu *CPU) ins_7f() int {
-	cpu.A = cpu.A
 	return 4
 }
 
