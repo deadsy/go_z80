@@ -109,7 +109,7 @@ type Display struct {
 	texture        *ebiten.Image
 }
 
-const digitSize = float32(100.0)
+const digitSize = float32(55.0)
 
 func newDisplay() *Display {
 	d := &Display{
@@ -117,7 +117,7 @@ func newDisplay() *Display {
 		xScale:   digitSize,
 		yScale:   xyScale(digitSize),
 		xGap:     1.5 * digitSize,
-		interval: 1 * time.Millisecond,
+		interval: 0 * time.Millisecond,
 	}
 	d.texture.Fill(color.White)
 	return d
@@ -189,6 +189,11 @@ func (d *Display) getHeight() int {
 
 func (d *Display) set(digit int, val byte) {
 	d.buffer[digit] = val
+}
+
+func (d *Display) setBase(x, y float32) {
+	d.xBase = x
+	d.yBase = y
 }
 
 // display draw function (called in game draw)

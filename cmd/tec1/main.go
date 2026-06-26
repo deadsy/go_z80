@@ -18,6 +18,7 @@ import (
 	cli "github.com/deadsy/go-cli"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 //-----------------------------------------------------------------------------
@@ -121,8 +122,29 @@ func mainx() {
 //-----------------------------------------------------------------------------
 
 type Game struct {
+	background    *ebiten.Image
 	display       *Display
 	width, height int
+}
+
+func newGame(d *Display) (*Game, error) {
+
+	g := &Game{
+		display: d,
+	}
+
+	// load background image
+	img, _, err := ebitenutil.NewImageFromFile("../../images/tec1a.png")
+	if err != nil {
+		return nil, err
+	}
+	g.background = img
+
+	bounds := g.background.Bounds()
+	g.width = bounds.Dx()
+	g.height = bounds.Dy()
+
+	return g, nil
 }
 
 func (g *Game) Update() error {
@@ -131,6 +153,10 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(bgColor)
+	// load the backgroun
+	if g.background != nil {
+		screen.DrawImage(g.background, nil)
+	}
 	g.display.draw(screen)
 }
 
@@ -142,17 +168,18 @@ func main() {
 
 	d := newDisplay()
 
-	d.set(0, 0x5e)
-	d.set(1, 0x79)
-	d.set(2, 0x77)
-	d.set(3, 0x5e)
+	d.set(0, 0x5e+0x80)
+	d.set(1, 0x79+0x80)
+	d.set(2, 0x77+0x80)
+	d.set(3, 0x5e+0x80)
 	d.set(4, 0x7f)
 	d.set(5, 0x7f)
 
-	g := &Game{
-		display: d,
-		width:   d.getWidth(),
-		height:  d.getHeight(),
+	d.setBase(355, 665)
+
+	g, err := newGame(d)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	ebiten.SetWindowSize(g.width, g.height)
