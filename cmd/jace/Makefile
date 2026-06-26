@@ -5,3 +5,4 @@ all:
 .PHONY: clean
 clean:
 	go clean
+	-rm history.txt
