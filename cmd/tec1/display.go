@@ -103,7 +103,6 @@ type Display struct {
 	active         int             // active digit
 	xBase, yBase   float32         // xy position of display on screen
 	xScale, yScale float32         // xy size of digit
-	xGap           float32         // gap between digits 0..3 (address) and 4..5 (value)
 	last           time.Time       // time for last digit switch
 	interval       time.Duration   // time between digit switches
 	texture        *ebiten.Image
@@ -116,17 +115,19 @@ func newDisplay() *Display {
 		texture:  ebiten.NewImage(1, 1),
 		xScale:   digitSize,
 		yScale:   xyScale(digitSize),
-		xGap:     1.5 * digitSize,
 		interval: 0 * time.Millisecond,
 	}
 	d.texture.Fill(color.White)
 	return d
 }
 
+const xGap0 = float32(24.0)
+const xGap1 = float32(14.0)
+
 func (d *Display) xMap(digit int, x float32) float32 {
-	var gap float32
+	gap := float32(digit) * xGap0
 	if digit >= 4 {
-		gap = d.xGap
+		gap += xGap1
 	}
 	return d.xBase + gap + d.xScale*(float32(digit)+x)
 }

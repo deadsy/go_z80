@@ -172,10 +172,10 @@ func main() {
 	d.set(1, 0x79+0x80)
 	d.set(2, 0x77+0x80)
 	d.set(3, 0x5e+0x80)
-	d.set(4, 0x7f)
-	d.set(5, 0x7f)
+	d.set(4, 0x7f+0x80)
+	d.set(5, 0x7f+0x80)
 
-	d.setBase(355, 665)
+	d.setBase(362, 665)
 
 	g, err := newGame(d)
 	if err != nil {
