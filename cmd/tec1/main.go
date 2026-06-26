@@ -12,10 +12,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	cli "github.com/deadsy/go-cli"
 	"github.com/deadsy/go_z80/z80"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 //-----------------------------------------------------------------------------
@@ -78,7 +80,7 @@ func (u *userApp) Put(s string) {
 
 //-----------------------------------------------------------------------------
 
-func main() {
+func mainx() {
 	// command line flags
 	fname := flag.String("f", "out.bin", "file to load (sim6502 or raw)")
 	flag.Parse()
@@ -114,6 +116,51 @@ func main() {
 	// exit
 	c.HistorySave(historyPath)
 	os.Exit(0)
+}
+
+//-----------------------------------------------------------------------------
+
+type Game struct {
+	display       *Display
+	width, height int
+}
+
+func (g *Game) Update() error {
+	return g.display.update()
+}
+
+func (g *Game) Draw(screen *ebiten.Image) {
+	screen.Fill(bgColor)
+	g.display.draw(screen)
+}
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return g.width, g.height
+}
+
+func main() {
+
+	d := newDisplay()
+
+	d.set(0, 0x5e)
+	d.set(1, 0x79)
+	d.set(2, 0x77)
+	d.set(3, 0x5e)
+	d.set(4, 0x7f)
+	d.set(5, 0x7f)
+
+	g := &Game{
+		display: d,
+		width:   d.getWidth(),
+		height:  d.getHeight(),
+	}
+
+	ebiten.SetWindowSize(g.width, g.height)
+	ebiten.SetWindowTitle("TEC-1A")
+
+	if err := ebiten.RunGame(g); err != nil {
+		log.Fatal(err)
+	}
 }
 
 //-----------------------------------------------------------------------------
