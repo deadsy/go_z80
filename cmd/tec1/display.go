@@ -13,7 +13,6 @@ package main
 import (
 	"image/color"
 	"math"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -85,6 +84,57 @@ func xyScale(x float32) float32 {
 }
 
 //-----------------------------------------------------------------------------
+// digits
+
+const fadeCount = 2
+
+type digitState int
+
+const (
+	digitOff digitState = iota
+	digitOn
+	digitFading
+)
+
+type digit struct {
+	state digitState // current state
+	fade  int        // fade count
+	val   byte       // segment value
+}
+
+func (d *digit) set(val byte) {
+	if val == 0 {
+		d.state = digitOff
+	} else {
+		d.state = digitOn
+	}
+	d.val = val
+}
+
+func (d *digit) off() {
+	if d.state == digitOn {
+		d.state = digitFading
+		d.fade = fadeCount
+	}
+}
+
+// Is the digit on (or fading)?
+func (d *digit) isOn() bool {
+	return d.state != digitOff
+}
+
+// Digit update routine
+func (d *digit) update() {
+	// Fade the digit to the off state.
+	if (d.state == digitFading) && (d.fade > 0) {
+		d.fade -= 1
+		if d.fade == 0 {
+			d.state = digitOff
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
 
 const numDigits = 6
 
@@ -99,11 +149,8 @@ func eOn(val byte) bool  { return val&(1<<6) != 0 }
 func dOn(val byte) bool  { return val&(1<<7) != 0 }
 
 type Display struct {
-	buffer   [numDigits]byte // buffer of display values
-	active   int             // active digit
-	last     time.Time       // time for last digit switch
-	interval time.Duration   // time between digit switches
-	texture  *ebiten.Image
+	digits  [numDigits]digit // digit states
+	texture *ebiten.Image
 	// position and scale
 	xBase, yBase   float32 // xy position of display on screen
 	xScale, yScale float32 // xy size of digit
@@ -116,8 +163,7 @@ const digitSize = float32(55.0)
 
 func newDisplay() *Display {
 	d := &Display{
-		texture:  ebiten.NewImage(1, 1),
-		interval: 0 * time.Millisecond,
+		texture: ebiten.NewImage(1, 1),
 		// position and scale
 		xBase:  362.0,
 		yBase:  665.0,
@@ -172,8 +218,8 @@ func (d *Display) drawSegmentDP(screen *ebiten.Image, digit int, on bool) {
 }
 
 func (d *Display) drawDigit(screen *ebiten.Image, digit int) {
-	on := digit == d.active
-	val := d.buffer[digit]
+	on := d.digits[digit].isOn()
+	val := d.digits[digit].val
 	d.drawSegment(screen, digit, on && aOn(val), segA)
 	d.drawSegment(screen, digit, on && bOn(val), segB)
 	d.drawSegment(screen, digit, on && cOn(val), segC)
@@ -194,32 +240,31 @@ func (d *Display) getHeight() int {
 	return int(math.Ceil(float64(d.yMap(0))))
 }
 
-func (d *Display) set(digit int, val byte) {
-	d.buffer[digit] = val
-}
-
 func (d *Display) enable(digit, segment uint8) {
 	if digit == 0 {
 		// all digits are off
+		for i := 0; i < numDigits; i++ {
+			d.digits[i].off()
+		}
 		return
 	}
 	if (digit & 0x20) != 0 {
-		d.buffer[0] = segment
+		d.digits[0].set(segment)
 	}
 	if (digit & 0x10) != 0 {
-		d.buffer[1] = segment
+		d.digits[1].set(segment)
 	}
 	if (digit & 0x08) != 0 {
-		d.buffer[2] = segment
+		d.digits[2].set(segment)
 	}
 	if (digit & 0x04) != 0 {
-		d.buffer[3] = segment
+		d.digits[3].set(segment)
 	}
 	if (digit & 0x02) != 0 {
-		d.buffer[4] = segment
+		d.digits[4].set(segment)
 	}
 	if (digit & 0x01) != 0 {
-		d.buffer[5] = segment
+		d.digits[5].set(segment)
 	}
 }
 
@@ -233,14 +278,10 @@ func (d *Display) draw(screen *ebiten.Image) {
 }
 
 // periodic update function (called in game update)
-func (d *Display) update() error {
-	now := time.Now()
-	elapsed := now.Sub(d.last)
-	if elapsed >= d.interval {
-		d.active = (d.active + 1) % numDigits
-		d.last = now
+func (d *Display) update() {
+	for i := 0; i < numDigits; i++ {
+		d.digits[i].update()
 	}
-	return nil
 }
 
 //-----------------------------------------------------------------------------

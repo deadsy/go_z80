@@ -33,12 +33,6 @@ func newSystem() (*system, error) {
 
 	// setup the display
 	display := newDisplay()
-	//display.set(0, 0x5e+0x80)
-	//display.set(1, 0x79+0x80)
-	//display.set(2, 0x77+0x80)
-	//display.set(3, 0x5e+0x80)
-	//display.set(4, 0x7f+0x80)
-	//display.set(5, 0x7f+0x80)
 
 	// setup the IO
 	io := newIO(display)
@@ -79,6 +73,7 @@ func newSystem() (*system, error) {
 }
 
 const kHz = 1000
+const MHz = kHz * kHz
 const Hz = 1
 const cpuClock = 500 * kHz
 const tickRate = 60 * Hz
@@ -93,7 +88,8 @@ func (s *system) Update() error {
 		}
 		s.cycles -= float32(cycles)
 	}
-	return s.display.update()
+	s.display.update()
+	return nil
 }
 
 func (s *system) Draw(screen *ebiten.Image) {
