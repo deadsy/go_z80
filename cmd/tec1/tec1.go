@@ -8,103 +8,131 @@ TEC-1 Emulation
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/deadsy/go_z80/memory"
+	"github.com/deadsy/go_z80/z80"
+)
 
 //-----------------------------------------------------------------------------
+// System Memory
 
 const KiB = 1024
+const chunkBits = 11 // 2 KiB chunks
+const chunkSize = (1 << chunkBits)
+const numChunks = (64 * KiB) / chunkSize
 
-const romStart = uint16(0)
-const ramStart = uint16(0x800)
-const ramSize = 2 * KiB
-const romSize = 2 * KiB
+func chunkSelect(adr uint16) int { return int(adr >> chunkBits) }
 
-func addressIsWithin(adr, start, size uint16) bool {
-	return (adr >= start) && (adr < (start + size))
+type sysMemory struct {
+	memmap [numChunks]z80.Memory
 }
 
-type Memory struct {
-	rom          [romSize]byte
-	ram          [ramSize]byte
-	romWriteable bool
-}
-
-// Rd8 reads a byte from memory.
-func (m *Memory) Read8(adr uint16) uint8 {
-	if addressIsWithin(adr, romStart, romSize) {
-		return m.rom[adr-romStart]
+func newMemory() (*sysMemory, error) {
+	// ROM
+	rom := memory.New(11).ROM() // 2 KiB
+	err := rom.LoadFile(0, "../../roms/tec1a.rom")
+	if err != nil {
+		return nil, err
 	}
-	if addressIsWithin(adr, ramStart, ramSize) {
-		return m.ram[adr-ramStart]
-	}
-	fmt.Printf("mem.Rd8 address %04x is out of range\n", adr)
-	return 0xff
+	// RAM
+	ram := memory.New(11).RAM() // 2 KiB
+	// Empty
+	empty := memory.New(11).Empty() // 2 KiB
+
+	return &sysMemory{
+		memmap: [numChunks]z80.Memory{
+			rom,   // 0x0000 - 0x07ff
+			ram,   // 0x0800 - 0x0fff
+			empty, // 0x1000
+			empty, // 0x1800
+			empty, // 0x2000
+			empty, // 0x2800
+			empty, // 0x3000
+			empty, // 0x3800
+			empty, // 0x4000
+			empty, // 0x4800
+			empty, // 0x5000
+			empty, // 0x5800
+			empty, // 0x6000
+			empty, // 0x6800
+			empty, // 0x7000
+			empty, // 0x7800
+			empty, // 0x8000
+			empty, // 0x8800
+			empty, // 0x9000
+			empty, // 0x9800
+			empty, // 0xa000
+			empty, // 0xa800
+			empty, // 0xb000
+			empty, // 0xb800
+			empty, // 0xc000
+			empty, // 0xc800
+			empty, // 0xd000
+			empty, // 0xd800
+			empty, // 0xe000
+			empty, // 0xe800
+			empty, // 0xf000
+			empty, // 0xf800
+		},
+	}, nil
 }
 
-func (m *Memory) Write8(adr uint16, val uint8) {
-	if addressIsWithin(adr, romStart, romSize) {
-		if m.romWriteable {
-			m.rom[adr-romStart] = val
-		} else {
-			fmt.Printf("mem.Wr8 address %04x is ROM - can't write\n", adr)
-		}
-		return
-	}
-	if addressIsWithin(adr, ramStart, ramSize) {
-		m.ram[adr-ramStart] = val
-		return
-	}
-	fmt.Printf("mem.Wr8 address %04x is out of range\n", adr)
+func (m *sysMemory) Read8(adr uint16) uint8 {
+	return m.memmap[chunkSelect(adr)].Read8(adr)
 }
 
-func (m *Memory) WriteROM(flag bool) {
-	m.romWriteable = flag
+func (m *sysMemory) Write8(adr uint16, val uint8) {
+	m.memmap[chunkSelect(adr)].Write8(adr, val)
 }
 
-func (m *Memory) Read16(adr uint16) uint16 {
-	l := uint16(m.Read8(adr))
-	h := uint16(m.Read8(adr + 1))
-	return (h << 8) | l
+func (m *sysMemory) Read16(adr uint16) uint16 {
+	return m.memmap[chunkSelect(adr)].Read16(adr)
 }
 
-func (m *Memory) Write16(adr uint16, val uint16) {
-	m.Write8(adr, uint8(val))
-	m.Write8(adr+1, uint8(val>>8))
-}
-
-func newMemory() *Memory {
-	m := Memory{}
-	// all 0xffs
-	for i := range m.rom {
-		m.rom[i] = 0xff
-	}
-	for i := range m.ram {
-		m.ram[i] = 0xff
-	}
-	m.romWriteable = true
-	return &m
+func (m *sysMemory) Write16(adr uint16, val uint16) {
+	m.memmap[chunkSelect(adr)].Write16(adr, val)
 }
 
 //-----------------------------------------------------------------------------
 
-type IO struct {
+const digitPort = 0x01   // display digit enable
+const segmentPort = 0x02 // display segment enable
+
+type sysIO struct {
+	display *Display // 6 x 7 segment display
+	segment uint8    // latched segment enable
+	digit   uint8    // latched digit enable
 }
 
-// Rd8 reads a byte from an IO port.
-func (io *IO) Read8(adr uint16) uint8 {
+// Read8 reads a byte from an IO port.
+func (io *sysIO) Read8(adr uint16) uint8 {
 	adr &= 0xff
 	fmt.Printf("io.Read8 [%02x]\n", adr)
 	return 0
 }
 
-// Wr8 writes a byte to an IO port.
-func (io *IO) Write8(adr uint16, val uint8) {
+// Write8 writes a byte to an IO port.
+func (io *sysIO) Write8(adr uint16, val uint8) {
 	adr &= 0xff
+	switch adr {
+	case digitPort:
+		io.digit = val
+		io.display.enable(io.digit, io.segment)
+		return
+	case segmentPort:
+		io.segment = val
+		io.display.enable(io.digit, io.segment)
+		return
+	}
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO() *IO {
-	return &IO{}
+func newIO(display *Display) *sysIO {
+	return &sysIO{
+		display: display,
+	}
 }
 
 //-----------------------------------------------------------------------------

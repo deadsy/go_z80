@@ -149,7 +149,7 @@ var cmdGo = cli.Leaf{
 		}
 		m.PC = adr
 		for true {
-			err := m.Run()
+			_, err := m.Run()
 			if err != nil {
 				c.User.Put(fmt.Sprintf("%s\n", err))
 				break
@@ -170,7 +170,7 @@ var cmdTrace = cli.Leaf{
 		m.PC = adr
 		for true {
 			s := m.Disassemble(m.PC, 1)
-			err := m.Run()
+			_, err := m.Run()
 			c.User.Put(fmt.Sprintf("%s\n", s))
 			if err != nil {
 				c.User.Put(fmt.Sprintf("%s\n", err))
@@ -191,7 +191,7 @@ var cmdStep = cli.Leaf{
 		}
 		m.PC = adr
 		s := m.Disassemble(m.PC, 1)
-		err = m.Run()
+		_, err = m.Run()
 		c.User.Put(fmt.Sprintf("%s\n", s))
 		if err != nil {
 			c.User.Put(fmt.Sprintf("%s\n", err))

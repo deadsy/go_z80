@@ -9,13 +9,8 @@ Z80 Emulator
 package main
 
 import (
-	"flag"
-	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
 
-	cli "github.com/deadsy/go-cli"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -23,114 +18,49 @@ import (
 
 //-----------------------------------------------------------------------------
 
-const historyPath = "history.txt"
-
-//-----------------------------------------------------------------------------
-
-// userApp is state associated with the user application.
-type userApp struct {
-	io  *IO
-	mem *Memory
-	cpu *z80.CPU
+type system struct {
+	io            *sysIO        // system IO
+	mem           *sysMemory    // system memory
+	bus           *Bus          // system bus
+	cpu           *z80.CPU      // z80 cpu
+	background    *ebiten.Image // background graphic
+	display       *Display      // 6 x 7 segment display
+	width, height int           // window dimensions
+	cycles        float32       // tick cpu cycles
 }
 
-// newUserApp returns a user application.
-func newUserApp() *userApp {
-	io := newIO()
-	mem := newMemory()
+func newSystem() (*system, error) {
+
+	// setup the display
+	display := newDisplay()
+	//display.set(0, 0x5e+0x80)
+	//display.set(1, 0x79+0x80)
+	//display.set(2, 0x77+0x80)
+	//display.set(3, 0x5e+0x80)
+	//display.set(4, 0x7f+0x80)
+	//display.set(5, 0x7f+0x80)
+
+	// setup the IO
+	io := newIO(display)
+
+	// setup the memory
+	mem, err := newMemory()
+	if err != nil {
+		return nil, err
+	}
+
+	// setup the bus
 	bus := newBus()
+
+	// setup the cpu
 	cpu := z80.New(io, mem, bus)
-	return &userApp{
-		io:  io,
-		mem: mem,
-		cpu: cpu,
-	}
-}
 
-//-----------------------------------------------------------------------------
-// file loading
-
-// loadRaw loads a raw binary file.
-func (u *userApp) loadRaw(filename string, x []uint8) (string, error) {
-
-	// copy the code to the load address
-	var loadAdr uint16
-	for i, v := range x {
-		u.mem.Write8(loadAdr+uint16(i), v)
-	}
-	endAdr := loadAdr + uint16(len(x)) - 1
-
-	return fmt.Sprintf("%s code %04x-%04x", filename, loadAdr, endAdr), nil
-}
-
-func (u *userApp) loadFile(filename string) (string, error) {
-	// get the file contents
-	x, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return "", err
-	}
-	return u.loadRaw(filename, x)
-}
-
-//-----------------------------------------------------------------------------
-
-// Put outputs a string to the user application.
-func (u *userApp) Put(s string) {
-	fmt.Printf("%s", s)
-}
-
-//-----------------------------------------------------------------------------
-
-func mainx() {
-	// command line flags
-	fname := flag.String("f", "out.bin", "file to load (sim6502 or raw)")
-	flag.Parse()
-
-	// create the application
-	app := newUserApp()
-
-	// load the file
-	status, err := app.loadFile(*fname)
-	app.mem.WriteROM(false)
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
-	} else {
-		fmt.Fprintf(os.Stderr, "%s\n", status)
-	}
-
-	// create the cli
-	c := cli.NewCLI(app)
-	c.HistoryLoad(historyPath)
-	c.SetRoot(menuRoot)
-	c.SetPrompt("emu> ")
-
-	// reset the cpu
-	app.cpu.Reset()
-
-	// run the cli
-	for c.Running() {
-		c.Run()
-	}
-
-	// exit
-	c.HistorySave(historyPath)
-	os.Exit(0)
-}
-
-//-----------------------------------------------------------------------------
-
-type Game struct {
-	background    *ebiten.Image
-	display       *Display
-	width, height int
-}
-
-func newGame(d *Display) (*Game, error) {
-
-	g := &Game{
-		display: d,
+	s := &system{
+		io:      io,
+		mem:     mem,
+		bus:     bus,
+		display: display,
+		cpu:     cpu,
 	}
 
 	// load background image
@@ -138,55 +68,53 @@ func newGame(d *Display) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	g.background = img
+	s.background = img
 
-	bounds := g.background.Bounds()
-	g.width = bounds.Dx()
-	g.height = bounds.Dy()
+	// set the background dimensions
+	bounds := s.background.Bounds()
+	s.width = bounds.Dx()
+	s.height = bounds.Dy()
 
-	return g, nil
+	return s, nil
 }
 
-func (g *Game) Update() error {
-	return g.display.update()
-}
+const kHz = 1000
+const Hz = 1
+const cpuClock = 500 * kHz
+const tickRate = 60 * Hz
+const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate)
 
-func (g *Game) Draw(screen *ebiten.Image) {
-	screen.Fill(bgColor)
-	// load the backgroun
-	if g.background != nil {
-		screen.DrawImage(g.background, nil)
+func (s *system) Update() error {
+	s.cycles += cpuCyclesPerTick
+	for s.cycles > 0 {
+		cycles, err := s.cpu.Run()
+		if err != nil {
+			return err
+		}
+		s.cycles -= float32(cycles)
 	}
-	g.display.draw(screen)
+	return s.display.update()
 }
 
-func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return g.width, g.height
+func (s *system) Draw(screen *ebiten.Image) {
+	screen.Fill(bgColor)
+	screen.DrawImage(s.background, nil)
+	s.display.draw(screen)
+}
+
+func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return s.width, s.height
 }
 
 func main() {
-
-	d := newDisplay()
-
-	d.set(0, 0x5e+0x80)
-	d.set(1, 0x79+0x80)
-	d.set(2, 0x77+0x80)
-	d.set(3, 0x5e+0x80)
-	d.set(4, 0x7f+0x80)
-	d.set(5, 0x7f+0x80)
-
-	d.setBase(362, 665)
-
-	g, err := newGame(d)
+	s, err := newSystem()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error: %s", err)
 	}
-
-	ebiten.SetWindowSize(g.width, g.height)
+	ebiten.SetWindowSize(s.width, s.height)
 	ebiten.SetWindowTitle("TEC-1A")
-
-	if err := ebiten.RunGame(g); err != nil {
-		log.Fatal(err)
+	if err := ebiten.RunGame(s); err != nil {
+		log.Fatalf("error: %s", err)
 	}
 }
 

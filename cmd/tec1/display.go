@@ -90,22 +90,26 @@ const numDigits = 6
 
 // bit to segment mapping
 func aOn(val byte) bool  { return val&(1<<0) != 0 }
-func bOn(val byte) bool  { return val&(1<<1) != 0 }
-func cOn(val byte) bool  { return val&(1<<2) != 0 }
-func dOn(val byte) bool  { return val&(1<<3) != 0 }
-func eOn(val byte) bool  { return val&(1<<4) != 0 }
-func fOn(val byte) bool  { return val&(1<<5) != 0 }
-func gOn(val byte) bool  { return val&(1<<6) != 0 }
-func dpOn(val byte) bool { return val&(1<<7) != 0 }
+func fOn(val byte) bool  { return val&(1<<1) != 0 }
+func gOn(val byte) bool  { return val&(1<<2) != 0 }
+func bOn(val byte) bool  { return val&(1<<3) != 0 }
+func dpOn(val byte) bool { return val&(1<<4) != 0 }
+func cOn(val byte) bool  { return val&(1<<5) != 0 }
+func eOn(val byte) bool  { return val&(1<<6) != 0 }
+func dOn(val byte) bool  { return val&(1<<7) != 0 }
 
 type Display struct {
-	buffer         [numDigits]byte // buffer of display values
-	active         int             // active digit
-	xBase, yBase   float32         // xy position of display on screen
-	xScale, yScale float32         // xy size of digit
-	last           time.Time       // time for last digit switch
-	interval       time.Duration   // time between digit switches
-	texture        *ebiten.Image
+	buffer   [numDigits]byte // buffer of display values
+	active   int             // active digit
+	last     time.Time       // time for last digit switch
+	interval time.Duration   // time between digit switches
+	texture  *ebiten.Image
+	// position and scale
+	xBase, yBase   float32 // xy position of display on screen
+	xScale, yScale float32 // xy size of digit
+	xGap0          float32 // gaps between digits
+	xGap1          float32 // gap between address /data digits
+
 }
 
 const digitSize = float32(55.0)
@@ -113,21 +117,23 @@ const digitSize = float32(55.0)
 func newDisplay() *Display {
 	d := &Display{
 		texture:  ebiten.NewImage(1, 1),
-		xScale:   digitSize,
-		yScale:   xyScale(digitSize),
 		interval: 0 * time.Millisecond,
+		// position and scale
+		xBase:  362.0,
+		yBase:  665.0,
+		xScale: digitSize,
+		yScale: xyScale(digitSize),
+		xGap0:  24.0,
+		xGap1:  14.0,
 	}
 	d.texture.Fill(color.White)
 	return d
 }
 
-const xGap0 = float32(24.0)
-const xGap1 = float32(14.0)
-
 func (d *Display) xMap(digit int, x float32) float32 {
-	gap := float32(digit) * xGap0
+	gap := float32(digit) * d.xGap0
 	if digit >= 4 {
-		gap += xGap1
+		gap += d.xGap1
 	}
 	return d.xBase + gap + d.xScale*(float32(digit)+x)
 }
@@ -192,10 +198,32 @@ func (d *Display) set(digit int, val byte) {
 	d.buffer[digit] = val
 }
 
-func (d *Display) setBase(x, y float32) {
-	d.xBase = x
-	d.yBase = y
+func (d *Display) enable(digit, segment uint8) {
+	if digit == 0 {
+		// all digits are off
+		return
+	}
+	if (digit & 0x20) != 0 {
+		d.buffer[0] = segment
+	}
+	if (digit & 0x10) != 0 {
+		d.buffer[1] = segment
+	}
+	if (digit & 0x08) != 0 {
+		d.buffer[2] = segment
+	}
+	if (digit & 0x04) != 0 {
+		d.buffer[3] = segment
+	}
+	if (digit & 0x02) != 0 {
+		d.buffer[4] = segment
+	}
+	if (digit & 0x01) != 0 {
+		d.buffer[5] = segment
+	}
 }
+
+//-----------------------------------------------------------------------------
 
 // display draw function (called in game draw)
 func (d *Display) draw(screen *ebiten.Image) {

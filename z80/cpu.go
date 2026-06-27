@@ -66,7 +66,7 @@ type CPU struct {
 	mem Memory // memory of target system
 	bus Bus    // bus of target system
 
-	cycles int // total number of cpu cycles run
+	//cycles int // total number of cpu cycles run
 }
 
 func New(io IO, mem Memory, bus Bus) *CPU {
@@ -108,8 +108,6 @@ func (cpu *CPU) Reset() {
 	cpu.halt = false
 	cpu.nmi = false
 	cpu.irq = false
-
-	cpu.cycles = 0
 }
 
 // Return a string with processor state
@@ -382,26 +380,24 @@ func (cpu *CPU) IRQ() {
 }
 
 // IM0 interrupt mode handling
-func (cpu *CPU) handleIM0() error {
+func (cpu *CPU) handleIM0() (int, error) {
 	// read an opcode from the bus (single byte only)
 	code := cpu.bus.ReadIV()
 	// execute the opcode
 	cycles := opcodes[code](cpu)
-	cpu.cycles += cycles + 2
-	return nil
+	return cycles + 2, nil
 }
 
 // IM1 interrupt mode handling
-func (cpu *CPU) handleIM1() error {
+func (cpu *CPU) handleIM1() (int, error) {
 	cpu.push16(cpu.PC)
 	// Jump to fixed vector
 	cpu.PC = im1Address
-	cpu.cycles += 13
-	return nil
+	return 13, nil
 }
 
 // IM2 interrupt mode handling
-func (cpu *CPU) handleIM2() error {
+func (cpu *CPU) handleIM2() (int, error) {
 	cpu.push16(cpu.PC)
 	// Get the low byte from the hardware bus (16-bit aligned)
 	vec := cpu.bus.ReadIV() & 0xfe
@@ -409,11 +405,10 @@ func (cpu *CPU) handleIM2() error {
 	adr := (uint16(cpu.I) << 8) | uint16(vec)
 	// jump to the pc stored in the lookup table
 	cpu.PC = cpu.mem.Read16(adr)
-	cpu.cycles += 19
-	return nil
+	return 19, nil
 }
 
-func (cpu *CPU) irqHandling() error {
+func (cpu *CPU) irqHandling() (int, error) {
 	// taken out of halt
 	cpu.halt = false
 	// disable interrupts
@@ -428,10 +423,10 @@ func (cpu *CPU) irqHandling() error {
 	case 2:
 		return cpu.handleIM2()
 	}
-	return fmt.Errorf("invalid IM mode %d", cpu.IM)
+	return 0, fmt.Errorf("invalid IM mode %d", cpu.IM)
 }
 
-func (cpu *CPU) nmiHandling() error {
+func (cpu *CPU) nmiHandling() (int, error) {
 	// taken out of halt
 	cpu.halt = false
 	// Backup the maskable interrupt state
@@ -443,12 +438,11 @@ func (cpu *CPU) nmiHandling() error {
 	// Jump to the hardcoded NMI vector address
 	cpu.PC = nmiAddress
 	// Account for internal CPU clock cycles (NMI takes 11 T-states)
-	cpu.cycles += 11
-	return nil
+	return 11, nil
 }
 
 // Run the Z80 CPU for a single instruction.
-func (cpu *CPU) Run() error {
+func (cpu *CPU) Run() (int, error) {
 
 	// increment r
 	cpu.inc_r()
@@ -464,14 +458,13 @@ func (cpu *CPU) Run() error {
 	}
 
 	if cpu.halt {
-		cpu.cycles += 4 // nop
-		return nil
+		// nop
+		return 4, nil
 	}
 
 	// execute the next opcode
 	code := cpu.get_n()
-	cpu.cycles += opcodes[code](cpu)
-	return nil
+	return opcodes[code](cpu), nil
 }
 
 //-----------------------------------------------------------------------------
