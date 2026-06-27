@@ -101,7 +101,7 @@ func (m *sysMemory) Write16(adr uint16, val uint16) {
 
 //-----------------------------------------------------------------------------
 
-const keypadPort = 0x00   // keypad scan values
+const keypadPort = 0x00  // keypad scan values
 const digitPort = 0x01   // display digit enable
 const segmentPort = 0x02 // display segment enable
 
