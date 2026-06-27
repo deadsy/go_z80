@@ -38,6 +38,10 @@ func newMemory() (*sysMemory, error) {
 	}
 	// RAM
 	ram := memory.New(11).RAM() // 2 KiB
+	//err = ram.LoadFile(0, "../../asm/segments.bin")
+	//if err != nil {
+	//	return nil, err
+	//}
 	// Empty
 	empty := memory.New(11).Empty() // 2 KiB
 
@@ -97,18 +101,28 @@ func (m *sysMemory) Write16(adr uint16, val uint16) {
 
 //-----------------------------------------------------------------------------
 
+const keypadPort = 0x00   // keypad scan values
 const digitPort = 0x01   // display digit enable
 const segmentPort = 0x02 // display segment enable
 
+const digitMask = uint8(0x3f)   // digits are bits 0..5
+const speakerMask = uint8(0x80) // speaker/led is bit 7
+
 type sysIO struct {
 	display *Display // 6 x 7 segment display
+	led     *LED     // speaker led
 	segment uint8    // latched segment enable
 	digit   uint8    // latched digit enable
+	speaker bool     // latched speaker/led enable
 }
 
 // Read8 reads a byte from an IO port.
 func (io *sysIO) Read8(adr uint16) uint8 {
 	adr &= 0xff
+	switch adr {
+	case keypadPort:
+		return keyMinus
+	}
 	fmt.Printf("io.Read8 [%02x]\n", adr)
 	return 0
 }
@@ -118,8 +132,10 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	adr &= 0xff
 	switch adr {
 	case digitPort:
-		io.digit = val
+		io.digit = val & digitMask
+		io.speaker = (val & speakerMask) != 0
 		io.display.enable(io.digit, io.segment)
+		io.led.control(io.speaker)
 		return
 	case segmentPort:
 		io.segment = val
@@ -129,9 +145,10 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *Display) *sysIO {
+func newIO(display *Display, led *LED) *sysIO {
 	return &sysIO{
 		display: display,
+		led:     led,
 	}
 }
 
