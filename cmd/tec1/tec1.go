@@ -38,6 +38,8 @@ func newMemory() (*sysMemory, error) {
 	}
 	// RAM
 	ram := memory.New(11).RAM() // 2 KiB
+	ram.Write8(0, 0xef)
+
 	//err = ram.LoadFile(0, "../../asm/segments.bin")
 	//if err != nil {
 	//	return nil, err
@@ -121,7 +123,7 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	adr &= 0xff
 	switch adr {
 	case keypadPort:
-		return keyMinus
+		return keyGo
 	}
 	fmt.Printf("io.Read8 [%02x]\n", adr)
 	return 0

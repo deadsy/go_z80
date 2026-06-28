@@ -9,10 +9,12 @@ Z80 Emulator
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
@@ -21,13 +23,15 @@ import (
 type system struct {
 	display       *Display      // 6 x 7 segment display
 	led           *LED          // speaker activity LED
+	speaker       *Speaker      // audio speaker
 	io            *sysIO        // system IO
 	mem           *sysMemory    // system memory
 	bus           *Bus          // system bus
 	cpu           *z80.CPU      // z80 cpu
 	background    *ebiten.Image // background graphic
 	width, height int           // window dimensions
-	cycles        float32       // tick cpu cycles
+	tickCycles    float32       // ebiten tick cpu cycles
+	sampleCycles  float32       // audio sample cpu cycles
 }
 
 func newSystem() (*system, error) {
@@ -37,6 +41,16 @@ func newSystem() (*system, error) {
 
 	// setup the LED
 	led := newLED()
+
+	// setup the speaker
+	speaker := newSpeaker()
+
+	// setup the audio player
+	ctx := audio.NewContext(sampleRate)
+	player, err := ctx.NewPlayer(speaker)
+	if err != nil {
+		return nil, err
+	}
 
 	// setup the IO
 	io := newIO(display, led)
@@ -56,6 +70,7 @@ func newSystem() (*system, error) {
 	s := &system{
 		display: display,
 		led:     led,
+		speaker: speaker,
 		io:      io,
 		mem:     mem,
 		bus:     bus,
@@ -74,6 +89,9 @@ func newSystem() (*system, error) {
 	s.width = bounds.Dx()
 	s.height = bounds.Dy()
 
+	// start the audio player
+	player.Play()
+
 	return s, nil
 }
 
@@ -82,26 +100,38 @@ const MHz = kHz * kHz
 const Hz = 1
 const cpuClock = 500 * kHz
 const tickRate = 60 * Hz
-const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate)
+const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate)     // cpu cycles per ebiten update tick
+const cpuCyclesPerSample = float32(cpuClock) / float32(sampleRate) // cpu cycles per audio sample
 
 var updateCount int
 
 func (s *system) Update() error {
-	s.cycles += cpuCyclesPerTick
-	for s.cycles > 0 {
+	// run the cpu for as many cycles as are in an update tick
+	s.tickCycles += cpuCyclesPerTick
+	for s.tickCycles > 0 {
 		cycles, err := s.cpu.Run()
 		if err != nil {
 			return err
 		}
-		s.cycles -= float32(cycles)
+		s.tickCycles -= float32(cycles)
+		// sample the audio output
+		s.sampleCycles -= float32(cycles)
+		for s.sampleCycles <= 0 {
+			err := s.speaker.writeSample(s.io.speaker)
+			if err != nil {
+				fmt.Printf("speaker.writeSample: %s\n", err)
+			}
+			s.sampleCycles += cpuCyclesPerSample
+		}
 	}
+
 	s.display.update()
 	s.led.update()
 
+	// fake press a key using the NMI
 	updateCount += 1
-
 	if updateCount == 30 {
-		updateCount = 0
+		//updateCount = 0
 		s.cpu.NMI()
 	}
 
