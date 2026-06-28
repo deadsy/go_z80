@@ -45,9 +45,9 @@ const (
 )
 
 type LED struct {
-	state ledState // curretn state
+	state ledState // current state
 	fade  int
-	// psition and size
+	// position and size
 	xBase, yBase float32 // xy position of display on screen
 	radius       float32
 }
