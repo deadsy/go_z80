@@ -95,9 +95,9 @@ func newSystem() (*system, error) {
 	return s, nil
 }
 
-const kHz = 1000
-const MHz = kHz * kHz
 const Hz = 1
+const kHz = 1000 * Hz
+const MHz = kHz * kHz
 const cpuClock = 500 * kHz
 const tickRate = 60 * Hz
 const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate)     // cpu cycles per ebiten update tick

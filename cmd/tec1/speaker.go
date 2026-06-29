@@ -193,8 +193,8 @@ func (s *Speaker) Read(b []byte) (n int, err error) {
 
 // write a bit sample to the buffer
 func (s *Speaker) writeSample(bit bool) error {
-	const bitAmplitude = 0.2
-	sample := float32(0)
+	const bitAmplitude = float32(0.1)
+	sample := -bitAmplitude
 	if bit {
 		sample = bitAmplitude
 	}
