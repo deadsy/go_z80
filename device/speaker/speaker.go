@@ -1,24 +1,18 @@
 //-----------------------------------------------------------------------------
 /*
 
-TEC-1 Emulation
-
-Speaker Audio
+1 Bit Speaker Audio
 
 */
 //-----------------------------------------------------------------------------
 
-package main
+package speaker
 
 import (
 	"errors"
 	"math"
 	"sync"
 )
-
-//-----------------------------------------------------------------------------
-
-const sampleRate = 48000 // samples/second
 
 //-----------------------------------------------------------------------------
 
@@ -163,17 +157,27 @@ func (d *blocker) reset() {
 
 //-----------------------------------------------------------------------------
 
+type Config struct {
+	BitAmplitude float32
+	BufferSize   int
+	SampleRate   int
+	HighCutoff   int
+	LowCutoff    int
+}
+
 type Speaker struct {
+	config *Config         // speaker configuration
 	buffer *circularBuffer // circular buffer of sample values
 	lpf    *lowPassFilter  // low pass filter - remove high frequency components
 	block  *blocker        // dc block - give 0 average output
 }
 
-func newSpeaker() *Speaker {
+func New(k *Config) *Speaker {
 	return &Speaker{
-		buffer: newCircularBuffer(16384),
-		lpf:    newLowPassFilter(sampleRate, 4000),
-		block:  newBlocker(sampleRate, 40),
+		config: k,
+		buffer: newCircularBuffer(k.BufferSize),
+		lpf:    newLowPassFilter(float64(k.SampleRate), float64(k.HighCutoff)),
+		block:  newBlocker(float64(k.SampleRate), float64(k.LowCutoff)),
 	}
 }
 
@@ -192,11 +196,10 @@ func (s *Speaker) Read(b []byte) (n int, err error) {
 }
 
 // write a bit sample to the buffer
-func (s *Speaker) writeSample(bit bool) error {
-	const bitAmplitude = float32(0.1)
-	sample := -bitAmplitude
-	if bit {
-		sample = bitAmplitude
+func (s *Speaker) WriteSample(bit bool) error {
+	sample := s.config.BitAmplitude
+	if !bit {
+		sample = -sample
 	}
 
 	// low pass

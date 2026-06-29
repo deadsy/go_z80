@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/deadsy/go_z80/device/speaker"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
@@ -20,18 +21,31 @@ import (
 
 //-----------------------------------------------------------------------------
 
+const Hz = 1
+const kHz = 1000 * Hz
+const MHz = kHz * kHz
+
+const cpuClock = 500 * kHz
+const tickRate = 60 * Hz
+const sampleRate = 48000
+
+const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate)     // cpu cycles per ebiten update tick
+const cpuCyclesPerSample = float32(cpuClock) / float32(sampleRate) // cpu cycles per audio sample
+
+//-----------------------------------------------------------------------------
+
 type system struct {
-	display       *Display      // 6 x 7 segment display
-	led           *LED          // speaker activity LED
-	speaker       *Speaker      // audio speaker
-	io            *sysIO        // system IO
-	mem           *sysMemory    // system memory
-	bus           *Bus          // system bus
-	cpu           *z80.CPU      // z80 cpu
-	background    *ebiten.Image // background graphic
-	width, height int           // window dimensions
-	tickCycles    float32       // ebiten tick cpu cycles
-	sampleCycles  float32       // audio sample cpu cycles
+	display       *Display         // 6 x 7 segment display
+	led           *LED             // speaker activity LED
+	speaker       *speaker.Speaker // audio speaker
+	io            *sysIO           // system IO
+	mem           *sysMemory       // system memory
+	bus           *Bus             // system bus
+	cpu           *z80.CPU         // z80 cpu
+	background    *ebiten.Image    // background graphic
+	width, height int              // window dimensions
+	tickCycles    float32          // ebiten tick cpu cycles
+	sampleCycles  float32          // audio sample cpu cycles
 }
 
 func newSystem() (*system, error) {
@@ -43,7 +57,14 @@ func newSystem() (*system, error) {
 	led := newLED()
 
 	// setup the speaker
-	speaker := newSpeaker()
+	k := speaker.Config{
+		BitAmplitude: 0.1,
+		BufferSize:   16384,
+		SampleRate:   sampleRate,
+		HighCutoff:   6 * kHz,
+		LowCutoff:    40 * Hz,
+	}
+	speaker := speaker.New(&k)
 
 	// setup the audio player
 	ctx := audio.NewContext(sampleRate)
@@ -95,14 +116,6 @@ func newSystem() (*system, error) {
 	return s, nil
 }
 
-const Hz = 1
-const kHz = 1000 * Hz
-const MHz = kHz * kHz
-const cpuClock = 500 * kHz
-const tickRate = 60 * Hz
-const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate)     // cpu cycles per ebiten update tick
-const cpuCyclesPerSample = float32(cpuClock) / float32(sampleRate) // cpu cycles per audio sample
-
 var updateCount int
 
 func (s *system) Update() error {
@@ -117,9 +130,9 @@ func (s *system) Update() error {
 		// sample the audio output
 		s.sampleCycles -= float32(cycles)
 		for s.sampleCycles <= 0 {
-			err := s.speaker.writeSample(s.io.speaker)
+			err := s.speaker.WriteSample(s.io.speaker)
 			if err != nil {
-				fmt.Printf("speaker.writeSample: %s\n", err)
+				return fmt.Errorf("speaker.WriteSample: %s", err)
 			}
 			s.sampleCycles += cpuCyclesPerSample
 		}
