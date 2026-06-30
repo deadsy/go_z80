@@ -152,7 +152,7 @@ func (s *system) Update() error {
 	// fake a key press
 	updateCount += 1
 	if updateCount == 30 {
-		updateCount = 0
+		//updateCount = 0
 		s.cpu.NMI()
 	}
 

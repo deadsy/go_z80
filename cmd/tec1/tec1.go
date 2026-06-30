@@ -39,6 +39,7 @@ func newMemory() (*sysMemory, error) {
 	}
 	// RAM
 	ram := memory.New(11).RAM() // 2 KiB
+	ram.Write8(0, 0xef)
 
 	// Empty
 	empty := memory.New(11).Empty() // 2 KiB
@@ -120,7 +121,7 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	switch adr {
 	case keypadPort:
 		//return keyAddress
-		return keyMinus
+		return keyGo
 	}
 	fmt.Printf("io.Read8 [%02x]\n", adr)
 	return 0

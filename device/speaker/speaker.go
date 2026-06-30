@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 /*
 
-1 Bit Speaker Audio
+1-Bit Speaker Audio
 
 */
 //-----------------------------------------------------------------------------
@@ -33,11 +33,13 @@ type circularBuffer struct {
 	lock   sync.Mutex
 	buffer []byte
 	rd, wr int
+	free   int // current free count
 }
 
 func newCircularBuffer(size int) *circularBuffer {
 	return &circularBuffer{
 		buffer: make([]byte, size),
+		free:   size - 1,
 	}
 }
 
@@ -59,6 +61,26 @@ func (c *circularBuffer) write(val byte) error {
 	}
 	c.buffer[c.wr] = val
 	c.wr = wrInc
+	c.free -= 1
+	return nil
+}
+
+// write left/right audio samples as an atomic operation
+func (c *circularBuffer) writeSample(l, r int16) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if c.free < 4 {
+		return errors.New("full")
+	}
+	c.buffer[c.wr] = byte(l)
+	c.wr = incMod(c.wr, len(c.buffer))
+	c.buffer[c.wr] = byte(l >> 8)
+	c.wr = incMod(c.wr, len(c.buffer))
+	c.buffer[c.wr] = byte(r)
+	c.wr = incMod(c.wr, len(c.buffer))
+	c.buffer[c.wr] = byte(r >> 8)
+	c.wr = incMod(c.wr, len(c.buffer))
+	c.free -= 4
 	return nil
 }
 
@@ -68,6 +90,7 @@ func (c *circularBuffer) read() (byte, error) {
 	if c.rd != c.wr {
 		val := c.buffer[c.rd]
 		c.rd = incMod(c.rd, len(c.buffer))
+		c.free += 1
 		return val, nil
 	}
 	return 0, errors.New("empty")
@@ -197,32 +220,19 @@ func (s *Speaker) Read(b []byte) (n int, err error) {
 
 // write a bit sample to the buffer
 func (s *Speaker) WriteSample(bit bool) error {
+	// start with a square wave
 	sample := s.config.BitAmplitude
 	if !bit {
 		sample = -sample
 	}
-
 	// low pass
 	sample = s.lpf.process(sample)
 	// dc block
 	sample = s.block.process(sample)
 	// left and right channels are the same
 	x := clipConvert(sample)
-	l, r := x, x
-
-	err := s.buffer.write(byte(l))
-	if err != nil {
-		return err
-	}
-	err = s.buffer.write(byte(l >> 8))
-	if err != nil {
-		return err
-	}
-	err = s.buffer.write(byte(r))
-	if err != nil {
-		return err
-	}
-	return s.buffer.write(byte(r >> 8))
+	// buffer the sample
+	return s.buffer.writeSample(x, x)
 }
 
 //-----------------------------------------------------------------------------
