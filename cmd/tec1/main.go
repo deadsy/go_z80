@@ -116,8 +116,6 @@ func newSystem() (*system, error) {
 	return s, nil
 }
 
-var updateCount int
-
 func (s *system) Update() error {
 	// run the cpu for as many cycles as are in an update tick
 	s.tickCycles += cpuCyclesPerTick
@@ -140,14 +138,6 @@ func (s *system) Update() error {
 
 	s.display.update()
 	s.led.update()
-
-	// fake press a key using the NMI
-	updateCount += 1
-	if updateCount == 30 {
-		//updateCount = 0
-		s.cpu.NMI()
-	}
-
 	return nil
 }
 

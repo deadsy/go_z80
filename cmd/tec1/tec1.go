@@ -32,19 +32,13 @@ type sysMemory struct {
 func newMemory() (*sysMemory, error) {
 	// ROM
 	rom := memory.New(11).ROM() // 2 KiB
-	err := rom.LoadFile(0, "../../roms/tec1a.rom")
+	err := rom.LoadFile(0, "../../roms/mon1B.bin")
 	if err != nil {
 		return nil, err
 	}
 	// RAM
 	ram := memory.New(11).RAM() // 2 KiB
-	ram.Write8(0, 0xef)
-	//ram.Write8(0, 0xf7)
 
-	//err = ram.LoadFile(0, "../../asm/segments.bin")
-	//if err != nil {
-	//	return nil, err
-	//}
 	// Empty
 	empty := memory.New(11).Empty() // 2 KiB
 
