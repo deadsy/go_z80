@@ -37,10 +37,6 @@ type circularBuffer struct {
 }
 
 func newCircularBuffer(size int) *circularBuffer {
-	// ensure the buffer size is a multiple of left/right audio samples (4 bytes)
-	if size%4 != 0 {
-		panic("size % 4 != 0")
-	}
 	return &circularBuffer{
 		buffer: make([]byte, size),
 	}
@@ -203,6 +199,20 @@ type Speaker struct {
 }
 
 func New(k *Config) *Speaker {
+	// validate passed configuration
+	// ensure the buffer size is a multiple of left/right audio samples (4 bytes)
+	if (k.BufferSize <= 0) || (k.BufferSize%4 != 0) {
+		panic("invalid buffer size")
+	}
+	if k.SampleRate <= 0 {
+		panic("invalid sample rate")
+	}
+	if k.HighCutoff <= 0 {
+		panic("invalid high cutoff frequency")
+	}
+	if k.LowCutoff <= 0 {
+		panic("invalid low cutoff frequency")
+	}
 	return &Speaker{
 		config: k,
 		buffer: newCircularBuffer(k.BufferSize),
@@ -214,7 +224,8 @@ func New(k *Config) *Speaker {
 // Read samples from the buffer (implements io.Reader)
 func (s *Speaker) Read(b []byte) (n int, err error) {
 	// read complete left/right samples (4 bytes) at a time
-	for ofs := 0; ofs+4 <= len(b); ofs += 4 {
+	var ofs int
+	for ofs = 0; ofs+4 <= len(b); ofs += 4 {
 		err := s.buffer.readSample(b[ofs:])
 		if err != nil {
 			// emptied the sample buffer
@@ -222,7 +233,7 @@ func (s *Speaker) Read(b []byte) (n int, err error) {
 		}
 	}
 	// filled the provided buffer
-	return len(b) &^ 3, nil
+	return ofs, nil
 }
 
 // write a bit sample to the buffer
