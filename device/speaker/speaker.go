@@ -33,13 +33,12 @@ type circularBuffer struct {
 	lock   sync.Mutex
 	buffer []byte
 	rd, wr int
-	free   int // current free count
+	n      int // current byte count
 }
 
 func newCircularBuffer(size int) *circularBuffer {
 	return &circularBuffer{
 		buffer: make([]byte, size),
-		free:   size - 1,
 	}
 }
 
@@ -52,24 +51,21 @@ func incMod(idx, size int) int {
 	return idx
 }
 
-func (c *circularBuffer) write(val byte) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	wrInc := incMod(c.wr, len(c.buffer))
-	if wrInc == c.rd {
-		return errors.New("full")
-	}
-	c.buffer[c.wr] = val
-	c.wr = wrInc
-	c.free -= 1
-	return nil
+// isFull tells you if there is no space for a sample write
+func (c *circularBuffer) isFull() bool {
+	return (len(c.buffer) - 1 - c.n) < 4
 }
 
-// write left/right audio samples as an atomic operation
+// isEmpty tells you if there is a no sample read available
+func (c *circularBuffer) isEmpty() bool {
+	return c.n < 4
+}
+
+// write a left/right sample as an atomic operation
 func (c *circularBuffer) writeSample(l, r int16) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	if c.free < 4 {
+	if c.isFull() {
 		return errors.New("full")
 	}
 	c.buffer[c.wr] = byte(l)
@@ -80,20 +76,27 @@ func (c *circularBuffer) writeSample(l, r int16) error {
 	c.wr = incMod(c.wr, len(c.buffer))
 	c.buffer[c.wr] = byte(r >> 8)
 	c.wr = incMod(c.wr, len(c.buffer))
-	c.free -= 4
+	c.n += 4
 	return nil
 }
 
-func (c *circularBuffer) read() (byte, error) {
+// read a left/right sample (4 bytes) into the passed buffer
+func (c *circularBuffer) readSample(b []byte) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	if c.rd != c.wr {
-		val := c.buffer[c.rd]
-		c.rd = incMod(c.rd, len(c.buffer))
-		c.free += 1
-		return val, nil
+	if c.isEmpty() {
+		return errors.New("empty")
 	}
-	return 0, errors.New("empty")
+	b[0] = c.buffer[c.rd]
+	c.rd = incMod(c.rd, len(c.buffer))
+	b[1] = c.buffer[c.rd]
+	c.rd = incMod(c.rd, len(c.buffer))
+	b[2] = c.buffer[c.rd]
+	c.rd = incMod(c.rd, len(c.buffer))
+	b[3] = c.buffer[c.rd]
+	c.rd = incMod(c.rd, len(c.buffer))
+	c.n -= 4
+	return nil
 }
 
 //-----------------------------------------------------------------------------
@@ -206,16 +209,16 @@ func New(k *Config) *Speaker {
 
 // Read samples from the buffer (implements io.Reader)
 func (s *Speaker) Read(b []byte) (n int, err error) {
-	for i := 0; i < len(b); i++ {
-		val, err := s.buffer.read()
+	// read complete left/right samples (4 bytes) at a time
+	for ofs := 0; ofs < len(b); ofs += 4 {
+		err := s.buffer.readSample(b[ofs:])
 		if err != nil {
 			// emptied the sample buffer
-			return i, nil
+			return ofs, nil
 		}
-		b[i] = val
 	}
 	// filled the provided buffer
-	return len(b), nil
+	return len(b) &^ 3, nil
 }
 
 // write a bit sample to the buffer
