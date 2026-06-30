@@ -3,6 +3,12 @@
 
 Seven Segment Display Emulation
 
+This code emulates a single 7 segment display (with decimal point).
+The real system relies on persistence of vision and multiplexing to
+control the display. We use a "fade" state to control the display.
+That is, upon turn-off we do not turn the display off immediately but
+wait some number of update cycles before turn off.
+
 */
 //-----------------------------------------------------------------------------
 

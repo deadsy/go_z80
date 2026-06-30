@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 /*
 
-Z80 Emulator
+TEC-1 (Z80) Emulator
 
 */
 //-----------------------------------------------------------------------------
@@ -10,9 +10,10 @@ package main
 
 import (
 	"fmt"
-	"image/color"
 	"log"
 
+	"github.com/deadsy/go_z80/device/seven_segment"
+	"github.com/deadsy/go_z80/device/six_digit"
 	"github.com/deadsy/go_z80/device/speaker"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -36,23 +37,32 @@ const cpuCyclesPerSample = float32(cpuClock) / float32(sampleRate) // cpu cycles
 //-----------------------------------------------------------------------------
 
 type system struct {
-	display       *Display         // 6 x 7 segment display
-	led           *LED             // speaker activity LED
-	speaker       *speaker.Speaker // audio speaker
-	io            *sysIO           // system IO
-	mem           *sysMemory       // system memory
-	bus           *Bus             // system bus
-	cpu           *z80.CPU         // z80 cpu
-	background    *ebiten.Image    // background graphic
-	width, height int              // window dimensions
-	tickCycles    float32          // ebiten tick cpu cycles
-	sampleCycles  float32          // audio sample cpu cycles
+	display       *six_digit.Display // 6 digit display
+	led           *LED               // speaker activity LED
+	speaker       *speaker.Speaker   // audio speaker
+	io            *sysIO             // system IO
+	mem           *sysMemory         // system memory
+	bus           *Bus               // system bus
+	cpu           *z80.CPU           // z80 cpu
+	background    *ebiten.Image      // background graphic
+	width, height int                // window dimensions
+	tickCycles    float32            // ebiten tick cpu cycles
+	sampleCycles  float32            // audio sample cpu cycles
 }
 
 func newSystem() (*system, error) {
 
 	// setup the display
-	display := newDisplay()
+	const digitSize = float32(55.0)
+	kDisplay := &six_digit.Config{
+		XBase:  362.0,
+		YBase:  665.0,
+		XScale: digitSize,
+		YScale: seven_segment.XYScale(digitSize),
+		XGap0:  24.0,
+		XGap1:  14.0,
+	}
+	display := six_digit.New(kDisplay)
 
 	// setup the LED
 	led := newLED()
@@ -117,6 +127,8 @@ func newSystem() (*system, error) {
 	return s, nil
 }
 
+var updateCount int
+
 func (s *system) Update() error {
 	// run the cpu for as many cycles as are in an update tick
 	s.tickCycles += cpuCyclesPerTick
@@ -137,17 +149,21 @@ func (s *system) Update() error {
 		}
 	}
 
-	s.display.update()
+	// fake a key press
+	updateCount += 1
+	if updateCount == 30 {
+		updateCount = 0
+		s.cpu.NMI()
+	}
+
+	s.display.Update()
 	s.led.update()
 	return nil
 }
 
-var bgColor = color.RGBA{15, 15, 15, 255} // Dark background
-
 func (s *system) Draw(screen *ebiten.Image) {
-	screen.Fill(bgColor)
 	screen.DrawImage(s.background, nil)
-	s.display.draw(screen)
+	s.display.Draw(screen)
 	s.led.draw(screen)
 }
 

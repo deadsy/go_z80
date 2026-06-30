@@ -11,6 +11,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/deadsy/go_z80/device/six_digit"
 	"github.com/deadsy/go_z80/memory"
 	"github.com/deadsy/go_z80/z80"
 )
@@ -106,11 +107,11 @@ const digitMask = uint8(0x3f)   // digits are bits 0..5
 const speakerMask = uint8(0x80) // speaker/led is bit 7
 
 type sysIO struct {
-	display *Display // 6 x 7 segment display
-	led     *LED     // speaker led
-	segment uint8    // latched segment enable
-	digit   uint8    // latched digit enable
-	speaker bool     // latched speaker/led enable
+	display *six_digit.Display // 6 digit display
+	led     *LED               // speaker led
+	segment uint8              // latched segment enable
+	digit   uint8              // latched digit enable
+	speaker bool               // latched speaker/led enable
 }
 
 // Read8 reads a byte from an IO port.
@@ -119,7 +120,7 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	switch adr {
 	case keypadPort:
 		//return keyAddress
-		return keyGo
+		return keyMinus
 	}
 	fmt.Printf("io.Read8 [%02x]\n", adr)
 	return 0
@@ -132,18 +133,18 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	case digitPort:
 		io.digit = val & digitMask
 		io.speaker = (val & speakerMask) != 0
-		io.display.enable(io.digit, io.segment)
+		io.display.Enable(io.digit, io.segment)
 		io.led.control(io.speaker)
 		return
 	case segmentPort:
 		io.segment = val
-		io.display.enable(io.digit, io.segment)
+		io.display.Enable(io.digit, io.segment)
 		return
 	}
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *Display, led *LED) *sysIO {
+func newIO(display *six_digit.Display, led *LED) *sysIO {
 	return &sysIO{
 		display: display,
 		led:     led,

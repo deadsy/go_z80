@@ -1,14 +1,17 @@
 //-----------------------------------------------------------------------------
 /*
 
-TEC-1 Emulation
+TEC-1 Display Emulation
 
 6 digit, 7 segment display
+
+4 digits are used for the address (uint16), 2 are used for the value (uint8).
+The display is controlled by displaying a single digit at a time (multiplexing).
 
 */
 //-----------------------------------------------------------------------------
 
-package main
+package six_digit
 
 import (
 	"image/color"
@@ -27,56 +30,51 @@ var (
 
 //-----------------------------------------------------------------------------
 
-func (d *Display) xMap(digit int) float32 {
-	gap := float32(digit) * d.xGap0
+func (dc *Config) xMap(digit int) float32 {
+	gap := float32(digit) * dc.XGap0
 	if digit >= 4 {
-		gap += d.xGap1
+		gap += dc.XGap1
 	}
-	return d.xBase + gap + d.xScale*float32(digit)
+	return dc.XBase + gap + dc.XScale*float32(digit)
 }
 
 //-----------------------------------------------------------------------------
 
 const numDigits = 6
 
-type Display struct {
-	digit [numDigits]*seven_segment.Display
-	// position and scale
-	xBase, yBase   float32 // xy position of display on screen
-	xScale, yScale float32 // xy size of digit
-	xGap0          float32 // gaps between digits
-	xGap1          float32 // gap between address /data digits
+type Config struct {
+	XBase, YBase   float32 // xy position of display on screen
+	XScale, YScale float32 // xy size of digit
+	XGap0          float32 // gaps between digits
+	XGap1          float32 // gap between address/data digits
 }
 
-const digitSize = float32(55.0)
+type Display struct {
+	config *Config                           // display configuration
+	digit  [numDigits]*seven_segment.Display // digit state
+}
 
-func newDisplay() *Display {
+func New(k *Config) *Display {
 	d := &Display{
-		xBase:  362.0,
-		yBase:  665.0,
-		xScale: digitSize,
-		yScale: seven_segment.XYScale(digitSize),
-		xGap0:  24.0,
-		xGap1:  14.0,
+		config: k,
 	}
 	for i := 0; i < numDigits; i++ {
 		k := seven_segment.Config{
 			SegmentBit: [8]int{0, 3, 5, 7, 6, 1, 2, 4},
 			ColorOn:    segOn,
 			ColorOff:   segOff,
-			XBase:      d.xMap(i),
-			YBase:      d.yBase,
-			XScale:     d.xScale,
-			YScale:     d.yScale,
+			XBase:      d.config.xMap(i),
+			YBase:      d.config.YBase,
+			XScale:     d.config.XScale,
+			YScale:     d.config.YScale,
 		}
 		d.digit[i] = seven_segment.New(&k)
 	}
 	return d
 }
 
-//-----------------------------------------------------------------------------
-
-func (d *Display) enable(digit, segment uint8) {
+// Enable a given digit with a specific value.
+func (d *Display) Enable(digit, segment uint8) {
 	if digit == 0 {
 		// all digits are off
 		for i := 0; i < numDigits; i++ {
@@ -84,6 +82,7 @@ func (d *Display) enable(digit, segment uint8) {
 		}
 		return
 	}
+	// Digit bit mapping is governed by TEC1 hardware.
 	if (digit & 0x20) != 0 {
 		d.digit[0].Set(segment)
 	}
@@ -104,17 +103,15 @@ func (d *Display) enable(digit, segment uint8) {
 	}
 }
 
-//-----------------------------------------------------------------------------
-
-// display draw function (called in game draw)
-func (d *Display) draw(screen *ebiten.Image) {
+// Draw the display (called from ebiten draw function)
+func (d *Display) Draw(screen *ebiten.Image) {
 	for i := 0; i < numDigits; i++ {
 		d.digit[i].Draw(screen)
 	}
 }
 
-// periodic update function (called in game update)
-func (d *Display) update() {
+// Update the display logic (called from ebiten update)
+func (d *Display) Update() {
 	for i := 0; i < numDigits; i++ {
 		d.digit[i].Update()
 	}
