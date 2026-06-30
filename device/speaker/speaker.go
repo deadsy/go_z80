@@ -30,22 +30,26 @@ func clipConvert(x float32) int16 {
 //-----------------------------------------------------------------------------
 
 type circularBuffer struct {
-	lock   sync.Mutex
-	buffer []byte
-	rd, wr int
-	n      int // current byte count
+	lock   sync.Mutex // buffer is read from multiple threads
+	buffer []byte     // sample buffer
+	rd, wr int        // read/write indices
+	n      int        // current byte count
 }
 
 func newCircularBuffer(size int) *circularBuffer {
+	// ensure the buffer size is a multiple of left/right audio samples (4 bytes)
+	if size%4 != 0 {
+		panic("size % 4 != 0")
+	}
 	return &circularBuffer{
 		buffer: make([]byte, size),
 	}
 }
 
-// Increment and wrap-around an index value.
-func incMod(idx, size int) int {
+// Increment and wrap-around a read/write index.
+func (c *circularBuffer) incMod(idx int) int {
 	idx++
-	if idx == size {
+	if idx == len(c.buffer) {
 		return 0
 	}
 	return idx
@@ -53,7 +57,7 @@ func incMod(idx, size int) int {
 
 // isFull tells you if there is no space for a sample write
 func (c *circularBuffer) isFull() bool {
-	return (len(c.buffer) - 1 - c.n) < 4
+	return (len(c.buffer) - c.n) < 4
 }
 
 // isEmpty tells you if there is a no sample read available
@@ -69,13 +73,13 @@ func (c *circularBuffer) writeSample(l, r int16) error {
 		return errors.New("full")
 	}
 	c.buffer[c.wr] = byte(l)
-	c.wr = incMod(c.wr, len(c.buffer))
+	c.wr = c.incMod(c.wr)
 	c.buffer[c.wr] = byte(l >> 8)
-	c.wr = incMod(c.wr, len(c.buffer))
+	c.wr = c.incMod(c.wr)
 	c.buffer[c.wr] = byte(r)
-	c.wr = incMod(c.wr, len(c.buffer))
+	c.wr = c.incMod(c.wr)
 	c.buffer[c.wr] = byte(r >> 8)
-	c.wr = incMod(c.wr, len(c.buffer))
+	c.wr = c.incMod(c.wr)
 	c.n += 4
 	return nil
 }
@@ -88,13 +92,13 @@ func (c *circularBuffer) readSample(b []byte) error {
 		return errors.New("empty")
 	}
 	b[0] = c.buffer[c.rd]
-	c.rd = incMod(c.rd, len(c.buffer))
+	c.rd = c.incMod(c.rd)
 	b[1] = c.buffer[c.rd]
-	c.rd = incMod(c.rd, len(c.buffer))
+	c.rd = c.incMod(c.rd)
 	b[2] = c.buffer[c.rd]
-	c.rd = incMod(c.rd, len(c.buffer))
+	c.rd = c.incMod(c.rd)
 	b[3] = c.buffer[c.rd]
-	c.rd = incMod(c.rd, len(c.buffer))
+	c.rd = c.incMod(c.rd)
 	c.n -= 4
 	return nil
 }
@@ -210,7 +214,7 @@ func New(k *Config) *Speaker {
 // Read samples from the buffer (implements io.Reader)
 func (s *Speaker) Read(b []byte) (n int, err error) {
 	// read complete left/right samples (4 bytes) at a time
-	for ofs := 0; ofs < len(b); ofs += 4 {
+	for ofs := 0; ofs+4 < len(b); ofs += 4 {
 		err := s.buffer.readSample(b[ofs:])
 		if err != nil {
 			// emptied the sample buffer
