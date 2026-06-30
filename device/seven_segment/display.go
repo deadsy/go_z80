@@ -61,6 +61,11 @@ var segDP = [][2]float32{p26}
 
 const dpRadius = (5.0 / 122.0)
 
+// scale an x value by the nominal x to y proportion
+func XYScale(x float32) float32 {
+	return x * (122.0 / 90.0)
+}
+
 //-----------------------------------------------------------------------------
 
 func (d *Display) aOn() bool {
@@ -90,34 +95,32 @@ func (d *Display) dpOn() bool {
 
 //-----------------------------------------------------------------------------
 
-func (d *Display) xMap(x float32) float32 {
-	return d.config.xBase + d.config.xScale*x
+func (dc *Config) xMap(x float32) float32 {
+	return dc.XBase + dc.XScale*x
 }
 
-func (d *Display) yMap(y float32) float32 {
-	return d.config.yBase + d.config.yScale*(1.0-y)
+func (dc *Config) yMap(y float32) float32 {
+	return dc.YBase + dc.YScale*(1.0-y)
 }
 
-//-----------------------------------------------------------------------------
-
-func (d *Display) segColor(on bool) color.RGBA {
+func (dc *Config) segColor(on bool) color.RGBA {
 	if on {
-		return d.config.ColorOn
+		return dc.ColorOn
 	}
-	return d.config.ColorOff
+	return dc.ColorOff
 }
 
 //-----------------------------------------------------------------------------
 
 func (d *Display) drawSegment(screen *ebiten.Image, on bool, point [][2]float32) {
-	c := d.segColor(on)
+	c := d.config.segColor(on)
 	const cScale = float32(1.0 / 255.0)
 	// Setup vertices for the segment polygon (6-sided)
 	var vertices [6]ebiten.Vertex
 	for i := range vertices {
 		vertices[i] = ebiten.Vertex{
-			DstX:   d.xMap(point[i][0]),
-			DstY:   d.yMap(point[i][1]),
+			DstX:   d.config.xMap(point[i][0]),
+			DstY:   d.config.yMap(point[i][1]),
 			SrcX:   0,
 			SrcY:   0,
 			ColorR: cScale * float32(c.R),
@@ -131,10 +134,10 @@ func (d *Display) drawSegment(screen *ebiten.Image, on bool, point [][2]float32)
 }
 
 func (d *Display) drawSegmentDP(screen *ebiten.Image, on bool) {
-	c := d.segColor(on)
-	x := d.xMap(segDP[0][0])
-	y := d.yMap(segDP[0][1])
-	r := d.config.yScale * dpRadius
+	c := d.config.segColor(on)
+	x := d.config.xMap(segDP[0][0])
+	y := d.config.yMap(segDP[0][1])
+	r := d.config.YScale * dpRadius
 	vector.FillCircle(screen, x, y, r, c, true)
 }
 
@@ -148,19 +151,16 @@ const (
 	digitFading
 )
 
-// Is the digit on (or fading)?
-func (d *Display) isOn() bool {
-	return d.state != digitOff
-}
+const fadeCount = 2
 
 //-----------------------------------------------------------------------------
 
 type Config struct {
-	SegmentBit     [8]int     // map a segment to a value bit (0..7)
+	SegmentBit     [8]int     // map a segment to a value bit: a,b,c,d,e,f,g,dp -> 0..7
 	ColorOn        color.RGBA // segment on color
 	ColorOff       color.RGBA // segment off color
-	xBase, yBase   float32    // position
-	xScale, yScale float32    // scale
+	XBase, YBase   float32    // xy position
+	XScale, YScale float32    // xy scale
 }
 
 type Display struct {
@@ -180,9 +180,28 @@ func New(k *Config) *Display {
 	return d
 }
 
+// set the segment value for the display
+func (d *Display) Set(val byte) {
+	if val == 0 {
+		d.state = digitOff
+	} else {
+		d.state = digitOn
+	}
+	d.val = val
+}
+
+// turn the display off
+func (d *Display) Off() {
+	if d.state == digitOn {
+		d.state = digitFading
+		d.fade = fadeCount
+	}
+}
+
 // Draw the display (called from ebiten draw function)
 func (d *Display) Draw(screen *ebiten.Image) {
-	on := d.isOn()
+	// Is the digit on (or fading)?
+	on := d.state != digitOff
 	d.drawSegment(screen, on && d.aOn(), segA)
 	d.drawSegment(screen, on && d.bOn(), segB)
 	d.drawSegment(screen, on && d.cOn(), segC)

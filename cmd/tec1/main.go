@@ -10,6 +10,7 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"log"
 
 	"github.com/deadsy/go_z80/device/speaker"
@@ -140,6 +141,8 @@ func (s *system) Update() error {
 	s.led.update()
 	return nil
 }
+
+var bgColor = color.RGBA{15, 15, 15, 255} // Dark background
 
 func (s *system) Draw(screen *ebiten.Image) {
 	screen.Fill(bgColor)
