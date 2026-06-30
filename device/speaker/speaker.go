@@ -214,7 +214,7 @@ func New(k *Config) *Speaker {
 // Read samples from the buffer (implements io.Reader)
 func (s *Speaker) Read(b []byte) (n int, err error) {
 	// read complete left/right samples (4 bytes) at a time
-	for ofs := 0; ofs+4 < len(b); ofs += 4 {
+	for ofs := 0; ofs+4 <= len(b); ofs += 4 {
 		err := s.buffer.readSample(b[ofs:])
 		if err != nil {
 			// emptied the sample buffer
