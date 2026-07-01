@@ -92,7 +92,7 @@ func newSystem() (*system, error) {
 
 	// setup the LCD
 	kLCD := hd44780.Config{
-		Mode: hd44780.Mode4x20,
+		Mode: hd44780.Mode20x4,
 	}
 	lcd, err := hd44780.New(&kLCD)
 	if err != nil {

@@ -3,28 +3,12 @@
 
 HD44780 LCD Driver Emulation
 
-
-display data ram:
-
-There are 80 bytes of memory in a 128 byte address space
-
-40 bytes, 0x00-0x27 : live
-24 bytes, 0x28-0x3f : dead
-40 bytes, 0x40-0x67 : live
-24 bytes, 0x68-0x7f : dead
-
-The ddram address is a 7 bit counter that auto increments/decrements over 0x00 to 0x7f.
-
-
-
-
 */
 //-----------------------------------------------------------------------------
 
 package hd44780
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -42,34 +26,87 @@ const (
 	cmdSetCgramAddr = byte(0x40)
 	cmdSetDramAddr  = byte(0x80)
 
-	cmdEntryModeDec   = byte(0x00)
-	cmdEntryModeShift = byte(0x01)
-	cmdEntryModeInc   = byte(0x02)
+	//cmdEntryModeDec   = byte(0x00)
+	//cmdEntryModeShift = byte(0x01)
+	//cmdEntryModeInc   = byte(0x02)
 
-	cmdDisplayCursorBlink = byte(0x01)
-	cmdDisplayCursor      = byte(0x02)
-	cmdDisplayOn          = byte(0x04)
+	//cmdDisplayCursorBlink = byte(0x01)
+	//cmdDisplayCursor      = byte(0x02)
+	//cmdDisplayOn          = byte(0x04)
 
-	cmdShiftCursor  = byte(0x00)
-	cmdShiftDisplay = byte(0x08)
-	cmdShiftLeft    = byte(0x00)
-	cmdShiftRight   = byte(0x04)
+	//cmdShiftCursor  = byte(0x00)
+	//cmdShiftDisplay = byte(0x08)
+	//cmdShiftLeft    = byte(0x00)
+	//cmdShiftRight   = byte(0x04)
 
-	cmdFunctionLcd1Line = byte(0x00)
-	cmdFunctionLcd2Line = byte(0x08)
-	cmdFunctionExtMode  = byte(0x04)
-	cmdFunctionStdMode  = byte(0x00)
-	cmdExtFunctionGfx   = byte(0x02)
-	cmdExtFunctionStd   = byte(0x00)
+	//cmdFunctionLcd1Line = byte(0x00)
+	//cmdFunctionLcd2Line = byte(0x08)
+	//cmdFunctionExtMode  = byte(0x04)
+	//cmdFunctionStdMode  = byte(0x00)
+	//cmdExtFunctionGfx   = byte(0x02)
+	//cmdExtFunctionStd   = byte(0x00)
 )
+
+//-----------------------------------------------------------------------------
+/*
+
+display data ram
+
+There are 80 bytes of "live" memory in a 128 byte address space
+
+40 bytes, 0x00-0x27 : live
+24 bytes, 0x28-0x3f : dead
+40 bytes, 0x40-0x67 : live
+24 bytes, 0x68-0x7f : dead
+
+The ddram address is a 7 bit counter that auto increments/decrements over 0x00 to 0x7f.
+
+*/
+
+func inDead0(x byte) bool { return (x >= 0x28) && (x <= 0x3f) }
+func inDead1(x byte) bool { return (x >= 0x68) && (x <= 0x7f) }
+
+// increment the ddram address (skip dead areas)
+func inc_ddAddr(x byte) byte {
+	x = (x + 1) & 0x7f
+	if inDead0(x) {
+		return 0x40
+	}
+	if inDead1(x) {
+		return 0
+	}
+	return x
+}
+
+// decrement the ddram address (skip dead areas)
+func dec_ddAddr(x byte) byte {
+	x = (x - 1) & 0x7f
+	if inDead0(x) {
+		return 0x27
+	}
+	if inDead1(x) {
+		return 0x67
+	}
+	return x
+}
 
 //-----------------------------------------------------------------------------
 // display modes
 
-type DisplayMode int
+type DisplayMode uint16
 
 const (
-	Mode4x20 DisplayMode = iota
+	Mode16x2 DisplayMode = ((16 << 8) | 2)
+	Mode20x2 DisplayMode = ((20 << 8) | 2)
+	Mode20x4 DisplayMode = ((20 << 8) | 4)
+	Mode8x1  DisplayMode = ((8 << 8) | 1)
+	Mode8x2  DisplayMode = ((8 << 8) | 2)
+	Mode12x2 DisplayMode = ((12 << 8) | 2)
+	Mode16x1 DisplayMode = ((16 << 8) | 1)
+	Mode16x4 DisplayMode = ((16 << 8) | 4)
+	Mode20x1 DisplayMode = ((20 << 8) | 1)
+	Mode24x2 DisplayMode = ((24 << 8) | 2)
+	Mode40x2 DisplayMode = ((40 << 8) | 2)
 )
 
 //-----------------------------------------------------------------------------
@@ -87,8 +124,8 @@ type LCD struct {
 	ddram         [128]byte // display data ram
 	cgram         []byte    // character generator ram
 	cgrom         []byte    // character generator rom
-	ddAddr        int       // ddram address
-	cgAddr        int       // cgram address
+	ddAddr        byte      // ddram address
+	cgAddr        byte      // cgram address
 	scrollOffset  int
 	ramMode       bool // which ram are we working with?
 	cursorBlink   bool // is the cursor blinking?
@@ -105,37 +142,10 @@ type LCD struct {
 func New(k *Config) (*LCD, error) {
 	lcd := &LCD{
 		config: k,
-	}
-	switch k.Mode {
-	case Mode4x20:
-		lcd.rows = 4
-		lcd.cols = 20
-	default:
-		return nil, errors.New("unsupported mode")
+		rows:   int(k.Mode & 0xff),
+		cols:   int(k.Mode >> 8),
 	}
 	return lcd, nil
-}
-
-// increment the ddram address
-func inc_ddAddr(addr int) int {
-	if (addr >= 0x27) && (addr <= 0x3f) {
-		return 0x40
-	}
-	if (addr >= 0x67) && (addr <= 0x7f) {
-		return 0
-	}
-	return addr + 1
-}
-
-// decrement the ddram address
-func dec_ddAddr(addr int) int {
-	if ((addr >= 0x28) && (addr <= 0x3f)) || (addr == 0x40) {
-		return 0x27
-	}
-	if ((addr >= 0x68) && (addr <= 0x7f)) || (addr == 0) {
-		return 0x67
-	}
-	return addr - 1
 }
 
 func (lcd *LCD) ddramWrite(val byte) {
@@ -198,13 +208,13 @@ func (lcd *LCD) ReadCommand() byte {
 func (lcd *LCD) WriteCommand(cmd byte) {
 	if cmd&cmdSetDramAddr != 0 {
 		// ddram address is 7 bits
-		lcd.ddAddr = int(cmd) & 0x7f
+		lcd.ddAddr = cmd & 0x7f
 		lcd.ramMode = ddramMode
 		fmt.Printf("ddAddr = 0x%02x\n", lcd.ddAddr)
 
 	} else if cmd&cmdSetCgramAddr != 0 {
 		// cgram address is 6 bits
-		lcd.cgAddr = int(cmd) & 0x3f
+		lcd.cgAddr = cmd & 0x3f
 		lcd.ramMode = cgramMode
 
 	} else if cmd&cmdFunction != 0 {
@@ -216,9 +226,9 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		fmt.Printf("shift\n")
 
 	} else if cmd&cmdDisplay != 0 {
-		lcd.cursorBlink = (cmd & cmdDisplayCursorBlink) != 0
-		lcd.cursorEnable = (cmd & cmdDisplayCursor) != 0
-		lcd.displayEnable = (cmd & cmdDisplayOn) != 0
+		lcd.cursorBlink = (cmd & (1 << 0)) != 0
+		lcd.cursorEnable = (cmd & (1 << 1)) != 0
+		lcd.displayEnable = (cmd & (1 << 2)) != 0
 		lcd.cursorState = false
 
 	} else if cmd&cmdEntryMode != 0 {
