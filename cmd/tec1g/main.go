@@ -42,6 +42,7 @@ type system struct {
 	display       *six_digit.Display // 6 digit display
 	led           *led.LED           // speaker activity LED
 	speaker       *speaker.Speaker   // audio speaker
+	lcd           *hd44780.LCD       // lcd
 	io            *sysIO             // system IO
 	mem           *sysMemory         // system memory
 	bus           *Bus               // system bus
@@ -92,7 +93,13 @@ func newSystem() (*system, error) {
 
 	// setup the LCD
 	kLCD := hd44780.Config{
-		Mode: hd44780.Mode20x4,
+		Mode:   hd44780.Mode20x4,
+		XBase:  233,
+		YBase:  584,
+		XScale: 0.33,
+		YScale: 0.33,
+		XGap:   1.9,
+		YGap:   1.9,
 	}
 	lcd, err := hd44780.New(&kLCD)
 	if err != nil {
@@ -125,6 +132,7 @@ func newSystem() (*system, error) {
 		display: display,
 		led:     led,
 		speaker: speaker,
+		lcd:     lcd,
 		io:      io,
 		mem:     mem,
 		bus:     bus,
@@ -171,6 +179,7 @@ func (s *system) Update() error {
 
 	s.display.Update()
 	s.led.Update()
+	s.lcd.Update()
 	return nil
 }
 
@@ -178,6 +187,7 @@ func (s *system) Draw(screen *ebiten.Image) {
 	screen.DrawImage(s.background, nil)
 	s.display.Draw(screen)
 	s.led.Draw(screen)
+	s.lcd.Draw(screen)
 }
 
 func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {

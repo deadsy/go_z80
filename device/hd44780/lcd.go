@@ -9,9 +9,15 @@ HD44780 LCD Driver Emulation
 package hd44780
 
 import (
+	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 //-----------------------------------------------------------------------------
@@ -111,16 +117,67 @@ const (
 
 //-----------------------------------------------------------------------------
 
+func saveImageToFile(ebitenImg *ebiten.Image, outputPath string) error {
+	bounds := ebitenImg.Bounds()
+	rgbaImg := image.NewRGBA(bounds)
+	ebitenImg.ReadPixels(rgbaImg.Pix)
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return png.Encode(file, rgbaImg)
+}
+
+//-----------------------------------------------------------------------------
+
+const dotSize = 11
+const dotGap = 1
+const glyphWidth = (glyphPixelWidth * (dotSize + dotGap)) - dotGap
+const glyphHeight = (glyphPixelHeight * (dotSize + dotGap)) - dotGap
+
+func buildFontImage(font [fontChars][glyphPixelWidth]byte) *ebiten.Image {
+	img := ebiten.NewImage(numGlyphs*glyphWidth, glyphHeight)
+	for i := cgramSize; i < numGlyphs; i++ {
+		for j := 0; j < glyphPixelWidth; j++ {
+			pixelData := font[i-cgramSize][j]
+			for k := 0; k < glyphPixelHeight; k++ {
+				pixel := (pixelData & (1 << (7 - k))) != 0
+				if pixel {
+					x := float32((i * glyphWidth) + (j * (dotSize + dotGap)))
+					y := float32(k * (dotSize + dotGap))
+					vector.FillRect(img, x, y, dotSize, dotSize, color.RGBA{0, 0, 0, 255}, false)
+				}
+			}
+		}
+	}
+	return img
+}
+
+func getGlyph(font *ebiten.Image, code byte) *ebiten.Image {
+	x := int(code) * glyphWidth
+	r := image.Rect(x, 0, x+glyphWidth, glyphHeight)
+	return font.SubImage(r).(*ebiten.Image)
+}
+
+//-----------------------------------------------------------------------------
+
 const cgramMode = true
 const ddramMode = false
 
 type Config struct {
-	Mode DisplayMode
+	Mode           DisplayMode
+	XBase, YBase   float32 // xy position
+	XScale, YScale float32 // xy scale
+	XGap, YGap     float32 // gaps between digits
 }
 
 type LCD struct {
-	config        *Config
-	rows, cols    int       // displays rows and columns
+	config     *Config
+	rows, cols int              // displays rows and columns
+	font       [2]*ebiten.Image // font images
+	rowAddr    []byte           // start of the row in ddram
+
 	ddram         [128]byte // display data ram
 	cgram         []byte    // character generator ram
 	cgrom         []byte    // character generator rom
@@ -145,11 +202,26 @@ func New(k *Config) (*LCD, error) {
 		rows:   int(k.Mode & 0xff),
 		cols:   int(k.Mode >> 8),
 	}
+	// pre-load font images
+	lcd.font[0] = buildFontImage(fontA00)
+	lcd.font[1] = buildFontImage(fontA02)
+
+	// work out the row addresses
+	lcd.rowAddr = make([]byte, lcd.rows)
+	if lcd.rows == 4 {
+		lcd.rowAddr[0] = 0
+		lcd.rowAddr[1] = 0x40
+		lcd.rowAddr[2] = 0x14
+		lcd.rowAddr[3] = 0x54
+	} else {
+		return nil, errors.New("TODO, rows != 4")
+	}
+
 	return lcd, nil
 }
 
 func (lcd *LCD) ddramWrite(val byte) {
-	fmt.Printf("ddram write [0x%02x] = 0x%02x\n", lcd.ddAddr, val)
+	//fmt.Printf("ddram write [0x%02x] = 0x%02x\n", lcd.ddAddr, val)
 
 	lcd.ddram[lcd.ddAddr] = val
 
@@ -210,7 +282,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		// ddram address is 7 bits
 		lcd.ddAddr = cmd & 0x7f
 		lcd.ramMode = ddramMode
-		fmt.Printf("ddAddr = 0x%02x\n", lcd.ddAddr)
+		//fmt.Printf("ddAddr = 0x%02x\n", lcd.ddAddr)
 
 	} else if cmd&cmdSetCgramAddr != 0 {
 		// cgram address is 6 bits
@@ -269,6 +341,26 @@ func (lcd *LCD) WriteData(val byte) {
 
 // Draw the display (called from ebiten draw function)
 func (lcd *LCD) Draw(screen *ebiten.Image) {
+	lc := lcd.config
+	pitchX := (lc.XScale * glyphWidth) + lc.XGap
+	pitchY := (lc.YScale * glyphHeight) + lc.YGap
+	for row := 0; row < lcd.rows; row++ {
+		for col := 0; col < lcd.cols; col++ {
+			// where are we rendering the glyph?
+			x := lc.XBase + (float32(col) * pitchX)
+			y := lc.YBase + (float32(row) * pitchY)
+			// get the character
+			code := lcd.ddram[lcd.rowAddr[row]+byte(col)]
+			glyph := getGlyph(lcd.font[0], code)
+
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Scale(float64(lc.XScale), float64(lc.YScale))
+			op.GeoM.Translate(float64(x), float64(y))
+			op.Filter = ebiten.FilterLinear
+
+			screen.DrawImage(glyph, op)
+		}
+	}
 }
 
 // Update the display logic (called from ebiten update)
