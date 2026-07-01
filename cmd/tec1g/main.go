@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 /*
 
-TEC-1 (Z80) Emulator
+TEC-1G (Z80) Emulator
 
 */
 //-----------------------------------------------------------------------------
@@ -54,22 +54,22 @@ type system struct {
 func newSystem() (*system, error) {
 
 	// setup the display
-	const digitSize = float32(55.0)
+	const digitSize = float32(70.0)
 	kDisplay := &six_digit.Config{
-		XBase:  362.0,
-		YBase:  665.0,
+		XBase:  195.0,
+		YBase:  855.0,
 		XScale: digitSize,
 		YScale: seven_segment.XYScale(digitSize),
-		XGap0:  24.0,
-		XGap1:  14.0,
+		XGap0:  15.8,
+		XGap1:  28.0,
 	}
 	display := six_digit.New(kDisplay)
 
 	// setup the LED
 	kLED := &led.Config{
-		XBase:  589.0,
-		YBase:  600.5,
-		Radius: 13.0,
+		XBase:  926,
+		YBase:  514,
+		Radius: 15,
 	}
 	led, err := led.New(kLED)
 	if err != nil {
@@ -122,7 +122,7 @@ func newSystem() (*system, error) {
 	}
 
 	// load background image
-	img, _, err := ebitenutil.NewImageFromFile("../../images/tec1a.png")
+	img, _, err := ebitenutil.NewImageFromFile("../../images/tec1g.png")
 	if err != nil {
 		return nil, err
 	}
@@ -138,8 +138,6 @@ func newSystem() (*system, error) {
 
 	return s, nil
 }
-
-var updateCount int
 
 func (s *system) Update() error {
 	// run the cpu for as many cycles as are in an update tick
@@ -159,13 +157,6 @@ func (s *system) Update() error {
 			}
 			s.sampleCycles += cpuCyclesPerSample
 		}
-	}
-
-	// fake a key press
-	updateCount += 1
-	if updateCount == 30 {
-		//updateCount = 0
-		s.cpu.NMI()
 	}
 
 	s.display.Update()
@@ -189,7 +180,7 @@ func main() {
 		log.Fatalf("error: %s", err)
 	}
 	ebiten.SetWindowSize(s.width, s.height)
-	ebiten.SetWindowTitle("TEC-1A")
+	ebiten.SetWindowTitle("TEC-1G")
 	if err := ebiten.RunGame(s); err != nil {
 		log.Fatalf("error: %s", err)
 	}

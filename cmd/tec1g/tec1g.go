@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 /*
 
-TEC-1 Emulation
+TEC-1G Emulation
 
 */
 //-----------------------------------------------------------------------------
@@ -122,7 +122,7 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	switch adr {
 	case keypadPort:
 		//return keyAddress
-		return keyGo
+		return 0 // keyGo
 	}
 	fmt.Printf("io.Read8 [%02x]\n", adr)
 	return 0

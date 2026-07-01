@@ -1,14 +1,12 @@
 //-----------------------------------------------------------------------------
 /*
 
-TEC-1 Emulation
-
-Speaker Activity LED
+LED Emulation
 
 */
 //-----------------------------------------------------------------------------
 
-package main
+package led
 
 import (
 	"image/color"
@@ -44,26 +42,25 @@ const (
 	ledFading
 )
 
+type Config struct {
+	XBase, YBase float32 // xy position of display on screen
+	Radius       float32 // radius of LED
+}
+
 type LED struct {
-	state ledState // current state
-	fade  int
-	// position and size
-	xBase, yBase float32 // xy position of display on screen
-	radius       float32
+	config *Config
+	state  ledState // current state
+	fade   int
 }
 
-func newLED() *LED {
-	l := &LED{
-		xBase:  589.0,
-		yBase:  600.5,
-		radius: 13.0,
-	}
-	return l
+func New(k *Config) (*LED, error) {
+	return &LED{
+		config: k,
+	}, nil
 }
 
-//-----------------------------------------------------------------------------
-
-func (l *LED) control(state bool) {
+// Control the LED (called from the IO layer)
+func (l *LED) Control(state bool) {
 	if state {
 		l.state = ledOn
 	} else {
@@ -74,17 +71,15 @@ func (l *LED) control(state bool) {
 	}
 }
 
-//-----------------------------------------------------------------------------
-
-// display draw function (called in game draw)
-func (l *LED) draw(screen *ebiten.Image) {
+// Draw the LED (called from ebiten draw function)
+func (l *LED) Draw(screen *ebiten.Image) {
 	on := l.state != ledOff
 	c := ledColor(on)
-	vector.FillCircle(screen, l.xBase, l.yBase, l.radius, c, true)
+	vector.FillCircle(screen, l.config.XBase, l.config.YBase, l.config.Radius, c, true)
 }
 
-// periodic update function (called in game update)
-func (l *LED) update() {
+// Update the LED logic (called from ebiten update)
+func (l *LED) Update() {
 	// Fade the led to the off state.
 	if (l.state == ledFading) && (l.fade > 0) {
 		l.fade -= 1
