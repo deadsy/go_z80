@@ -33,36 +33,35 @@ type sysMemory struct {
 
 func newMemory() (*sysMemory, error) {
 	// ROM
-	rom := memory.New(11).ROM() // 2 KiB
-	err := rom.LoadFile(0, "../../roms/mon1B.bin")
+	rom := memory.New(14).ROM() // 16 KiB
+	err := rom.LoadFile(0, "../../roms/mon3_2025BC_16.bin")
 	if err != nil {
 		return nil, err
 	}
 	// RAM
-	ram := memory.New(11).RAM() // 2 KiB
-	ram.Write8(0, 0xef)
+	ram := memory.New(15).RAM() // 32 KiB
 
 	// Empty
 	empty := memory.New(11).Empty() // 2 KiB
 
 	return &sysMemory{
 		memmap: [numChunks]z80.Memory{
-			rom,   // 0x0000 - 0x07ff
-			ram,   // 0x0800 - 0x0fff
-			empty, // 0x1000
-			empty, // 0x1800
-			empty, // 0x2000
-			empty, // 0x2800
-			empty, // 0x3000
-			empty, // 0x3800
-			empty, // 0x4000
-			empty, // 0x4800
-			empty, // 0x5000
-			empty, // 0x5800
-			empty, // 0x6000
-			empty, // 0x6800
-			empty, // 0x7000
-			empty, // 0x7800
+			rom,   // 0x0000 - 0x07ff (shadow)
+			ram,   // 0x0800
+			ram,   // 0x1000
+			ram,   // 0x1800
+			ram,   // 0x2000
+			ram,   // 0x2800
+			ram,   // 0x3000
+			ram,   // 0x3800
+			ram,   // 0x4000
+			ram,   // 0x4800
+			ram,   // 0x5000
+			ram,   // 0x5800
+			ram,   // 0x6000
+			ram,   // 0x6800
+			ram,   // 0x7000
+			ram,   // 0x7800
 			empty, // 0x8000
 			empty, // 0x8800
 			empty, // 0x9000
@@ -71,14 +70,14 @@ func newMemory() (*sysMemory, error) {
 			empty, // 0xa800
 			empty, // 0xb000
 			empty, // 0xb800
-			empty, // 0xc000
-			empty, // 0xc800
-			empty, // 0xd000
-			empty, // 0xd800
-			empty, // 0xe000
-			empty, // 0xe800
-			empty, // 0xf000
-			empty, // 0xf800
+			rom,   // 0xc000
+			rom,   // 0xc800
+			rom,   // 0xd000
+			rom,   // 0xd800
+			rom,   // 0xe000
+			rom,   // 0xe800
+			rom,   // 0xf000
+			rom,   // 0xf800
 		},
 	}, nil
 }
@@ -104,6 +103,16 @@ func (m *sysMemory) Write16(adr uint16, val uint16) {
 const keypadPort = 0x00  // keypad scan values
 const digitPort = 0x01   // display digit enable
 const segmentPort = 0x02 // display segment enable
+const simpPort = 0x03    // General SIMP Input
+const lcdCmdPort = 0x04  // LCD Display command
+const x88Port = 0x05     // 8x8 X-axis display latch
+const y88Port = 0x06     // 8x8 Y-axis display latch
+const glcdPort0 = 0x07   // GLCD port
+const lcdDataPort = 0x84 // LCD Display data
+const glcdPort1 = 0x87   // GLCD port
+const rtcPort = 0xfc     // GPIO Real Time Clock
+const sdCardPort = 0xfd  // GPIO SD Card
+const systemPort = 0xff  // System Latch
 
 const digitMask = uint8(0x3f)   // digits are bits 0..5
 const speakerMask = uint8(0x80) // speaker/led is bit 7
@@ -121,8 +130,19 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	adr &= 0xff
 	switch adr {
 	case keypadPort:
-		//return keyAddress
-		return 0 // keyGo
+		return 0
+	case lcdCmdPort:
+		// TODO
+		return 0
+	case simpPort:
+		// TODO
+		return 0
+	case rtcPort:
+		// TODO
+		return 0
+	case sdCardPort:
+		// TODO
+		return 0
 	}
 	fmt.Printf("io.Read8 [%02x]\n", adr)
 	return 0
@@ -142,6 +162,31 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		io.segment = val
 		io.display.Enable(io.digit, io.segment)
 		return
+	case lcdCmdPort:
+		// TODO
+		return
+	case x88Port:
+		// TODO
+		return
+	case y88Port:
+		// TODO
+		return
+	case glcdPort0, glcdPort1:
+		// TODO
+		return
+	case lcdDataPort:
+		// TODO
+		return
+	case rtcPort:
+		// TODO
+		return
+	case sdCardPort:
+		// TODO
+		return
+	case systemPort:
+		// TODO
+		return
+
 	}
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }

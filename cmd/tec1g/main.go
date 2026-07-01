@@ -28,7 +28,7 @@ const Hz = 1
 const kHz = 1000 * Hz
 const MHz = kHz * kHz
 
-const cpuClock = 500 * kHz
+const cpuClock = 4 * MHz
 const tickRate = 60 * Hz
 const sampleRate = 48000
 
