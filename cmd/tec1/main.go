@@ -75,7 +75,10 @@ func newSystem() (*system, error) {
 		HighCutoff:   6 * kHz,
 		LowCutoff:    40 * Hz,
 	}
-	speaker := speaker.New(&k)
+	speaker, err := speaker.New(&k)
+	if err != nil {
+		return nil, err
+	}
 
 	// setup the audio player
 	ctx := audio.NewContext(sampleRate)

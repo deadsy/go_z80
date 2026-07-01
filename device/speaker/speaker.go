@@ -198,27 +198,29 @@ type Speaker struct {
 	block  *blocker        // dc block - give 0 average output
 }
 
-func New(k *Config) *Speaker {
-	// validate passed configuration
+func New(k *Config) (*Speaker, error) {
+	if k.BitAmplitude <= 0 {
+		return nil, errors.New("bad bit amplitude")
+	}
 	// ensure the buffer size is a multiple of left/right audio samples (4 bytes)
 	if (k.BufferSize <= 0) || (k.BufferSize%4 != 0) {
-		panic("invalid buffer size")
+		return nil, errors.New("invalid buffer size")
 	}
 	if k.SampleRate <= 0 {
-		panic("invalid sample rate")
+		return nil, errors.New("invalid sample rate")
 	}
 	if k.HighCutoff <= 0 {
-		panic("invalid high cutoff frequency")
+		return nil, errors.New("invalid high cutoff frequency")
 	}
 	if k.LowCutoff <= 0 {
-		panic("invalid low cutoff frequency")
+		return nil, errors.New("invalid low cutoff frequency")
 	}
 	return &Speaker{
 		config: k,
 		buffer: newCircularBuffer(k.BufferSize),
 		lpf:    newLowPassFilter(float64(k.SampleRate), float64(k.HighCutoff)),
 		block:  newBlocker(float64(k.SampleRate), float64(k.LowCutoff)),
-	}
+	}, nil
 }
 
 // Read samples from the buffer (implements io.Reader)
