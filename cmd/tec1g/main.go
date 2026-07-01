@@ -96,10 +96,8 @@ func newSystem() (*system, error) {
 		Mode:   hd44780.Mode20x4,
 		XBase:  233,
 		YBase:  584,
-		XScale: 0.33,
-		YScale: 0.33,
-		XGap:   1.9,
-		YGap:   1.9,
+		XScale: 0.31,
+		YScale: 0.31,
 	}
 	lcd, err := hd44780.New(&kLCD)
 	if err != nil {

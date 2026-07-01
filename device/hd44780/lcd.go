@@ -169,20 +169,19 @@ type Config struct {
 	Mode           DisplayMode
 	XBase, YBase   float32 // xy position
 	XScale, YScale float32 // xy scale
-	XGap, YGap     float32 // gaps between digits
 }
 
 type LCD struct {
-	config     *Config
-	rows, cols int              // displays rows and columns
-	font       [2]*ebiten.Image // font images
-	rowAddr    []byte           // start of the row in ddram
-
-	ddram         [128]byte // display data ram
-	cgram         []byte    // character generator ram
-	cgrom         []byte    // character generator rom
-	ddAddr        byte      // ddram address
-	cgAddr        byte      // cgram address
+	config        *Config
+	rows, cols    int              // displays rows and columns
+	font          [2]*ebiten.Image // font images
+	img           *ebiten.Image    // unscaled lcd image
+	rowAddr       []byte           // start of the row in ddram
+	ddram         [128]byte        // display data ram
+	cgram         []byte           // character generator ram
+	cgrom         []byte           // character generator rom
+	ddAddr        byte             // ddram address
+	cgAddr        byte             // cgram address
 	scrollOffset  int
 	ramMode       bool // which ram are we working with?
 	cursorBlink   bool // is the cursor blinking?
@@ -205,6 +204,11 @@ func New(k *Config) (*LCD, error) {
 	// pre-load font images
 	lcd.font[0] = buildFontImage(fontA00)
 	lcd.font[1] = buildFontImage(fontA02)
+
+	// build an unscaled lcd image
+	width := lcd.cols*glyphWidth + (lcd.cols-1)*xGap
+	height := lcd.rows*glyphHeight + (lcd.rows-1)*yGap
+	lcd.img = ebiten.NewImage(width, height)
 
 	// work out the row addresses
 	lcd.rowAddr = make([]byte, lcd.rows)
@@ -339,28 +343,40 @@ func (lcd *LCD) WriteData(val byte) {
 
 //-----------------------------------------------------------------------------
 
+// intercharacter gaps
+const xGap = 11
+const yGap = 11
+
+// character to character pitch
+const pitchX = glyphWidth + xGap
+const pitchY = glyphHeight + yGap
+
 // Draw the display (called from ebiten draw function)
 func (lcd *LCD) Draw(screen *ebiten.Image) {
-	lc := lcd.config
-	pitchX := (lc.XScale * glyphWidth) + lc.XGap
-	pitchY := (lc.YScale * glyphHeight) + lc.YGap
+
+	// create an unscaled lcd image
+	lcd.img.Clear()
 	for row := 0; row < lcd.rows; row++ {
 		for col := 0; col < lcd.cols; col++ {
 			// where are we rendering the glyph?
-			x := lc.XBase + (float32(col) * pitchX)
-			y := lc.YBase + (float32(row) * pitchY)
+			x := col * pitchX
+			y := row * pitchY
 			// get the character
 			code := lcd.ddram[lcd.rowAddr[row]+byte(col)]
 			glyph := getGlyph(lcd.font[0], code)
-
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Scale(float64(lc.XScale), float64(lc.YScale))
 			op.GeoM.Translate(float64(x), float64(y))
-			op.Filter = ebiten.FilterLinear
-
-			screen.DrawImage(glyph, op)
+			lcd.img.DrawImage(glyph, op)
 		}
 	}
+
+	// render the lcd image to the screen (with scaling)
+	lc := lcd.config
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(float64(lc.XScale), float64(lc.YScale))
+	op.GeoM.Translate(float64(lc.XBase), float64(lc.YBase))
+	op.Filter = ebiten.FilterLinear
+	screen.DrawImage(lcd.img, op)
 }
 
 // Update the display logic (called from ebiten update)
