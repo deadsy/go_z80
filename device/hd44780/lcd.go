@@ -25,6 +25,7 @@ package hd44780
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -63,80 +64,176 @@ const (
 )
 
 //-----------------------------------------------------------------------------
+// display modes
 
-type ramMode int
+type DisplayMode int
 
 const (
-	ddramMode ramMode = iota
-	cgramMode
+	Mode4x20 DisplayMode = iota
 )
 
+//-----------------------------------------------------------------------------
+
+const cgramMode = true
+const ddramMode = false
+
 type Config struct {
-	Rows, Cols int
+	Mode DisplayMode
 }
 
 type LCD struct {
 	config        *Config
-	ddram         []byte // display data ram
-	cgram         []byte // character generator ram
-	cgrom         []byte // character generator rom
-	ddramAddress  int    // ddram address
-	cgramAddress  int    // cgram address
+	rows, cols    int       // displays rows and columns
+	ddram         [128]byte // display data ram
+	cgram         []byte    // character generator ram
+	cgrom         []byte    // character generator rom
+	ddAddr        int       // ddram address
+	cgAddr        int       // cgram address
 	scrollOffset  int
-	mode          ramMode // which ram are we working with?
-	cursorBlink   bool    // is the cursor blinking?
-	cursorEnable  bool    // is the cursor enabled?
-	displayEnable bool    // is the display enabled?
-	cursorState   bool    // current cursor state
+	ramMode       bool // which ram are we working with?
+	cursorBlink   bool // is the cursor blinking?
+	cursorEnable  bool // is the cursor enabled?
+	displayEnable bool // is the display enabled?
+	cursorState   bool // current cursor state
+	dlFlag        bool // interface data width (false = 4, true = 8)
+	nFlag         bool // number of display lines (false = 1, true = 2)
+	fFlag         bool // font selection (false = 5x8, true = 5x10)
+	incMode       bool // increment mode
+
 }
 
 func New(k *Config) (*LCD, error) {
-	if (k.Rows != 1) || (k.Rows != 2) || (k.Rows != 4) {
-		return nil, errors.New("invalid rows")
+	lcd := &LCD{
+		config: k,
 	}
-	if (k.Cols < 8) || (k.Cols > 40) {
-		return nil, errors.New("invalid cols")
+	switch k.Mode {
+	case Mode4x20:
+		lcd.rows = 4
+		lcd.cols = 20
+	default:
+		return nil, errors.New("unsupported mode")
+	}
+	return lcd, nil
+}
+
+// increment the ddram address
+func inc_ddAddr(addr int) int {
+	if (addr >= 0x27) && (addr <= 0x3f) {
+		return 0x40
+	}
+	if (addr >= 0x67) && (addr <= 0x7f) {
+		return 0
+	}
+	return addr + 1
+}
+
+// decrement the ddram address
+func dec_ddAddr(addr int) int {
+	if ((addr >= 0x28) && (addr <= 0x3f)) || (addr == 0x40) {
+		return 0x27
+	}
+	if ((addr >= 0x68) && (addr <= 0x7f)) || (addr == 0) {
+		return 0x67
+	}
+	return addr - 1
+}
+
+func (lcd *LCD) ddramWrite(val byte) {
+	fmt.Printf("ddram write [0x%02x] = 0x%02x\n", lcd.ddAddr, val)
+
+	lcd.ddram[lcd.ddAddr] = val
+
+	if lcd.incMode {
+		lcd.ddAddr = inc_ddAddr(lcd.ddAddr)
+
+		/*
+
+		   if (self->mcu.LCD_EntryMode & 0x01) {
+		       if (self->mcu.DDRAM_display < 24)
+		           self->mcu.DDRAM_display++;
+		   }
+
+		*/
+
+	} else {
+		lcd.ddAddr = dec_ddAddr(lcd.ddAddr)
+
+		/*
+
+		   if (self->mcu.LCD_EntryMode & 0x01) {
+		       if (self->mcu.DDRAM_display > 0)
+		           self->mcu.DDRAM_display--;
+		   }
+
+		*/
+
 	}
 
-	return &LCD{
-		config: k,
-	}, nil
+}
+
+func (lcd *LCD) cgramWrite(val byte) {
+	fmt.Printf("cgram write\n")
+	/*
+	   n = self->mcu.CGRAM_counter / 8;
+	   m = self->mcu.CGRAM_counter % 8;
+	   self->mcu.CGROM[n][m] = instruction & 0xFF;
+	   if (self->mcu.CGRAM_counter < 64)
+
+	   	self->mcu.CGRAM_counter++;
+	*/
 }
 
 //-----------------------------------------------------------------------------
 
-// read instruction (RS = 0, RW = 1)
-func (lcd *LCD) ReadInstruction() byte {
-	return 0
+// read command (RS = 0, RW = 1)
+func (lcd *LCD) ReadCommand() byte {
+	// Note: the busy flag is == 0
+	if lcd.ramMode == ddramMode {
+		return byte(lcd.ddAddr)
+	}
+	return byte(lcd.cgAddr)
 }
 
-// write instruction (RS = 0, RW = 0)
-func (lcd *LCD) WriteInstruction(cmd byte) {
+// write command (RS = 0, RW = 0)
+func (lcd *LCD) WriteCommand(cmd byte) {
 	if cmd&cmdSetDramAddr != 0 {
 		// ddram address is 7 bits
-		lcd.ddramAddress = int(cmd) & 0x7f
-		lcd.mode = ddramMode
+		lcd.ddAddr = int(cmd) & 0x7f
+		lcd.ramMode = ddramMode
+		fmt.Printf("ddAddr = 0x%02x\n", lcd.ddAddr)
+
 	} else if cmd&cmdSetCgramAddr != 0 {
 		// cgram address is 6 bits
-		lcd.cgramAddress = int(cmd) & 0x3f
-		lcd.mode = cgramMode
+		lcd.cgAddr = int(cmd) & 0x3f
+		lcd.ramMode = cgramMode
+
 	} else if cmd&cmdFunction != 0 {
+		lcd.dlFlag = cmd&(1<<4) != 0
+		lcd.nFlag = cmd&(1<<3) != 0
+		lcd.fFlag = cmd&(1<<2) != 0
 
 	} else if cmd&cmdShift != 0 {
+		fmt.Printf("shift\n")
 
 	} else if cmd&cmdDisplay != 0 {
 		lcd.cursorBlink = (cmd & cmdDisplayCursorBlink) != 0
 		lcd.cursorEnable = (cmd & cmdDisplayCursor) != 0
 		lcd.displayEnable = (cmd & cmdDisplayOn) != 0
 		lcd.cursorState = false
-	} else if cmd&cmdEntryMode != 0 {
 
+	} else if cmd&cmdEntryMode != 0 {
+		lcd.incMode = cmd&(1<<1) != 0
+		if cmd&(1<<0) != 0 {
+			fmt.Printf("TODO: entry mode shift\n")
+		}
 	} else if cmd&cmdHome != 0 {
-		lcd.ddramAddress = 0
+		lcd.ddAddr = 0
 		lcd.scrollOffset = 0
+
 	} else if cmd&cmdClear != 0 {
-		lcd.ddramAddress = 0
+		lcd.ddAddr = 0
 		lcd.scrollOffset = 0
+		lcd.incMode = true
 		for i := 0; i < len(lcd.ddram); i++ {
 			lcd.ddram[i] = 0x20 // space
 		}
@@ -145,11 +242,17 @@ func (lcd *LCD) WriteInstruction(cmd byte) {
 
 // read data (RS = 1, RW = 1)
 func (lcd *LCD) ReadData() byte {
+	fmt.Printf("lcd data read\n")
 	return 0
 }
 
 // write data (RS = 1, RW = 0)
 func (lcd *LCD) WriteData(val byte) {
+	if lcd.ramMode == ddramMode {
+		lcd.ddramWrite(val)
+	} else {
+		lcd.cgramWrite(val)
+	}
 }
 
 //-----------------------------------------------------------------------------

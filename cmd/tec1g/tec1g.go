@@ -11,6 +11,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/six_digit"
 	"github.com/deadsy/go_z80/memory"
@@ -100,19 +101,20 @@ func (m *sysMemory) Write16(adr uint16, val uint16) {
 
 //-----------------------------------------------------------------------------
 
-const keypadPort = 0x00  // keypad scan values
-const digitPort = 0x01   // display digit enable
-const segmentPort = 0x02 // display segment enable
-const simpPort = 0x03    // General SIMP Input
-const lcdCmdPort = 0x04  // LCD Display command
-const x88Port = 0x05     // 8x8 X-axis display latch
-const y88Port = 0x06     // 8x8 Y-axis display latch
-const glcdPort0 = 0x07   // GLCD port
-const lcdDataPort = 0x84 // LCD Display data
-const glcdPort1 = 0x87   // GLCD port
-const rtcPort = 0xfc     // GPIO Real Time Clock
-const sdCardPort = 0xfd  // GPIO SD Card
-const systemPort = 0xff  // System Latch
+const keypadPort = 0x00   // keypad scan values
+const digitPort = 0x01    // display digit enable
+const segmentPort = 0x02  // display segment enable
+const simpPort = 0x03     // General SIMP Input
+const lcdCmdPort = 0x04   // LCD Display command
+const x88Port = 0x05      // 8x8 X-axis display latch
+const y88Port = 0x06      // 8x8 Y-axis display latch
+const glcdPort0 = 0x07    // GLCD port
+const lcdDataPort = 0x84  // LCD Display data
+const glcdPort1 = 0x87    // GLCD port
+const rtcPort = 0xfc      // GPIO Real Time Clock
+const sdCardPort = 0xfd   // GPIO SD Card
+const keyboardPort = 0xfe // Matrix Keyboard Input
+const systemPort = 0xff   // System Latch
 
 const digitMask = uint8(0x3f)   // digits are bits 0..5
 const speakerMask = uint8(0x80) // speaker/led is bit 7
@@ -120,6 +122,7 @@ const speakerMask = uint8(0x80) // speaker/led is bit 7
 type sysIO struct {
 	display *six_digit.Display // 6 digit display
 	led     *led.LED           // speaker led
+	lcd     *hd44780.LCD       // LCD
 	segment uint8              // latched segment enable
 	digit   uint8              // latched digit enable
 	speaker bool               // latched speaker/led enable
@@ -132,8 +135,7 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	case keypadPort:
 		return 0
 	case lcdCmdPort:
-		// TODO
-		return 0
+		return io.lcd.ReadCommand()
 	case simpPort:
 		// TODO
 		return 0
@@ -163,7 +165,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		io.display.Enable(io.digit, io.segment)
 		return
 	case lcdCmdPort:
-		// TODO
+		io.lcd.WriteCommand(val)
 		return
 	case x88Port:
 		// TODO
@@ -175,7 +177,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		// TODO
 		return
 	case lcdDataPort:
-		// TODO
+		io.lcd.WriteData(val)
 		return
 	case rtcPort:
 		// TODO
@@ -191,10 +193,11 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *six_digit.Display, led *led.LED) *sysIO {
+func newIO(display *six_digit.Display, led *led.LED, lcd *hd44780.LCD) *sysIO {
 	return &sysIO{
 		display: display,
 		led:     led,
+		lcd:     lcd,
 	}
 }
 

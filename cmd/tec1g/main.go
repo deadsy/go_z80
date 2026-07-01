@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/seven_segment"
 	"github.com/deadsy/go_z80/device/six_digit"
@@ -77,14 +78,23 @@ func newSystem() (*system, error) {
 	}
 
 	// setup the speaker
-	k := speaker.Config{
+	kSpeaker := speaker.Config{
 		BitAmplitude: 0.1,
 		BufferSize:   16384,
 		SampleRate:   sampleRate,
 		HighCutoff:   6 * kHz,
 		LowCutoff:    40 * Hz,
 	}
-	speaker, err := speaker.New(&k)
+	speaker, err := speaker.New(&kSpeaker)
+	if err != nil {
+		return nil, err
+	}
+
+	// setup the LCD
+	kLCD := hd44780.Config{
+		Mode: hd44780.Mode4x20,
+	}
+	lcd, err := hd44780.New(&kLCD)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +107,7 @@ func newSystem() (*system, error) {
 	}
 
 	// setup the IO
-	io := newIO(display, led)
+	io := newIO(display, led, lcd)
 
 	// setup the memory
 	mem, err := newMemory()
