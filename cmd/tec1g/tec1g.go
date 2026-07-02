@@ -116,8 +116,18 @@ const sdCardPort = 0xfd   // GPIO SD Card
 const keyboardPort = 0xfe // Matrix Keyboard Input
 const systemPort = 0xff   // System Latch
 
+// digitPort
 const digitMask = uint8(0x3f)   // digits are bits 0..5
 const speakerMask = uint8(0x80) // speaker/led is bit 7
+
+// simpPort
+const simpKeyboard = byte(1 << 0) // 0 == encoder, 1 == matrix
+//const simpProtect = byte(1 << 1) // 1 == protect memory
+//const simpExpansion = byte(1 << 2)
+//const simpExpand = byte(1 << 3)
+//const simpCart = byte(1 << 4)
+//const simpGimp = byte(1 << 5)
+//const simpKey = byte(1 << 6)
 
 type sysIO struct {
 	display *six_digit.Display // 6 digit display
@@ -130,6 +140,7 @@ type sysIO struct {
 
 // Read8 reads a byte from an IO port.
 func (io *sysIO) Read8(adr uint16) uint8 {
+	hi := uint8(adr >> 8)
 	adr &= 0xff
 	switch adr {
 	case keypadPort:
@@ -138,12 +149,15 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 		return io.lcd.ReadCommand()
 	case simpPort:
 		// TODO
-		return 0
+		return simpKeyboard
 	case rtcPort:
 		// TODO
 		return 0
 	case sdCardPort:
 		// TODO
+		return 0
+	case keyboardPort:
+		fmt.Printf("hi 0x%02x\n", hi)
 		return 0
 	}
 	fmt.Printf("io.Read8 [%02x]\n", adr)
