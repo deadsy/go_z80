@@ -12,6 +12,7 @@ import (
 	"fmt"
 
 	"github.com/deadsy/go_z80/device/hd44780"
+	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/six_digit"
 	"github.com/deadsy/go_z80/memory"
@@ -130,17 +131,18 @@ const simpKeyboard = byte(1 << 0) // 0 == encoder, 1 == matrix
 //const simpKey = byte(1 << 6)
 
 type sysIO struct {
-	display *six_digit.Display // 6 digit display
-	led     *led.LED           // speaker led
-	lcd     *hd44780.LCD       // LCD
-	segment uint8              // latched segment enable
-	digit   uint8              // latched digit enable
-	speaker bool               // latched speaker/led enable
+	display  *six_digit.Display // 6 digit display
+	led      *led.LED           // speaker led
+	lcd      *hd44780.LCD       // LCD
+	keyboard *keyboard.Keyboard // matrix keyboard
+	segment  uint8              // latched segment enable
+	digit    uint8              // latched digit enable
+	speaker  bool               // latched speaker/led enable
 }
 
 // Read8 reads a byte from an IO port.
 func (io *sysIO) Read8(adr uint16) uint8 {
-	hi := uint8(adr >> 8)
+	row := uint8(adr >> 8)
 	adr &= 0xff
 	switch adr {
 	case keypadPort:
@@ -157,10 +159,13 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 		// TODO
 		return 0
 	case keyboardPort:
-		fmt.Printf("hi 0x%02x\n", hi)
-		return 0
+		code, err := io.keyboard.Scan(row)
+		if err != nil {
+			fmt.Printf("keyboard scan error: %s\n", err)
+		}
+		return code
 	}
-	fmt.Printf("io.Read8 [%02x]\n", adr)
+	fmt.Printf("io.Read8 unknown port %02x\n", adr)
 	return 0
 }
 
@@ -207,11 +212,12 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *six_digit.Display, led *led.LED, lcd *hd44780.LCD) *sysIO {
+func newIO(display *six_digit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Keyboard) *sysIO {
 	return &sysIO{
-		display: display,
-		led:     led,
-		lcd:     lcd,
+		display:  display,
+		led:      led,
+		lcd:      lcd,
+		keyboard: keyboard,
 	}
 }
 

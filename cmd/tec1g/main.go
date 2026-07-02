@@ -13,6 +13,7 @@ import (
 	"log"
 
 	"github.com/deadsy/go_z80/device/hd44780"
+	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/seven_segment"
 	"github.com/deadsy/go_z80/device/six_digit"
@@ -43,6 +44,7 @@ type system struct {
 	led           *led.LED           // speaker activity LED
 	speaker       *speaker.Speaker   // audio speaker
 	lcd           *hd44780.LCD       // lcd
+	keyboard      *keyboard.Keyboard // matrix keyboard
 	io            *sysIO             // system IO
 	mem           *sysMemory         // system memory
 	bus           *Bus               // system bus
@@ -104,6 +106,12 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
+	// setup the keyboard
+	keyboard, err := keyboard.New()
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the audio player
 	ctx := audio.NewContext(sampleRate)
 	player, err := ctx.NewPlayer(speaker)
@@ -112,7 +120,7 @@ func newSystem() (*system, error) {
 	}
 
 	// setup the IO
-	io := newIO(display, led, lcd)
+	io := newIO(display, led, lcd, keyboard)
 
 	// setup the memory
 	mem, err := newMemory()
@@ -127,14 +135,15 @@ func newSystem() (*system, error) {
 	cpu := z80.New(io, mem, bus)
 
 	s := &system{
-		display: display,
-		led:     led,
-		speaker: speaker,
-		lcd:     lcd,
-		io:      io,
-		mem:     mem,
-		bus:     bus,
-		cpu:     cpu,
+		display:  display,
+		led:      led,
+		speaker:  speaker,
+		lcd:      lcd,
+		keyboard: keyboard,
+		io:       io,
+		mem:      mem,
+		bus:      bus,
+		cpu:      cpu,
 	}
 
 	// load background image
@@ -178,6 +187,7 @@ func (s *system) Update() error {
 	s.display.Update()
 	s.led.Update()
 	s.lcd.Update()
+	s.keyboard.Update()
 	return nil
 }
 
