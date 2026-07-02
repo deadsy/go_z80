@@ -12,7 +12,7 @@ import (
 	"fmt"
 
 	"github.com/deadsy/go_z80/device/led"
-	"github.com/deadsy/go_z80/device/six_digit"
+	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/memory"
 	"github.com/deadsy/go_z80/z80"
 )
@@ -109,11 +109,11 @@ const digitMask = uint8(0x3f)   // digits are bits 0..5
 const speakerMask = uint8(0x80) // speaker/led is bit 7
 
 type sysIO struct {
-	display *six_digit.Display // 6 digit display
-	led     *led.LED           // speaker led
-	segment uint8              // latched segment enable
-	digit   uint8              // latched digit enable
-	speaker bool               // latched speaker/led enable
+	display *sixdigit.Display // 6 digit display
+	led     *led.LED          // speaker led
+	segment uint8             // latched segment enable
+	digit   uint8             // latched digit enable
+	speaker bool              // latched speaker/led enable
 }
 
 // Read8 reads a byte from an IO port.
@@ -146,7 +146,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *six_digit.Display, led *led.LED) *sysIO {
+func newIO(display *sixdigit.Display, led *led.LED) *sysIO {
 	return &sysIO{
 		display: display,
 		led:     led,

@@ -11,12 +11,12 @@ The display is controlled by displaying a single digit at a time (multiplexing).
 */
 //-----------------------------------------------------------------------------
 
-package six_digit
+package sixdigit
 
 import (
 	"image/color"
 
-	"github.com/deadsy/go_z80/device/seven_segment"
+	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -50,8 +50,8 @@ type Config struct {
 }
 
 type Display struct {
-	config *Config                           // display configuration
-	digit  [numDigits]*seven_segment.Display // digit state
+	config *Config                    // display configuration
+	digit  [numDigits]*sevseg.Display // digit state
 }
 
 func New(k *Config) *Display {
@@ -59,7 +59,7 @@ func New(k *Config) *Display {
 		config: k,
 	}
 	for i := 0; i < numDigits; i++ {
-		k := seven_segment.Config{
+		k := sevseg.Config{
 			SegmentBit: [8]int{0, 3, 5, 7, 6, 1, 2, 4},
 			ColorOn:    segOn,
 			ColorOff:   segOff,
@@ -68,7 +68,7 @@ func New(k *Config) *Display {
 			XScale:     d.config.XScale,
 			YScale:     d.config.YScale,
 		}
-		d.digit[i] = seven_segment.New(&k)
+		d.digit[i] = sevseg.New(&k)
 	}
 	return d
 }

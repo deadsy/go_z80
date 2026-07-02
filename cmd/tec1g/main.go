@@ -15,8 +15,8 @@ import (
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/led"
-	"github.com/deadsy/go_z80/device/seven_segment"
-	"github.com/deadsy/go_z80/device/six_digit"
+	"github.com/deadsy/go_z80/device/sevseg"
+	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/device/speaker"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -40,7 +40,7 @@ const cpuCyclesPerSample = float32(cpuClock) / float32(sampleRate) // cpu cycles
 //-----------------------------------------------------------------------------
 
 type system struct {
-	display       *six_digit.Display // 6 digit display
+	display       *sixdigit.Display  // 6 digit display
 	led           *led.LED           // speaker activity LED
 	speaker       *speaker.Speaker   // audio speaker
 	lcd           *hd44780.LCD       // lcd
@@ -59,15 +59,15 @@ func newSystem() (*system, error) {
 
 	// setup the display
 	const digitSize = float32(70.0)
-	kDisplay := &six_digit.Config{
+	kDisplay := &sixdigit.Config{
 		XBase:  195.0,
 		YBase:  855.0,
 		XScale: digitSize,
-		YScale: seven_segment.XYScale(digitSize),
+		YScale: sevseg.XYScale(digitSize),
 		XGap0:  15.8,
 		XGap1:  28.0,
 	}
-	display := six_digit.New(kDisplay)
+	display := sixdigit.New(kDisplay)
 
 	// setup the LED
 	kLED := &led.Config{

@@ -1,7 +1,7 @@
 # Jupiter ACE
 See: https://jupiter-ace.co.uk/roms.html
 
- * jupiter_ace.rom
+ * jace.bin
 
 # Talking Electronics Computer (TEC1)
 See: https://github.com/tec1group/Software/tree/master/monitors

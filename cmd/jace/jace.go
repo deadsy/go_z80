@@ -32,7 +32,7 @@ type sysMemory struct {
 func newMemory() (*sysMemory, error) {
 	// ROM
 	rom := memory.New(13).ROM() // 8KiB
-	err := rom.LoadFile(0, "../../roms/ace.rom")
+	err := rom.LoadFile(0, "../../roms/jace.bin")
 	if err != nil {
 		return nil, err
 	}

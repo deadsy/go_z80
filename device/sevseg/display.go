@@ -12,7 +12,7 @@ wait some number of update cycles before turn off.
 */
 //-----------------------------------------------------------------------------
 
-package seven_segment
+package sevseg
 
 import (
 	"image/color"

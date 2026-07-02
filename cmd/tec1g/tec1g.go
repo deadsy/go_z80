@@ -14,7 +14,7 @@ import (
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/led"
-	"github.com/deadsy/go_z80/device/six_digit"
+	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/memory"
 	"github.com/deadsy/go_z80/z80"
 )
@@ -131,7 +131,7 @@ const simpKeyboard = byte(1 << 0) // 0 == encoder, 1 == matrix
 //const simpKey = byte(1 << 6)
 
 type sysIO struct {
-	display  *six_digit.Display // 6 digit display
+	display  *sixdigit.Display  // 6 digit display
 	led      *led.LED           // speaker led
 	lcd      *hd44780.LCD       // LCD
 	keyboard *keyboard.Keyboard // matrix keyboard
@@ -212,7 +212,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *six_digit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Keyboard) *sysIO {
+func newIO(display *sixdigit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Keyboard) *sysIO {
 	return &sysIO{
 		display:  display,
 		led:      led,
