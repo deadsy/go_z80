@@ -53,7 +53,7 @@ type Config struct {
 	IdleLow       bool   // false for normal TTL/RS-232-logical polarity
 }
 
-type Serial struct {
+type UART struct {
 	config *Config
 	// runtime state
 	state     state
@@ -66,14 +66,14 @@ type Serial struct {
 	parityError bool
 }
 
-func New(k *Config) (*Serial, error) {
-	return &Serial{
+func NewUART(k *Config) (*UART, error) {
+	return &UART{
 		config: k,
 	}, nil
 }
 
 // Rx serial line samples and convert them back into frame values
-func (s *Serial) Sample(level bool) (int, error) {
+func (s *UART) Sample(level bool) (int, error) {
 	var rxFrame bool
 
 	if s.config.IdleLow {

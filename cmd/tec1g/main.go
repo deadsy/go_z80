@@ -54,7 +54,8 @@ type system struct {
 	speaker            *speaker.Speaker   // audio speaker
 	lcd                *hd44780.LCD       // lcd
 	keyboard           *keyboard.Keyboard // matrix keyboard
-	serial             *serial.Serial     // serial interface
+	uart               *serial.UART       // serial uart
+	pty                *serial.PTY        // pseudo tty
 	io                 *sysIO             // system IO
 	mem                *sysMemory         // system memory
 	bus                *Bus               // system bus
@@ -128,10 +129,17 @@ func newSystem() (*system, error) {
 		SamplesPerBit: serialSamplesPerBit,
 		DataBits:      8,
 	}
-	serial, err := serial.New(&kSerial)
+	uart, err := serial.NewUART(&kSerial)
 	if err != nil {
 		return nil, err
 	}
+
+	// setup the pseudo-tty
+	pty, err := serial.NewPTY()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("serial port at %s\n", pty.Name())
 
 	// setup the audio player
 	ctx := audio.NewContext(audioSampleRate)
@@ -161,7 +169,8 @@ func newSystem() (*system, error) {
 		speaker:  speaker,
 		lcd:      lcd,
 		keyboard: keyboard,
-		serial:   serial,
+		uart:     uart,
+		pty:      pty,
 		io:       io,
 		mem:      mem,
 		bus:      bus,
@@ -184,6 +193,11 @@ func newSystem() (*system, error) {
 	player.Play()
 
 	return s, nil
+}
+
+// exit cleans up system resources
+func (s *system) Exit() {
+	s.pty.Close()
 }
 
 func (s *system) Update() error {
@@ -209,11 +223,9 @@ func (s *system) Update() error {
 		// sample the serial output
 		s.serialSampleCycles -= float32(cycles)
 		for s.serialSampleCycles < 0 {
-			rx, err := s.serial.Sample(s.io.serialTx)
+			rx, err := s.uart.Sample(s.io.serialTx)
 			if err == nil {
-				_ = rx
-				//c := rx & 0xff
-				//fmt.Printf("serial 0x%02x %s\n", c, string(rune(c)))
+				s.pty.Write(byte(rx))
 			}
 			s.serialSampleCycles += cpuCyclesPerSerialSample
 		}
@@ -242,6 +254,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("error: %s", err)
 	}
+	defer s.Exit()
+
 	ebiten.SetWindowSize(s.width, s.height)
 	ebiten.SetWindowTitle("TEC-1G")
 	if err := ebiten.RunGame(s); err != nil {
