@@ -195,11 +195,11 @@ func (k *Keyboard) Update() {
 			k.set(1, 6)
 		case ebiten.KeyComma: // A9_D7 ,
 			k.set(1, 7)
-		case ebiten.KeyShift: // A8_D0 shift
+		case ebiten.KeyShift, ebiten.KeyShiftLeft, ebiten.KeyShiftRight: // A8_D0 shift
 			k.set(0, 0)
-		case ebiten.KeyControl: // A8_D1 ctrl
+		case ebiten.KeyControl, ebiten.KeyControlLeft, ebiten.KeyControlRight: // A8_D1 ctrl
 			k.set(0, 1)
-		case ebiten.KeyAlt: // A8_D2 function
+		case ebiten.KeyAlt, ebiten.KeyAltLeft, ebiten.KeyAltRight: // A8_D2 function
 			k.set(0, 2)
 		case ebiten.KeyArrowUp: // A8_D3 up
 			k.set(0, 3)
@@ -211,6 +211,8 @@ func (k *Keyboard) Update() {
 			k.set(0, 6)
 		case ebiten.KeyCapsLock: // A8_D7 caps
 			k.set(0, 7)
+		default:
+			fmt.Printf("unmapped key %s\n", key)
 		}
 	}
 }
