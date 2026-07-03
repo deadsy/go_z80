@@ -118,8 +118,9 @@ const keyboardPort = 0xfe // Matrix Keyboard Input
 const systemPort = 0xff   // System Latch
 
 // digitPort
-const digitMask = uint8(0x3f)   // digits are bits 0..5
-const speakerMask = uint8(0x80) // speaker/led is bit 7
+const digitMask = uint8(0x3f)      // digits are bits 0..5
+const serialTxMask = uint8(1 << 6) // serialTx is bit 6
+const speakerMask = uint8(1 << 7)  // speaker/led is bit 7
 
 // simpPort
 const simpKeyboard = byte(1 << 0) // 0 == encoder, 1 == matrix
@@ -138,6 +139,7 @@ type sysIO struct {
 	segment  uint8              // latched segment enable
 	digit    uint8              // latched digit enable
 	speaker  bool               // latched speaker/led enable
+	serialTx bool               // serial tx line
 }
 
 // Read8 reads a byte from an IO port.
@@ -153,8 +155,8 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 		// TODO
 		return simpKeyboard
 	case rtcPort:
-		// TODO
-		return 0
+		// TODO return 0xff to indicate no device
+		return 0xff
 	case sdCardPort:
 		// TODO
 		return 0
@@ -176,6 +178,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	case digitPort:
 		io.digit = val & digitMask
 		io.speaker = (val & speakerMask) != 0
+		io.serialTx = (val & serialTxMask) != 0
 		io.display.Enable(io.digit, io.segment)
 		io.led.Control(io.speaker)
 		return

@@ -15,6 +15,7 @@ import (
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/led"
+	"github.com/deadsy/go_z80/device/serial"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/device/speaker"
@@ -31,28 +32,38 @@ const kHz = 1000 * Hz
 const MHz = kHz * kHz
 
 const cpuClock = 4 * MHz
-const tickRate = 60 * Hz
-const sampleRate = 48000
 
-const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate)     // cpu cycles per ebiten update tick
-const cpuCyclesPerSample = float32(cpuClock) / float32(sampleRate) // cpu cycles per audio sample
+// ebiten timing
+const tickRate = 60 * Hz
+const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate) // cpu cycles per ebiten update tick
+
+// audio timing
+const audioSampleRate = 48000
+const cpuCyclesPerAudioSample = float32(cpuClock) / float32(audioSampleRate)
+
+// serial timing
+const serialSamplesPerBit = 5
+const serialBaudRate = 4800 // this is the default MON3 rate
+const cpuCyclesPerSerialSample = float32(cpuClock) / (float32(serialBaudRate) * float32(serialSamplesPerBit))
 
 //-----------------------------------------------------------------------------
 
 type system struct {
-	display       *sixdigit.Display  // 6 digit display
-	led           *led.LED           // speaker activity LED
-	speaker       *speaker.Speaker   // audio speaker
-	lcd           *hd44780.LCD       // lcd
-	keyboard      *keyboard.Keyboard // matrix keyboard
-	io            *sysIO             // system IO
-	mem           *sysMemory         // system memory
-	bus           *Bus               // system bus
-	cpu           *z80.CPU           // z80 cpu
-	background    *ebiten.Image      // background graphic
-	width, height int                // window dimensions
-	tickCycles    float32            // ebiten tick cpu cycles
-	sampleCycles  float32            // audio sample cpu cycles
+	display            *sixdigit.Display  // 6 digit display
+	led                *led.LED           // speaker activity LED
+	speaker            *speaker.Speaker   // audio speaker
+	lcd                *hd44780.LCD       // lcd
+	keyboard           *keyboard.Keyboard // matrix keyboard
+	serial             *serial.Serial     // serial interface
+	io                 *sysIO             // system IO
+	mem                *sysMemory         // system memory
+	bus                *Bus               // system bus
+	cpu                *z80.CPU           // z80 cpu
+	background         *ebiten.Image      // background graphic
+	width, height      int                // window dimensions
+	tickCycles         float32            // ebiten tick cpu cycles
+	audioSampleCycles  float32            // audio sample cpu cycles
+	serialSampleCycles float32            // serial sample cpu cycles
 }
 
 func newSystem() (*system, error) {
@@ -84,7 +95,7 @@ func newSystem() (*system, error) {
 	kSpeaker := speaker.Config{
 		BitAmplitude: 0.1,
 		BufferSize:   16384,
-		SampleRate:   sampleRate,
+		SampleRate:   audioSampleRate,
 		HighCutoff:   6 * kHz,
 		LowCutoff:    40 * Hz,
 	}
@@ -112,8 +123,18 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
+	// setup the serial
+	kSerial := serial.Config{
+		SamplesPerBit: serialSamplesPerBit,
+		DataBits:      8,
+	}
+	serial, err := serial.New(&kSerial)
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the audio player
-	ctx := audio.NewContext(sampleRate)
+	ctx := audio.NewContext(audioSampleRate)
 	player, err := ctx.NewPlayer(speaker)
 	if err != nil {
 		return nil, err
@@ -140,6 +161,7 @@ func newSystem() (*system, error) {
 		speaker:  speaker,
 		lcd:      lcd,
 		keyboard: keyboard,
+		serial:   serial,
 		io:       io,
 		mem:      mem,
 		bus:      bus,
@@ -173,14 +195,27 @@ func (s *system) Update() error {
 			return err
 		}
 		s.tickCycles -= float32(cycles)
+
 		// sample the audio output
-		s.sampleCycles -= float32(cycles)
-		for s.sampleCycles <= 0 {
+		s.audioSampleCycles -= float32(cycles)
+		for s.audioSampleCycles < 0 {
 			err := s.speaker.WriteSample(s.io.speaker)
 			if err != nil {
 				return fmt.Errorf("speaker.WriteSample: %s", err)
 			}
-			s.sampleCycles += cpuCyclesPerSample
+			s.audioSampleCycles += cpuCyclesPerAudioSample
+		}
+
+		// sample the serial output
+		s.serialSampleCycles -= float32(cycles)
+		for s.serialSampleCycles < 0 {
+			rx, err := s.serial.Sample(s.io.serialTx)
+			if err == nil {
+				_ = rx
+				//c := rx & 0xff
+				//fmt.Printf("serial 0x%02x %s\n", c, string(rune(c)))
+			}
+			s.serialSampleCycles += cpuCyclesPerSerialSample
 		}
 	}
 
