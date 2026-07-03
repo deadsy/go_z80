@@ -131,7 +131,7 @@ func saveImageToFile(ebitenImg *ebiten.Image, outputPath string) error {
 
 //-----------------------------------------------------------------------------
 
-const dotSize = 11
+const dotSize = 10
 const dotGap = 1
 const glyphWidth = (glyphPixelWidth * (dotSize + dotGap)) - dotGap
 const glyphHeight = (glyphPixelHeight * (dotSize + dotGap)) - dotGap
@@ -344,8 +344,8 @@ func (lcd *LCD) WriteData(val byte) {
 //-----------------------------------------------------------------------------
 
 // intercharacter gaps
-const xGap = 11
-const yGap = 11
+const xGap = dotSize + dotGap
+const yGap = dotSize + dotGap
 
 // character to character pitch
 const pitchX = glyphWidth + xGap
