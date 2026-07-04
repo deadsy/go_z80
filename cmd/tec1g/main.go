@@ -128,6 +128,7 @@ func newSystem() (*system, error) {
 	kSerial := serial.Config{
 		SamplesPerBit: serialSamplesPerBit,
 		DataBits:      8,
+		StopBits:      1,
 	}
 	uart, err := serial.NewUART(&kSerial)
 	if err != nil {
@@ -223,7 +224,7 @@ func (s *system) Update() error {
 		// sample the serial output
 		s.serialSampleCycles -= float32(cycles)
 		for s.serialSampleCycles < 0 {
-			rx, err := s.uart.Sample(s.io.serialTx)
+			rx, err := s.uart.WriteSample(s.io.serialTx)
 			if err == nil {
 				s.pty.Write(byte(rx))
 			}

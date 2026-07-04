@@ -14,7 +14,9 @@ We create this from characters.
 
 package serial
 
-import "errors"
+import (
+	"errors"
+)
 
 //-----------------------------------------------------------------------------
 
@@ -48,22 +50,27 @@ const (
 type Config struct {
 	SamplesPerBit int    // Fs / baud, e.g. 16 for 16x oversampling
 	DataBits      int    // 5..9
+	StopBits      int    // 1..2
 	Parity        Parity // parity
 	LsbLast       bool   // false for standard UART
 	IdleLow       bool   // false for normal TTL/RS-232-logical polarity
 }
 
-type UART struct {
-	config *Config
-	// runtime state
+type frameState struct {
 	state     state
 	counter   int  // sample counter within current bit
 	bitIndex  int  // which data bit we're on
 	shift     int  // assembled data
+	stopCount int  // stop bits emitted (encode only)
 	parityAcc bool // running parity
-	// results of the last completed frame
-	frameError  bool
-	parityError bool
+}
+
+type UART struct {
+	config      *Config
+	decodeState frameState // sample decoding state
+	encodeState frameState // sample encoding state
+	frameError  bool       // framing error on decode
+	parityError bool       // parity error on decode
 }
 
 func NewUART(k *Config) (*UART, error) {
@@ -72,13 +79,18 @@ func NewUART(k *Config) (*UART, error) {
 	}, nil
 }
 
-// Rx serial line samples and convert them back into frame values
-func (s *UART) Sample(level bool) (int, error) {
-	var rxFrame bool
+//-----------------------------------------------------------------------------
 
-	if s.config.IdleLow {
+// WriteSample takes a sample of a serial line and turns it into a serial frame value.
+func (u *UART) WriteSample(level bool) (int, error) {
+	var rxFrame bool
+	s := &u.decodeState
+
+	if u.config.IdleLow {
 		level = !level
 	}
+
+	//fmt.Printf("state %d sample %t\n", s.state, level)
 
 	switch s.state {
 	case stateIdle:
@@ -90,16 +102,16 @@ func (s *UART) Sample(level bool) (int, error) {
 	case stateStart:
 		// Sample the start bit at its center to reject noise/glitches.
 		s.counter += 1
-		if s.counter >= (s.config.SamplesPerBit >> 1) {
+		if s.counter >= (u.config.SamplesPerBit >> 1) {
 			if !level {
 				// still low -> valid start
 				s.state = stateData
 				s.counter = 0
 				s.bitIndex = 0
 				s.shift = 0
-				s.parityAcc = s.config.Parity == ParityOdd
-				s.parityError = false
-				s.frameError = false
+				s.parityAcc = u.config.Parity == ParityOdd
+				u.parityError = false
+				u.frameError = false
 			} else {
 				// false start, glitch
 				s.state = stateIdle
@@ -108,17 +120,17 @@ func (s *UART) Sample(level bool) (int, error) {
 	case stateData:
 		// Full bit period between successive center samples.
 		s.counter += 1
-		if s.counter >= s.config.SamplesPerBit {
+		if s.counter >= u.config.SamplesPerBit {
 			s.counter = 0
 			s.parityAcc = s.parityAcc != level
-			if s.config.LsbLast {
+			if u.config.LsbLast {
 				s.shift = (s.shift << 1) | bool2int(level)
 			} else {
 				s.shift |= bool2int(level) << s.bitIndex
 			}
 			s.bitIndex += 1
-			if s.bitIndex >= s.config.DataBits {
-				if s.config.Parity == ParityNone {
+			if s.bitIndex >= u.config.DataBits {
+				if u.config.Parity == ParityNone {
 					s.state = stateStop
 				} else {
 					s.state = stateParity
@@ -127,16 +139,16 @@ func (s *UART) Sample(level bool) (int, error) {
 		}
 	case stateParity:
 		s.counter += 1
-		if s.counter >= s.config.SamplesPerBit {
+		if s.counter >= u.config.SamplesPerBit {
 			s.counter = 0
-			s.parityError = level != s.parityAcc
+			u.parityError = level != s.parityAcc
 			s.state = stateStop
 		}
 	case stateStop:
 		s.counter += 1
-		if s.counter >= s.config.SamplesPerBit {
+		if s.counter >= u.config.SamplesPerBit {
 			s.counter = 0
-			s.frameError = level != true // stop bit must be mark (1)
+			u.frameError = level != true // stop bit must be mark (1)
 			rxFrame = true
 			// Ignore a 2nd stop bit's exact timing
 			// return to idle and resync on the next falling edge.
@@ -147,13 +159,86 @@ func (s *UART) Sample(level bool) (int, error) {
 	if !rxFrame {
 		return 0, errors.New("no data")
 	}
-	if s.parityError {
+	if u.parityError {
 		return 0, errors.New("parity error")
 	}
-	if s.frameError {
+	if u.frameError {
 		return 0, errors.New("framing error")
 	}
 	return s.shift, nil
+}
+
+//-----------------------------------------------------------------------------
+
+// ReadSample reads data from a PTY and returns a set of sample values.
+func (u *UART) ReadSample(pty *PTY) (bool, error) {
+	level := false
+	s := &u.encodeState
+
+	switch s.state {
+	case stateIdle:
+		word, err := pty.Read()
+		if err != nil {
+			return true, err
+		}
+		s.shift = int(word)
+		s.parityAcc = u.config.Parity == ParityOdd
+		s.counter = 0
+		s.bitIndex = 0
+		s.stopCount = 0
+		s.state = stateStart
+		level = true
+	case stateStart:
+		level = false // start bit is always space (0)
+		s.counter += 1
+		if s.counter >= u.config.SamplesPerBit {
+			s.counter = 0
+			s.state = stateData
+		}
+	case stateData:
+		// Present the current data bit for the whole bit period.
+		if u.config.LsbLast {
+			level = (s.shift>>(u.config.DataBits-1-s.bitIndex))&1 != 0
+		} else {
+			level = (s.shift>>s.bitIndex)&1 != 0
+		}
+		s.counter += 1
+		if s.counter >= u.config.SamplesPerBit {
+			s.counter = 0
+			s.parityAcc = s.parityAcc != level
+			s.bitIndex += 1
+			if s.bitIndex >= u.config.DataBits {
+
+				if u.config.Parity == ParityNone {
+					s.state = stateStop
+				} else {
+					s.state = stateParity
+				}
+			}
+		}
+	case stateParity:
+		level = s.parityAcc
+		s.counter += 1
+		if s.counter >= u.config.SamplesPerBit {
+			s.counter = 0
+			s.state = stateStop
+		}
+	case stateStop:
+		level = true // stop bit(s) are mark (1)
+		s.counter += 1
+		if s.counter >= u.config.SamplesPerBit {
+			s.counter = 0
+			if s.stopCount >= u.config.StopBits {
+				s.state = stateIdle
+			}
+		}
+	}
+
+	if u.config.IdleLow {
+		level = !level
+	}
+
+	return level, nil
 }
 
 //-----------------------------------------------------------------------------
