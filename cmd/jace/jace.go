@@ -11,6 +11,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/memory"
 	"github.com/deadsy/go_z80/z80"
 )
@@ -101,14 +102,27 @@ func (m *sysMemory) Write16(adr uint16, val uint16) {
 
 //-----------------------------------------------------------------------------
 
+const keyboardPort = 0xfe // Matrix Keyboard Input
+
 // System IO
 type sysIO struct {
+	keyboard *keyboard.Jace // matrix keyboard
+	speaker  bool           // latched speaker bit
 }
 
 // Read8 reads a byte from an IO port.
 func (io *sysIO) Read8(adr uint16) uint8 {
+	row := uint8(adr >> 8)
 	adr &= 0xff
-	fmt.Printf("io.Read8 [%02x]\n", adr)
+	switch adr {
+	case keyboardPort:
+		code, err := io.keyboard.Scan(row)
+		if err != nil {
+			fmt.Printf("keyboard scan error: %s\n", err)
+		}
+		return code
+	}
+	fmt.Printf("io.Read8 unknown port %02x\n", adr)
 	return 0
 }
 
@@ -118,8 +132,10 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO() *sysIO {
-	return &sysIO{}
+func newIO(keyboard *keyboard.Jace) *sysIO {
+	return &sysIO{
+		keyboard: keyboard,
+	}
 }
 
 //-----------------------------------------------------------------------------

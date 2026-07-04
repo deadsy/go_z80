@@ -132,14 +132,14 @@ const simpKeyboard = byte(1 << 0) // 0 == encoder, 1 == matrix
 //const simpKey = byte(1 << 6)
 
 type sysIO struct {
-	display  *sixdigit.Display  // 6 digit display
-	led      *led.LED           // speaker led
-	lcd      *hd44780.LCD       // LCD
-	keyboard *keyboard.Keyboard // matrix keyboard
-	segment  uint8              // latched segment enable
-	digit    uint8              // latched digit enable
-	speaker  bool               // latched speaker/led enable
-	serialTx bool               // serial tx line
+	display  *sixdigit.Display // 6 digit display
+	led      *led.LED          // speaker led
+	lcd      *hd44780.LCD      // LCD
+	keyboard *keyboard.Tec1G   // matrix keyboard
+	segment  uint8             // latched segment enable
+	digit    uint8             // latched digit enable
+	speaker  bool              // latched speaker/led enable
+	serialTx bool              // serial tx line
 }
 
 // Read8 reads a byte from an IO port.
@@ -215,7 +215,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *sixdigit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Keyboard) *sysIO {
+func newIO(display *sixdigit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Tec1G) *sysIO {
 	return &sysIO{
 		display:  display,
 		led:      led,

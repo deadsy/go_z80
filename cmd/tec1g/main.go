@@ -49,22 +49,22 @@ const cpuCyclesPerSerialSample = float32(cpuClock) / (float32(serialBaudRate) * 
 //-----------------------------------------------------------------------------
 
 type system struct {
-	display            *sixdigit.Display  // 6 digit display
-	led                *led.LED           // speaker activity LED
-	speaker            *speaker.Speaker   // audio speaker
-	lcd                *hd44780.LCD       // lcd
-	keyboard           *keyboard.Keyboard // matrix keyboard
-	uart               *serial.UART       // serial uart
-	pty                *serial.PTY        // pseudo tty
-	io                 *sysIO             // system IO
-	mem                *sysMemory         // system memory
-	bus                *Bus               // system bus
-	cpu                *z80.CPU           // z80 cpu
-	background         *ebiten.Image      // background graphic
-	width, height      int                // window dimensions
-	tickCycles         float32            // ebiten tick cpu cycles
-	audioSampleCycles  float32            // audio sample cpu cycles
-	serialSampleCycles float32            // serial sample cpu cycles
+	display            *sixdigit.Display // 6 digit display
+	led                *led.LED          // speaker activity LED
+	speaker            *speaker.Speaker  // audio speaker
+	lcd                *hd44780.LCD      // lcd
+	keyboard           *keyboard.Tec1G   // matrix keyboard
+	uart               *serial.UART      // serial uart
+	pty                *serial.PTY       // pseudo tty
+	io                 *sysIO            // system IO
+	mem                *sysMemory        // system memory
+	bus                *Bus              // system bus
+	cpu                *z80.CPU          // z80 cpu
+	background         *ebiten.Image     // background graphic
+	width, height      int               // window dimensions
+	tickCycles         float32           // ebiten tick cpu cycles
+	audioSampleCycles  float32           // audio sample cpu cycles
+	serialSampleCycles float32           // serial sample cpu cycles
 }
 
 func newSystem() (*system, error) {
@@ -119,7 +119,7 @@ func newSystem() (*system, error) {
 	}
 
 	// setup the keyboard
-	keyboard, err := keyboard.New()
+	keyboard, err := keyboard.NewTec1G()
 	if err != nil {
 		return nil, err
 	}
