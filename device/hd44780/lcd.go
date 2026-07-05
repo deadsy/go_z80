@@ -13,11 +13,9 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"golang.org/x/image/bmp"
 )
 
 //-----------------------------------------------------------------------------
@@ -114,20 +112,6 @@ const (
 	Mode24x2 DisplayMode = ((24 << 8) | 2)
 	Mode40x2 DisplayMode = ((40 << 8) | 2)
 )
-
-//-----------------------------------------------------------------------------
-
-func saveImageToFile(ebitenImg *ebiten.Image, outputPath string) error {
-	bounds := ebitenImg.Bounds()
-	rgbaImg := image.NewRGBA(bounds)
-	ebitenImg.ReadPixels(rgbaImg.Pix)
-	file, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	return bmp.Encode(file, rgbaImg)
-}
 
 //-----------------------------------------------------------------------------
 

@@ -14,10 +14,10 @@ import (
 
 	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/speaker"
+	"github.com/deadsy/go_z80/device/video"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 //-----------------------------------------------------------------------------
@@ -45,6 +45,7 @@ const cpuCyclesPerInterrupt = float32(cpuClock) / float32(interruptRate) // cpu 
 type system struct {
 	speaker           *speaker.Speaker // audio speaker
 	keyboard          *keyboard.Jace   // matrix keyboard
+	video             *video.Video     // video
 	io                *sysIO           // system IO
 	mem               *sysMemory       // system memory
 	bus               *Bus             // system bus
@@ -93,6 +94,18 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
+	// setup the video
+	kVideo := video.Config{
+		XBase:  0,
+		YBase:  0,
+		XScale: 4,
+		YScale: 4,
+	}
+	video, err := video.New(&kVideo, mem)
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the bus
 	bus := newBus()
 
@@ -101,6 +114,8 @@ func newSystem() (*system, error) {
 
 	s := &system{
 		speaker:         speaker,
+		keyboard:        keyboard,
+		video:           video,
 		io:              io,
 		mem:             mem,
 		bus:             bus,
@@ -109,10 +124,12 @@ func newSystem() (*system, error) {
 	}
 
 	// load background image
-	img, _, err := ebitenutil.NewImageFromFile("../../images/keyboard.png")
-	if err != nil {
-		return nil, err
-	}
+	//img, _, err := ebitenutil.NewImageFromFile("../../images/keyboard.png")
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	img := ebiten.NewImage(1024, 768)
 	s.background = img
 
 	// set the background dimensions
@@ -158,11 +175,14 @@ func (s *system) Update() error {
 		}
 	}
 
+	s.video.Update()
+	s.keyboard.Update()
 	return nil
 }
 
 func (s *system) Draw(screen *ebiten.Image) {
 	screen.DrawImage(s.background, nil)
+	s.video.Draw(screen)
 }
 
 func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {

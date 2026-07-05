@@ -75,6 +75,7 @@ type Video struct {
 	font   *ebiten.Image // font atlas
 	img    *ebiten.Image // unscaled video image
 	mem    z80.Memory    // video memory
+	count  int
 }
 
 func New(cfg *Config, mem z80.Memory) (*Video, error) {
@@ -94,6 +95,9 @@ func (v *Video) getGlyph(code byte) *ebiten.Image {
 
 // Draw the video (called from ebiten draw function)
 func (v *Video) Draw(screen *ebiten.Image) {
+	if v.font == nil {
+		return
+	}
 	// create an unscaled video image
 	v.img.Clear()
 	for row := 0; row < numRows; row++ {
@@ -107,6 +111,7 @@ func (v *Video) Draw(screen *ebiten.Image) {
 			v.img.DrawImage(glyph, op)
 		}
 	}
+
 	// render the video image to the screen (with scaling)
 	cfg := v.config
 	op := &ebiten.DrawImageOptions{}
@@ -118,6 +123,11 @@ func (v *Video) Draw(screen *ebiten.Image) {
 
 // Update the video logic (called from ebiten update)
 func (v *Video) Update() {
+	// TODO read the font data using a char ram dirty flag
+	v.count += 1
+	if v.count == 60 {
+		v.font = buildFontImage(v.mem)
+	}
 }
 
 //-----------------------------------------------------------------------------
