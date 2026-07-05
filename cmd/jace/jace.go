@@ -128,6 +128,8 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	adr &= 0xff
 	switch adr {
 	case keyboardPort:
+		// a read on 0xfe drives the speaker output low
+		io.speaker = false
 		code, err := io.keyboard.Scan(row)
 		if err != nil {
 			fmt.Printf("keyboard scan error: %s\n", err)
@@ -141,6 +143,12 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 // Write8 writes a byte to an IO port.
 func (io *sysIO) Write8(adr uint16, val uint8) {
 	adr &= 0xff
+	switch adr {
+	case keyboardPort:
+		// a write on 0xfe drives the speaker output high
+		io.speaker = true
+		return
+	}
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
