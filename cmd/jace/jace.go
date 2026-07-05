@@ -3,6 +3,18 @@
 
 Jupiter ACE Emulator
 
+Memory Map
+
+0000-1FFF 8k ACE O/S and Forth Interpreter/Compiler ROM
+2000-22FF (Unused)
+2300-23FF 256 bytes used for Cassette Header Information
+2400-26FF 32 x 24 Display. Bit 7 indicates inverse (black text on white), Bits 6-0 indicate a character in the Character Definitions Table
+2700-27FF Edit Buffer end ? Startup writes '0' here but little other obvious function.
+2800-2BFF (Unused)
+2C00-2FFF 128 x 8 byte character definitions, representing display characters 0..127.
+3000-3BFF (Unused)
+3C00-FFFF Program
+
 */
 //-----------------------------------------------------------------------------
 
@@ -40,7 +52,7 @@ func newMemory() (*sysMemory, error) {
 	// Video RAM
 	video := memory.New(10).RAM() // 1 KiB
 	// Character RAM
-	char := memory.New(10).WOM() // 1 KiB
+	char := memory.New(10).RAM() // .WOM() // 1 KiB
 	// RAM
 	ram := memory.New(10).RAM() // 1 KiB
 	// Empty

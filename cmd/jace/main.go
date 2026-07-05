@@ -100,11 +100,12 @@ func newSystem() (*system, error) {
 	cpu := z80.New(io, mem, bus)
 
 	s := &system{
-		speaker: speaker,
-		io:      io,
-		mem:     mem,
-		bus:     bus,
-		cpu:     cpu,
+		speaker:         speaker,
+		io:              io,
+		mem:             mem,
+		bus:             bus,
+		cpu:             cpu,
+		interruptCycles: cpuCyclesPerInterrupt,
 	}
 
 	// load background image

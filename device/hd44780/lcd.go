@@ -13,11 +13,11 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/png"
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"golang.org/x/image/bmp"
 )
 
 //-----------------------------------------------------------------------------
@@ -126,7 +126,7 @@ func saveImageToFile(ebitenImg *ebiten.Image, outputPath string) error {
 		return err
 	}
 	defer file.Close()
-	return png.Encode(file, rgbaImg)
+	return bmp.Encode(file, rgbaImg)
 }
 
 //-----------------------------------------------------------------------------
@@ -154,12 +154,6 @@ func buildFontImage(font [fontChars][glyphPixelWidth]byte) *ebiten.Image {
 	return img
 }
 
-func getGlyph(font *ebiten.Image, code byte) *ebiten.Image {
-	x := int(code) * glyphWidth
-	r := image.Rect(x, 0, x+glyphWidth, glyphHeight)
-	return font.SubImage(r).(*ebiten.Image)
-}
-
 //-----------------------------------------------------------------------------
 
 const cgramMode = true
@@ -167,16 +161,16 @@ const ddramMode = false
 
 type Config struct {
 	Mode           DisplayMode
-	XBase, YBase   float32 // xy position
-	XScale, YScale float32 // xy scale
+	XBase, YBase   float64 // xy position
+	XScale, YScale float64 // xy scale
 }
 
 type LCD struct {
-	config        *Config
+	config        *Config          // lcd configuration
 	rows, cols    int              // displays rows and columns
-	font          [2]*ebiten.Image // font images
+	font          [2]*ebiten.Image // font atlas images
 	img           *ebiten.Image    // unscaled lcd image
-	rowAddr       []byte           // start of the row in ddram
+	rowAddr       []byte           // address of row start in ddram
 	ddram         [128]byte        // display data ram
 	cgram         []byte           // character generator ram
 	cgrom         []byte           // character generator rom
@@ -195,11 +189,11 @@ type LCD struct {
 
 }
 
-func New(k *Config) (*LCD, error) {
+func New(cfg *Config) (*LCD, error) {
 	lcd := &LCD{
-		config: k,
-		rows:   int(k.Mode & 0xff),
-		cols:   int(k.Mode >> 8),
+		config: cfg,
+		rows:   int(cfg.Mode & 0xff),
+		cols:   int(cfg.Mode >> 8),
 	}
 	// pre-load font images
 	lcd.font[0] = buildFontImage(fontA00)
@@ -351,6 +345,12 @@ const yGap = dotSize + dotGap
 const pitchX = glyphWidth + xGap
 const pitchY = glyphHeight + yGap
 
+func (lcd *LCD) getGlyph(set int, code byte) *ebiten.Image {
+	x := int(code) * glyphWidth
+	r := image.Rect(x, 0, x+glyphWidth, glyphHeight)
+	return lcd.font[set].SubImage(r).(*ebiten.Image)
+}
+
 // Draw the display (called from ebiten draw function)
 func (lcd *LCD) Draw(screen *ebiten.Image) {
 
@@ -358,23 +358,21 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 	lcd.img.Clear()
 	for row := 0; row < lcd.rows; row++ {
 		for col := 0; col < lcd.cols; col++ {
-			// where are we rendering the glyph?
-			x := col * pitchX
-			y := row * pitchY
 			// get the character
 			code := lcd.ddram[lcd.rowAddr[row]+byte(col)]
-			glyph := getGlyph(lcd.font[0], code)
+			glyph := lcd.getGlyph(0, code)
+			// render the glyph to the lcd image
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(x), float64(y))
+			op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
 			lcd.img.DrawImage(glyph, op)
 		}
 	}
 
 	// render the lcd image to the screen (with scaling)
-	lc := lcd.config
+	cfg := lcd.config
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Scale(float64(lc.XScale), float64(lc.YScale))
-	op.GeoM.Translate(float64(lc.XBase), float64(lc.YBase))
+	op.GeoM.Scale(cfg.XScale, cfg.YScale)
+	op.GeoM.Translate(cfg.XBase, cfg.YBase)
 	op.Filter = ebiten.FilterLinear
 	screen.DrawImage(lcd.img, op)
 }
