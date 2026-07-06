@@ -45,7 +45,7 @@ func glyphAddress(n int) uint16 {
 
 func buildFontImage(m z80.Memory) *ebiten.Image {
 	img := ebiten.NewImage(numGlyphs*glyphWidth, glyphHeight)
-	for i := 0; i <= numGlyphs; i++ {
+	for i := 0; i < numGlyphs; i++ {
 		for j := 0; j < glyphHeight; j++ {
 			pixelData := m.Read8(glyphAddress(i) + uint16(j))
 			// invert if bit7 == 1
@@ -99,13 +99,14 @@ func (v *Video) Draw(screen *ebiten.Image) {
 	}
 	// create an unscaled video image
 	v.img.Clear()
+	op := &ebiten.DrawImageOptions{}
 	for row := 0; row < numRows; row++ {
 		for col := 0; col < numCols; col++ {
 			// get the character
 			code := v.mem.Read8(videoAdr + uint16((row*numCols)+col))
 			glyph := v.getGlyph(code)
 			// render the glyph to the video image
-			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Reset()
 			op.GeoM.Translate(float64(col*glyphWidth), float64(row*glyphHeight))
 			v.img.DrawImage(glyph, op)
 		}
@@ -113,7 +114,7 @@ func (v *Video) Draw(screen *ebiten.Image) {
 
 	// render the video image to the screen (with scaling)
 	cfg := v.config
-	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Reset()
 	op.GeoM.Scale(cfg.XScale, cfg.YScale)
 	op.GeoM.Translate(cfg.XBase, cfg.YBase)
 	op.Filter = ebiten.FilterLinear
