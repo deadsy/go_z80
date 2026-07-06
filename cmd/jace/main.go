@@ -175,7 +175,12 @@ func (s *system) Update() error {
 		}
 	}
 
-	s.video.Update()
+	if s.mem.IsDirty() {
+		// update the font atlas
+		s.video.Update()
+		s.mem.Clean()
+	}
+
 	s.keyboard.Update()
 	return nil
 }

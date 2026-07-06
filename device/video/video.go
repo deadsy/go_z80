@@ -75,7 +75,6 @@ type Video struct {
 	font   *ebiten.Image // font atlas
 	img    *ebiten.Image // unscaled video image
 	mem    z80.Memory    // video memory
-	count  int
 }
 
 func New(cfg *Config, mem z80.Memory) (*Video, error) {
@@ -121,13 +120,9 @@ func (v *Video) Draw(screen *ebiten.Image) {
 	screen.DrawImage(v.img, op)
 }
 
-// Update the video logic (called from ebiten update)
+// Update the video logic (called selectively from ebiten update)
 func (v *Video) Update() {
-	// TODO read the font data using a char ram dirty flag
-	v.count += 1
-	if v.count == 60 {
-		v.font = buildFontImage(v.mem)
-	}
+	v.font = buildFontImage(v.mem)
 }
 
 //-----------------------------------------------------------------------------

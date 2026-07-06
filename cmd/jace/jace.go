@@ -35,11 +35,13 @@ const KiB = 1024
 const chunkBits = 11 // 2 KiB chunks
 const chunkSize = (1 << chunkBits)
 const numChunks = (64 * KiB) / chunkSize
+const charChunk = 5 // character memory
 
 func chunkSelect(adr uint16) int { return int(adr >> chunkBits) }
 
 type sysMemory struct {
-	memmap [numChunks]z80.Memory
+	memmap    [numChunks]z80.Memory
+	charDirty bool // has the character memory been written?
 }
 
 func newMemory() (*sysMemory, error) {
@@ -52,7 +54,7 @@ func newMemory() (*sysMemory, error) {
 	// Video RAM
 	video := memory.New(10).RAM() // 1 KiB
 	// Character RAM
-	char := memory.New(10).RAM() // .WOM() // 1 KiB
+	char := memory.New(10).RAM() // 1 KiB
 	// RAM
 	ram := memory.New(10).RAM() // 1 KiB
 	// Empty
@@ -101,7 +103,12 @@ func (m *sysMemory) Read8(adr uint16) uint8 {
 }
 
 func (m *sysMemory) Write8(adr uint16, val uint8) {
-	m.memmap[chunkSelect(adr)].Write8(adr, val)
+	n := chunkSelect(adr)
+	// If character memory changes the video device needs to update the font atlas.
+	if n == charChunk {
+		m.charDirty = true
+	}
+	m.memmap[n].Write8(adr, val)
 }
 
 func (m *sysMemory) Read16(adr uint16) uint16 {
@@ -110,6 +117,14 @@ func (m *sysMemory) Read16(adr uint16) uint16 {
 
 func (m *sysMemory) Write16(adr uint16, val uint16) {
 	m.memmap[chunkSelect(adr)].Write16(adr, val)
+}
+
+func (m *sysMemory) IsDirty() bool {
+	return m.charDirty
+}
+
+func (m *sysMemory) Clean() {
+	m.charDirty = false
 }
 
 //-----------------------------------------------------------------------------
