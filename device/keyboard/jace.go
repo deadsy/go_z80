@@ -156,6 +156,13 @@ func (k *Jace) Update() {
 			k.set(7, 0)
 		case ebiten.KeyEnter:
 			k.set(6, 0)
+		case ebiten.KeyBackspace:
+			k.set(0, 0) // left shift
+			k.set(4, 0) // 0
+		case ebiten.KeyShift:
+			// ignore
+		case ebiten.KeyAltRight, ebiten.KeyAlt, ebiten.KeyAltLeft:
+			// ignore
 		default:
 			fmt.Printf("unmapped key %s\n", key)
 		}
