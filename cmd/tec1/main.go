@@ -9,7 +9,10 @@ TEC-1 (Z80) Emulator
 package main
 
 import (
+	"bytes"
+	"embed"
 	"fmt"
+	"image/png"
 	"log"
 
 	"github.com/deadsy/go_z80/cmd/tec1/keypad"
@@ -20,8 +23,10 @@ import (
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
+
+//go:embed assets/mon1B.bin assets/tec1a.png
+var assets embed.FS
 
 //-----------------------------------------------------------------------------
 
@@ -131,11 +136,15 @@ func newSystem() (*system, error) {
 	}
 
 	// load background image
-	img, _, err := ebitenutil.NewImageFromFile("../../images/tec1a.png")
+	imgData, err := assets.ReadFile("assets/tec1a.png")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read embedded image: %w", err)
 	}
-	s.background = img
+	decodedImg, err := png.Decode(bytes.NewReader(imgData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode PNG image: %w", err)
+	}
+	s.background = ebiten.NewImageFromImage(decodedImg)
 
 	// set the background dimensions
 	bounds := s.background.Bounds()
