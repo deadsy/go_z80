@@ -99,6 +99,7 @@ func (v *Video) Draw(screen *ebiten.Image) {
 	}
 	// create an unscaled video image
 	v.img.Clear()
+	v.img.Fill(color.RGBA{0, 0, 0, 255})
 	op := &ebiten.DrawImageOptions{}
 	for row := 0; row < numRows; row++ {
 		for col := 0; col < numCols; col++ {

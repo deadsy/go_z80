@@ -10,7 +10,9 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"log"
+	"math"
 
 	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/speaker"
@@ -18,6 +20,7 @@ import (
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 //-----------------------------------------------------------------------------
@@ -39,6 +42,38 @@ const cpuCyclesPerAudioSample = float32(cpuClock) / float32(audioSampleRate)
 // periodic interrupt
 const interruptRate = 50 * Hz
 const cpuCyclesPerInterrupt = float32(cpuClock) / float32(interruptRate) // cpu cycles per interrupt tick
+
+//-----------------------------------------------------------------------------
+
+const videoWidth = 800.0
+const videoBorder = 40.0
+const videoHeight = videoWidth * (24.0 / 32.0)
+const videoScale = videoWidth / (32 * 8)
+
+func buildBackgroundImage() (*ebiten.Image, error) {
+
+	const keyboardImageWidth = 552
+	const keyboardScale = videoWidth / keyboardImageWidth
+	const keyboardHeight = 224 * keyboardScale
+
+	xSize := int(math.Floor(videoWidth + (2.0 * videoBorder)))
+	ySize := int(math.Floor(videoHeight + (3.0 * videoBorder) + keyboardHeight))
+
+	img := ebiten.NewImage(xSize, ySize)
+	img.Fill(color.RGBA{0xf9, 0xf9, 0xf9, 255})
+
+	kbd, _, err := ebitenutil.NewImageFromFile("../../images/keyboard.png")
+	if err != nil {
+		return nil, err
+	}
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(keyboardScale, keyboardScale)
+	op.GeoM.Translate(videoBorder, (2.0*videoBorder)+videoHeight)
+	op.Filter = ebiten.FilterLinear
+	img.DrawImage(kbd, op)
+
+	return img, nil
+}
 
 //-----------------------------------------------------------------------------
 
@@ -96,10 +131,10 @@ func newSystem() (*system, error) {
 
 	// setup the video
 	kVideo := video.Config{
-		XBase:  0,
-		YBase:  0,
-		XScale: 4,
-		YScale: 4,
+		XBase:  videoBorder,
+		YBase:  videoBorder,
+		XScale: videoScale,
+		YScale: videoScale,
 	}
 	video, err := video.New(&kVideo, mem)
 	if err != nil {
@@ -123,13 +158,11 @@ func newSystem() (*system, error) {
 		interruptCycles: cpuCyclesPerInterrupt,
 	}
 
-	// load background image
-	//img, _, err := ebitenutil.NewImageFromFile("../../images/keyboard.png")
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	img := ebiten.NewImage(1024, 768)
+	// build the background image
+	img, err := buildBackgroundImage()
+	if err != nil {
+		return nil, err
+	}
 	s.background = img
 
 	// set the background dimensions
