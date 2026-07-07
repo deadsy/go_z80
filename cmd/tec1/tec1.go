@@ -10,6 +10,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/deadsy/go_z80/cmd/tec1/keypad"
 	"github.com/deadsy/go_z80/device/led"
@@ -35,9 +36,12 @@ type sysMemory struct {
 func newMemory() (*sysMemory, error) {
 	// ROM
 	rom := memory.New(11).ROM() // 2 KiB
-	err := rom.LoadFile(0, "../../roms/mon1B.bin")
+	data, err := assets.ReadFile("assets/mon1B.bin")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read embedded ROM: %w", err)
+	}
+	if err := rom.Load(0, data); err != nil {
+		return nil, fmt.Errorf("failed to load ROM: %w", err)
 	}
 	// RAM
 	ram := memory.New(11).RAM() // 2 KiB
@@ -124,7 +128,7 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	case keypadPort:
 		return io.keypad.Scan()
 	}
-	fmt.Printf("io.Read8 unknown port %02x\n", adr)
+	log.Printf("io.Read8 unknown port %02x", adr)
 	return 0
 }
 
@@ -143,7 +147,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		io.display.Enable(io.digit, io.segment)
 		return
 	}
-	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
+	log.Printf("io.Write8 [%02x] = %02x", adr, val)
 }
 
 func newIO(display *sixdigit.Display, led *led.LED, keypad *keypad.Keypad) *sysIO {

@@ -11,7 +11,7 @@ Keypad
 package keypad
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -143,7 +143,7 @@ func (k *Keypad) Update() bool {
 			k.reset = true
 			return k.set(key, keyNone)
 		default:
-			fmt.Printf("unmapped key %s\n", key)
+			log.Printf("unmapped key %s", key)
 		}
 	}
 	return false
