@@ -159,6 +159,9 @@ func (k *Jace) Update() {
 		case ebiten.KeyBackspace:
 			k.set(0, 0) // left shift
 			k.set(4, 0) // 0
+		case ebiten.KeyPeriod:
+			k.set(0, 1) // right shift
+			k.set(7, 1) // m
 		case ebiten.KeyShift:
 			// ignore
 		case ebiten.KeyAltRight, ebiten.KeyAlt, ebiten.KeyAltLeft:

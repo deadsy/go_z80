@@ -73,6 +73,7 @@ func runCPM(t *testing.T, path string) uint64 {
 	cpu.PC = loadAdr
 
 	var count uint64
+	var cycles uint64
 	for {
 		// Intercept BDOS before the CALL target executes.
 		if cpu.PC == bdosEntry {
@@ -98,11 +99,15 @@ func runCPM(t *testing.T, path string) uint64 {
 		if cpu.PC == 0x0000 || cpu.halt {
 			break
 		}
-		if _, err := cpu.Run(); err != nil {
+		n, err := cpu.Run()
+		if err != nil {
 			t.Fatalf("run error: %v", err)
 		}
+		cycles += uint64(n)
 		count++
 	}
+	fmt.Printf("\n")
+	t.Logf("%d cpu cycles\n", cycles)
 	return count
 }
 
@@ -113,7 +118,7 @@ func Test_Zexdoc(t *testing.T) {
 	start := time.Now()
 	n := runCPM(t, "../ext/zexall/zexdoc.com")
 	elapsed := time.Since(start)
-	t.Logf("\n%d instructions in %s (%.1f MIPS)",
+	t.Logf("%d instructions in %s (%.1f MIPS)",
 		n, elapsed, float64(n)/elapsed.Seconds()/1e6)
 }
 
@@ -122,7 +127,7 @@ func Test_Zexall(t *testing.T) {
 	start := time.Now()
 	n := runCPM(t, "../ext/zexall/zexall.com")
 	elapsed := time.Since(start)
-	t.Logf("\n%d instructions in %s (%.1f MIPS)",
+	t.Logf("%d instructions in %s (%.1f MIPS)",
 		n, elapsed, float64(n)/elapsed.Seconds()/1e6)
 }
 
