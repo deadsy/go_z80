@@ -5,11 +5,12 @@ TOP = $(shell realpath ..)
 DL_DIR = $(TOP)/dl
 
 .PHONY: all
-all: .stamp_z80step
+all: .stamp_z80step .stamp_za
 
 .PHONY: clean
 clean:
 	-rm -rf $(Z80STEP_DIR)
+	-rm -rf $(ZA_DIR)
 	-rm .stamp*
 
 #-------------------------------------------------------------------------------
@@ -28,6 +29,24 @@ $(Z80STEP_TGZ):
 .stamp_z80step: $(Z80STEP_TGZ)
 	mkdir -p $(Z80STEP_DIR)
 	tar -C $(Z80STEP_DIR) -zxf $(Z80STEP_TGZ) --strip-components 1
+	touch $@
+
+#-------------------------------------------------------------------------------
+# zexall
+
+ZA_VER = 8f71d41
+ZA_URL = https://github.com/agn453/ZEXALL/tarball/$(ZA_VER)
+ZA_FILE = zexall-$(ZA_VER).tar.gz
+ZA_TGZ = $(DL_DIR)/$(ZA_FILE)
+ZA_DIR = $(TOP)/ext/zexall
+
+$(ZA_TGZ):
+	mkdir -p $(DL_DIR)
+	wget $(ZA_URL) -O $(ZA_TGZ)
+
+.stamp_za: $(ZA_TGZ)
+	mkdir -p $(ZA_DIR)
+	tar -C $(ZA_DIR) -zxf $(ZA_TGZ) --strip-components 1
 	touch $@
 
 #-------------------------------------------------------------------------------
