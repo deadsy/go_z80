@@ -11,6 +11,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/deadsy/go_z80/cmd/tec1/keypad"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/memory"
@@ -40,7 +41,6 @@ func newMemory() (*sysMemory, error) {
 	}
 	// RAM
 	ram := memory.New(11).RAM() // 2 KiB
-	ram.Write8(0, 0xef)
 
 	// Empty
 	empty := memory.New(11).Empty() // 2 KiB
@@ -111,6 +111,7 @@ const speakerMask = uint8(0x80) // speaker/led is bit 7
 type sysIO struct {
 	display *sixdigit.Display // 6 digit display
 	led     *led.LED          // speaker led
+	keypad  *keypad.Keypad    // keypad
 	segment uint8             // latched segment enable
 	digit   uint8             // latched digit enable
 	speaker bool              // latched speaker/led enable
@@ -121,10 +122,9 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	adr &= 0xff
 	switch adr {
 	case keypadPort:
-		//return keyAddress
-		return keyGo
+		return io.keypad.Scan()
 	}
-	fmt.Printf("io.Read8 [%02x]\n", adr)
+	fmt.Printf("io.Read8 unknown port %02x\n", adr)
 	return 0
 }
 
@@ -146,10 +146,11 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *sixdigit.Display, led *led.LED) *sysIO {
+func newIO(display *sixdigit.Display, led *led.LED, keypad *keypad.Keypad) *sysIO {
 	return &sysIO{
 		display: display,
 		led:     led,
+		keypad:  keypad,
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/deadsy/go_z80/cmd/tec1/keypad"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
@@ -40,6 +41,7 @@ const cpuCyclesPerSample = float32(cpuClock) / float32(sampleRate) // cpu cycles
 type system struct {
 	display       *sixdigit.Display // 6 digit display
 	led           *led.LED          // speaker activity LED
+	keypad        *keypad.Keypad    // keypad
 	speaker       *speaker.Speaker  // audio speaker
 	io            *sysIO            // system IO
 	mem           *sysMemory        // system memory
@@ -76,6 +78,12 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
+	// setup the keypad
+	keypad, err := keypad.New()
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the speaker
 	k := speaker.Config{
 		BitAmplitude: 0.1,
@@ -97,7 +105,7 @@ func newSystem() (*system, error) {
 	}
 
 	// setup the IO
-	io := newIO(display, led)
+	io := newIO(display, led, keypad)
 
 	// setup the memory
 	mem, err := newMemory()
@@ -114,6 +122,7 @@ func newSystem() (*system, error) {
 	s := &system{
 		display: display,
 		led:     led,
+		keypad:  keypad,
 		speaker: speaker,
 		io:      io,
 		mem:     mem,
@@ -139,8 +148,6 @@ func newSystem() (*system, error) {
 	return s, nil
 }
 
-var updateCount int
-
 func (s *system) Update() error {
 	// run the cpu for as many cycles as are in an update tick
 	s.tickCycles += cpuCyclesPerTick
@@ -161,11 +168,13 @@ func (s *system) Update() error {
 		}
 	}
 
-	// fake a key press
-	updateCount += 1
-	if updateCount == 30 {
-		//updateCount = 0
-		s.cpu.NMI()
+	if s.keypad.Update() {
+		if s.keypad.Reset() {
+			s.cpu.Reset()
+		} else {
+			// key presses are signalled with the NMI
+			s.cpu.NMI()
+		}
 	}
 
 	s.display.Update()
