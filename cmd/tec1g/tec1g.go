@@ -10,6 +10,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/keyboard"
@@ -36,10 +37,14 @@ type sysMemory struct {
 func newMemory() (*sysMemory, error) {
 	// ROM
 	rom := memory.New(14).ROM() // 16 KiB
-	err := rom.LoadFile(0, "../../roms/mon3_2025BC_16.bin")
+	data, err := assets.ReadFile("assets/mon3_2025BC_16.bin")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read embedded ROM: %w", err)
 	}
+	if err := rom.Load(0, data); err != nil {
+		return nil, fmt.Errorf("failed to load ROM: %w", err)
+	}
+
 	// RAM
 	ram := memory.New(15).RAM() // 32 KiB
 
@@ -163,11 +168,11 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	case keyboardPort:
 		code, err := io.keyboard.Scan(row)
 		if err != nil {
-			fmt.Printf("keyboard scan error: %s\n", err)
+			log.Printf("keyboard scan error: %s\n", err)
 		}
 		return code
 	}
-	fmt.Printf("io.Read8 unknown port %02x\n", adr)
+	log.Printf("io.Read8 unknown port %02x\n", adr)
 	return 0
 }
 
@@ -212,7 +217,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		return
 
 	}
-	fmt.Printf("io.Write8 [%02x] = %02x\n", adr, val)
+	log.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
 func newIO(display *sixdigit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Tec1G) *sysIO {

@@ -25,6 +25,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
+//-----------------------------------------------------------------------------
+
 //go:embed assets/mon1B.bin assets/tec1a.png
 var assets embed.FS
 
@@ -40,6 +42,20 @@ const sampleRate = 48000
 
 const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate)     // cpu cycles per ebiten update tick
 const cpuCyclesPerSample = float32(cpuClock) / float32(sampleRate) // cpu cycles per audio sample
+
+//-----------------------------------------------------------------------------
+
+func buildBackgroundImage() (*ebiten.Image, error) {
+	data, err := assets.ReadFile("assets/tec1a.png")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read embedded image: %w", err)
+	}
+	img, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode PNG image: %w", err)
+	}
+	return ebiten.NewImageFromImage(img), nil
+}
 
 //-----------------------------------------------------------------------------
 
@@ -135,16 +151,12 @@ func newSystem() (*system, error) {
 		cpu:     cpu,
 	}
 
-	// load background image
-	imgData, err := assets.ReadFile("assets/tec1a.png")
+	// build the background image
+	img, err := buildBackgroundImage()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read embedded image: %w", err)
+		return nil, err
 	}
-	decodedImg, err := png.Decode(bytes.NewReader(imgData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode PNG image: %w", err)
-	}
-	s.background = ebiten.NewImageFromImage(decodedImg)
+	s.background = img
 
 	// set the background dimensions
 	bounds := s.background.Bounds()

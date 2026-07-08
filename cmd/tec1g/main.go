@@ -9,7 +9,10 @@ TEC-1G (Z80) Emulator
 package main
 
 import (
+	"bytes"
+	"embed"
 	"fmt"
+	"image/png"
 	"log"
 
 	"github.com/deadsy/go_z80/device/hd44780"
@@ -22,8 +25,12 @@ import (
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
+
+//-----------------------------------------------------------------------------
+
+//go:embed assets/mon3_2025BC_16.bin assets/tec1g.png
+var assets embed.FS
 
 //-----------------------------------------------------------------------------
 
@@ -45,6 +52,20 @@ const cpuCyclesPerAudioSample = float32(cpuClock) / float32(audioSampleRate)
 const serialSamplesPerBit = 5
 const serialBaudRate = 4800 // this is the default MON3 rate
 const cpuCyclesPerSerialSample = float32(cpuClock) / (float32(serialBaudRate) * float32(serialSamplesPerBit))
+
+//-----------------------------------------------------------------------------
+
+func buildBackgroundImage() (*ebiten.Image, error) {
+	data, err := assets.ReadFile("assets/tec1g.png")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read embedded image: %w", err)
+	}
+	img, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode PNG image: %w", err)
+	}
+	return ebiten.NewImageFromImage(img), nil
+}
 
 //-----------------------------------------------------------------------------
 
@@ -178,8 +199,8 @@ func newSystem() (*system, error) {
 		cpu:      cpu,
 	}
 
-	// load background image
-	img, _, err := ebitenutil.NewImageFromFile("../../images/tec1g.png")
+	// build the background image
+	img, err := buildBackgroundImage()
 	if err != nil {
 		return nil, err
 	}

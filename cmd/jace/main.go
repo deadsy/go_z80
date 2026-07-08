@@ -9,8 +9,11 @@ Jupiter ACE Emulator
 package main
 
 import (
+	"bytes"
+	"embed"
 	"fmt"
 	"image/color"
+	"image/png"
 	"log"
 	"math"
 
@@ -20,8 +23,12 @@ import (
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
+
+//-----------------------------------------------------------------------------
+
+//go:embed assets/jace.bin assets/keyboard.png
+var assets embed.FS
 
 //-----------------------------------------------------------------------------
 
@@ -62,10 +69,17 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 	img := ebiten.NewImage(xSize, ySize)
 	img.Fill(color.RGBA{0xf9, 0xf9, 0xf9, 255})
 
-	kbd, _, err := ebitenutil.NewImageFromFile("../../images/keyboard.png")
+	// get the keyboard image
+	imgData, err := assets.ReadFile("assets/keyboard.png")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read embedded image: %w", err)
 	}
+	decodedImg, err := png.Decode(bytes.NewReader(imgData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode PNG image: %w", err)
+	}
+	kbd := ebiten.NewImageFromImage(decodedImg)
+
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(keyboardScale, keyboardScale)
 	op.GeoM.Translate(videoBorder, (2.0*videoBorder)+videoHeight)
