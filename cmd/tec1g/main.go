@@ -60,11 +60,16 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read embedded image: %w", err)
 	}
-	img, err := png.Decode(bytes.NewReader(data))
+	src, err := png.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode PNG image: %w", err)
 	}
-	return ebiten.NewImageFromImage(img), nil
+	b := src.Bounds()
+	img := ebiten.NewImageWithOptions(b, &ebiten.NewImageOptions{
+		Unmanaged: true, // don't put a big background on a texture atlas
+	})
+	img.DrawImage(ebiten.NewImageFromImage(src), nil)
+	return img, nil
 }
 
 //-----------------------------------------------------------------------------
