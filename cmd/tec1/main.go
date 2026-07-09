@@ -37,11 +37,14 @@ const kHz = 1000 * Hz
 const MHz = kHz * kHz
 
 const cpuClock = 500 * kHz
-const tickRate = 60 * Hz
-const sampleRate = 48000
 
-const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate)     // cpu cycles per ebiten update tick
-const cpuCyclesPerSample = float32(cpuClock) / float32(sampleRate) // cpu cycles per audio sample
+// ebiten timing
+const tickRate = 60 * Hz
+const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate) // cpu cycles per ebiten update tick
+
+// audio timing
+const audioSampleRate = 48000 // samples/sec
+const cpuCyclesPerAudioSample = float32(cpuClock) / float32(audioSampleRate)
 
 //-----------------------------------------------------------------------------
 
@@ -65,20 +68,20 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 //-----------------------------------------------------------------------------
 
 type system struct {
-	display       *sixdigit.Display // 6 digit display
-	led           *led.LED          // speaker activity LED
-	keypad        *keypad.Keypad    // keypad
-	speaker       *speaker.Speaker  // audio speaker (src)
-	sound         *sound.Sound      // audio (dst)
-	io            *sysIO            // system IO
-	mem           *sysMemory        // system memory
-	bus           *Bus              // system bus
-	cpu           *z80.CPU          // z80 cpu
-	background    *ebiten.Image     // background graphic
-	width, height int               // window dimensions
-	tickCycles    float32           // ebiten tick cpu cycles
-	sampleCycles  float32           // audio sample cpu cycles
-	soundStarted  bool              // has the sound been started?
+	display           *sixdigit.Display // 6 digit display
+	led               *led.LED          // speaker activity LED
+	keypad            *keypad.Keypad    // keypad
+	speaker           *speaker.Speaker  // audio speaker
+	sound             *sound.Sound      // ebiten audio
+	io                *sysIO            // system IO
+	mem               *sysMemory        // system memory
+	bus               *Bus              // system bus
+	cpu               *z80.CPU          // z80 cpu
+	background        *ebiten.Image     // background graphic
+	width, height     int               // window dimensions
+	tickCycles        float32           // ebiten tick cpu cycles
+	audioSampleCycles float32           // audio sample cpu cycles
+	soundStarted      bool              // has the sound been started?
 }
 
 func newSystem() (*system, error) {
@@ -112,11 +115,11 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
-	// setup the speaker (sample source)
+	// setup the speaker
 	cfgSpeaker := speaker.Config{
 		BitAmplitude: 0.1,
 		BufferSize:   16384,
-		SampleRate:   sampleRate,
+		SampleRate:   audioSampleRate,
 		HighCutoff:   6 * kHz,
 		LowCutoff:    40 * Hz,
 	}
@@ -125,9 +128,9 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
-	// setup the sound (sample sink)
+	// setup the sound
 	cfgSound := sound.Config{
-		SampleRate: sampleRate,
+		SampleRate: audioSampleRate,
 		Src:        speaker,
 	}
 	sound, err := sound.New(&cfgSound)
@@ -193,14 +196,15 @@ func (s *system) Update() error {
 			return err
 		}
 		s.tickCycles -= float32(cycles)
+
 		// sample the audio output
-		s.sampleCycles -= float32(cycles)
-		for s.sampleCycles <= 0 {
+		s.audioSampleCycles -= float32(cycles)
+		for s.audioSampleCycles <= 0 {
 			err := s.speaker.WriteSample(s.io.speaker)
 			if err != nil {
 				return fmt.Errorf("speaker.WriteSample: %s", err)
 			}
-			s.sampleCycles += cpuCyclesPerSample
+			s.audioSampleCycles += cpuCyclesPerAudioSample
 		}
 	}
 

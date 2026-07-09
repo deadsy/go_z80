@@ -18,11 +18,11 @@ import (
 	"math"
 
 	"github.com/deadsy/go_z80/device/keyboard"
+	"github.com/deadsy/go_z80/device/sound"
 	"github.com/deadsy/go_z80/device/speaker"
 	"github.com/deadsy/go_z80/device/video"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
 //-----------------------------------------------------------------------------
@@ -43,7 +43,7 @@ const tickRate = 60 * Hz
 const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate) // cpu cycles per ebiten update tick
 
 // audio timing
-const audioSampleRate = 48000
+const audioSampleRate = 48000 // samples/sec
 const cpuCyclesPerAudioSample = float32(cpuClock) / float32(audioSampleRate)
 
 // periodic interrupt
@@ -93,6 +93,7 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 
 type system struct {
 	speaker           *speaker.Speaker // audio speaker
+	sound             *sound.Sound     // ebiten audio
 	keyboard          *keyboard.Jace   // matrix keyboard
 	video             *video.Video     // video
 	io                *sysIO           // system IO
@@ -104,26 +105,30 @@ type system struct {
 	tickCycles        float32          // ebiten tick cpu cycles
 	audioSampleCycles float32          // audio sample cpu cycles
 	interruptCycles   float32          // periodic interrupt
+	soundStarted      bool             // has the sound been started?
 }
 
 func newSystem() (*system, error) {
 
 	// setup the speaker
-	kSpeaker := speaker.Config{
+	cfgSpeaker := speaker.Config{
 		BitAmplitude: 0.1,
 		BufferSize:   16384,
 		SampleRate:   audioSampleRate,
 		HighCutoff:   6 * kHz,
 		LowCutoff:    40 * Hz,
 	}
-	speaker, err := speaker.New(&kSpeaker)
+	speaker, err := speaker.New(&cfgSpeaker)
 	if err != nil {
 		return nil, err
 	}
 
-	// setup the audio player
-	ctx := audio.NewContext(audioSampleRate)
-	player, err := ctx.NewPlayer(speaker)
+	// setup the sound
+	cfgSound := sound.Config{
+		SampleRate: audioSampleRate,
+		Src:        speaker,
+	}
+	sound, err := sound.New(&cfgSound)
 	if err != nil {
 		return nil, err
 	}
@@ -163,6 +168,7 @@ func newSystem() (*system, error) {
 
 	s := &system{
 		speaker:         speaker,
+		sound:           sound,
 		keyboard:        keyboard,
 		video:           video,
 		io:              io,
@@ -184,9 +190,6 @@ func newSystem() (*system, error) {
 	s.width = bounds.Dx()
 	s.height = bounds.Dy()
 
-	// start the audio player
-	player.Play()
-
 	return s, nil
 }
 
@@ -195,6 +198,13 @@ func (s *system) Exit() {
 }
 
 func (s *system) Update() error {
+
+	// start the sound (once)
+	if !s.soundStarted && s.speaker.Samples() >= 800 {
+		s.sound.Start()
+		s.soundStarted = true
+	}
+
 	// run the cpu for as many cycles as are in an update tick
 	s.tickCycles += cpuCyclesPerTick
 	for s.tickCycles > 0 {

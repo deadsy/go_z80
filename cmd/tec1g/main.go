@@ -21,10 +21,10 @@ import (
 	"github.com/deadsy/go_z80/device/serial"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
+	"github.com/deadsy/go_z80/device/sound"
 	"github.com/deadsy/go_z80/device/speaker"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
 //-----------------------------------------------------------------------------
@@ -45,7 +45,7 @@ const tickRate = 60 * Hz
 const cpuCyclesPerTick = float32(cpuClock) / float32(tickRate) // cpu cycles per ebiten update tick
 
 // audio timing
-const audioSampleRate = 48000
+const audioSampleRate = 48000 // samples/sec
 const cpuCyclesPerAudioSample = float32(cpuClock) / float32(audioSampleRate)
 
 // serial timing
@@ -78,6 +78,7 @@ type system struct {
 	display            *sixdigit.Display // 6 digit display
 	led                *led.LED          // speaker activity LED
 	speaker            *speaker.Speaker  // audio speaker
+	sound              *sound.Sound      // ebiten audio
 	lcd                *hd44780.LCD      // lcd
 	keyboard           *keyboard.Tec1G   // matrix keyboard
 	uart               *serial.UART      // serial uart
@@ -91,13 +92,14 @@ type system struct {
 	tickCycles         float32           // ebiten tick cpu cycles
 	audioSampleCycles  float32           // audio sample cpu cycles
 	serialSampleCycles float32           // serial sample cpu cycles
+	soundStarted       bool              // has the sound been started?
 }
 
 func newSystem() (*system, error) {
 
 	// setup the display
 	const digitSize = float32(70.0)
-	kDisplay := &sixdigit.Config{
+	cfgDisplay := sixdigit.Config{
 		XBase:  195.0,
 		YBase:  855.0,
 		XScale: digitSize,
@@ -105,41 +107,51 @@ func newSystem() (*system, error) {
 		XGap0:  15.8,
 		XGap1:  28.0,
 	}
-	display := sixdigit.New(kDisplay)
+	display := sixdigit.New(&cfgDisplay)
 
 	// setup the LED
-	kLED := &led.Config{
+	cfgLED := led.Config{
 		XBase:  926,
 		YBase:  514,
 		Radius: 15,
 	}
-	led, err := led.New(kLED)
+	led, err := led.New(&cfgLED)
 	if err != nil {
 		return nil, err
 	}
 
 	// setup the speaker
-	kSpeaker := speaker.Config{
+	cfgSpeaker := speaker.Config{
 		BitAmplitude: 0.1,
 		BufferSize:   16384,
 		SampleRate:   audioSampleRate,
 		HighCutoff:   6 * kHz,
 		LowCutoff:    40 * Hz,
 	}
-	speaker, err := speaker.New(&kSpeaker)
+	speaker, err := speaker.New(&cfgSpeaker)
+	if err != nil {
+		return nil, err
+	}
+
+	// setup the sound
+	cfgSound := sound.Config{
+		SampleRate: audioSampleRate,
+		Src:        speaker,
+	}
+	sound, err := sound.New(&cfgSound)
 	if err != nil {
 		return nil, err
 	}
 
 	// setup the LCD
-	kLCD := hd44780.Config{
+	cfgLCD := hd44780.Config{
 		Mode:   hd44780.Mode20x4,
 		XBase:  233,
 		YBase:  584,
 		XScale: 0.34,
 		YScale: 0.34,
 	}
-	lcd, err := hd44780.New(&kLCD)
+	lcd, err := hd44780.New(&cfgLCD)
 	if err != nil {
 		return nil, err
 	}
@@ -151,12 +163,12 @@ func newSystem() (*system, error) {
 	}
 
 	// setup the serial
-	kSerial := serial.Config{
+	cfgSerial := serial.Config{
 		SamplesPerBit: serialSamplesPerBit,
 		DataBits:      8,
 		StopBits:      1,
 	}
-	uart, err := serial.NewUART(&kSerial)
+	uart, err := serial.NewUART(&cfgSerial)
 	if err != nil {
 		return nil, err
 	}
@@ -167,13 +179,6 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 	fmt.Printf("serial port at %s\n", pty.Name())
-
-	// setup the audio player
-	ctx := audio.NewContext(audioSampleRate)
-	player, err := ctx.NewPlayer(speaker)
-	if err != nil {
-		return nil, err
-	}
 
 	// setup the IO
 	io := newIO(display, led, lcd, keyboard)
@@ -194,6 +199,7 @@ func newSystem() (*system, error) {
 		display:  display,
 		led:      led,
 		speaker:  speaker,
+		sound:    sound,
 		lcd:      lcd,
 		keyboard: keyboard,
 		uart:     uart,
@@ -216,9 +222,6 @@ func newSystem() (*system, error) {
 	s.width = bounds.Dx()
 	s.height = bounds.Dy()
 
-	// start the audio player
-	player.Play()
-
 	return s, nil
 }
 
@@ -228,6 +231,13 @@ func (s *system) Exit() {
 }
 
 func (s *system) Update() error {
+
+	// start the sound (once)
+	if !s.soundStarted && s.speaker.Samples() >= 800 {
+		s.sound.Start()
+		s.soundStarted = true
+	}
+
 	// run the cpu for as many cycles as are in an update tick
 	s.tickCycles += cpuCyclesPerTick
 	for s.tickCycles > 0 {
