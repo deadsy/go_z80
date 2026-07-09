@@ -99,6 +99,13 @@ func (c *circularBuffer) readSample(b []byte) error {
 	return nil
 }
 
+// return the number of frames in the buffer
+func (c *circularBuffer) frames() int {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return c.n / 4
+}
+
 //-----------------------------------------------------------------------------
 // Low Pass Filter
 
@@ -253,6 +260,11 @@ func (s *Speaker) WriteSample(bit bool) error {
 	x := clipConvert(sample)
 	// buffer the sample
 	return s.buffer.writeSample(x, x)
+}
+
+// return the number of samples in the circular buffer
+func (s *Speaker) Samples() int {
+	return s.buffer.frames()
 }
 
 //-----------------------------------------------------------------------------

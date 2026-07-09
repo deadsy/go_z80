@@ -19,10 +19,10 @@ import (
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
+	"github.com/deadsy/go_z80/device/sound"
 	"github.com/deadsy/go_z80/device/speaker"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
 //-----------------------------------------------------------------------------
@@ -50,11 +50,16 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read embedded image: %w", err)
 	}
-	img, err := png.Decode(bytes.NewReader(data))
+	src, err := png.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode PNG image: %w", err)
 	}
-	return ebiten.NewImageFromImage(img), nil
+	b := src.Bounds()
+	img := ebiten.NewImageWithOptions(b, &ebiten.NewImageOptions{
+		Unmanaged: true, // don't put a big background on a texture atlas
+	})
+	img.DrawImage(ebiten.NewImageFromImage(src), nil)
+	return img, nil
 }
 
 //-----------------------------------------------------------------------------
@@ -63,7 +68,8 @@ type system struct {
 	display       *sixdigit.Display // 6 digit display
 	led           *led.LED          // speaker activity LED
 	keypad        *keypad.Keypad    // keypad
-	speaker       *speaker.Speaker  // audio speaker
+	speaker       *speaker.Speaker  // audio speaker (src)
+	sound         *sound.Sound      // audio (dst)
 	io            *sysIO            // system IO
 	mem           *sysMemory        // system memory
 	bus           *Bus              // system bus
@@ -72,13 +78,14 @@ type system struct {
 	width, height int               // window dimensions
 	tickCycles    float32           // ebiten tick cpu cycles
 	sampleCycles  float32           // audio sample cpu cycles
+	soundStarted  bool              // has the sound been started?
 }
 
 func newSystem() (*system, error) {
 
 	// setup the display
 	const digitSize = float32(55.0)
-	kDisplay := &sixdigit.Config{
+	cfgDisplay := sixdigit.Config{
 		XBase:  362.0,
 		YBase:  665.0,
 		XScale: digitSize,
@@ -86,15 +93,15 @@ func newSystem() (*system, error) {
 		XGap0:  24.0,
 		XGap1:  14.0,
 	}
-	display := sixdigit.New(kDisplay)
+	display := sixdigit.New(&cfgDisplay)
 
 	// setup the LED
-	kLED := &led.Config{
+	cfgLED := led.Config{
 		XBase:  589.0,
 		YBase:  600.5,
 		Radius: 13.0,
 	}
-	led, err := led.New(kLED)
+	led, err := led.New(&cfgLED)
 	if err != nil {
 		return nil, err
 	}
@@ -105,22 +112,25 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
-	// setup the speaker
-	k := speaker.Config{
+	// setup the speaker (sample source)
+	cfgSpeaker := speaker.Config{
 		BitAmplitude: 0.1,
 		BufferSize:   16384,
 		SampleRate:   sampleRate,
 		HighCutoff:   6 * kHz,
 		LowCutoff:    40 * Hz,
 	}
-	speaker, err := speaker.New(&k)
+	speaker, err := speaker.New(&cfgSpeaker)
 	if err != nil {
 		return nil, err
 	}
 
-	// setup the audio player
-	ctx := audio.NewContext(sampleRate)
-	player, err := ctx.NewPlayer(speaker)
+	// setup the sound (sample sink)
+	cfgSound := sound.Config{
+		SampleRate: sampleRate,
+		Src:        speaker,
+	}
+	sound, err := sound.New(&cfgSound)
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +155,7 @@ func newSystem() (*system, error) {
 		led:     led,
 		keypad:  keypad,
 		speaker: speaker,
+		sound:   sound,
 		io:      io,
 		mem:     mem,
 		bus:     bus,
@@ -163,13 +174,17 @@ func newSystem() (*system, error) {
 	s.width = bounds.Dx()
 	s.height = bounds.Dy()
 
-	// start the audio player
-	player.Play()
-
 	return s, nil
 }
 
 func (s *system) Update() error {
+
+	// start the sound (once)
+	if !s.soundStarted && s.speaker.Samples() >= 800 {
+		s.sound.Start()
+		s.soundStarted = true
+	}
+
 	// run the cpu for as many cycles as are in an update tick
 	s.tickCycles += cpuCyclesPerTick
 	for s.tickCycles > 0 {
