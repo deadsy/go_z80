@@ -18,6 +18,7 @@ import (
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/led"
+	"github.com/deadsy/go_z80/device/rtc"
 	"github.com/deadsy/go_z80/device/serial"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
@@ -81,6 +82,7 @@ type system struct {
 	sound              *sound.Sound      // ebiten audio
 	lcd                *hd44780.LCD      // lcd
 	keyboard           *keyboard.Tec1G   // matrix keyboard
+	rtc                *rtc.RTC          // rtc board
 	uart               *serial.UART      // serial uart
 	pty                *serial.PTY       // pseudo tty
 	io                 *sysIO            // system IO
@@ -162,6 +164,13 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
+	// setup the RTC
+	rtc, err := rtc.New()
+	if err != nil {
+		return nil, err
+	}
+	//rtc.Enable()
+
 	// setup the serial
 	cfgSerial := serial.Config{
 		SamplesPerBit: serialSamplesPerBit,
@@ -181,7 +190,7 @@ func newSystem() (*system, error) {
 	fmt.Printf("serial port at %s\n", pty.Name())
 
 	// setup the IO
-	io := newIO(display, led, lcd, keyboard)
+	io := newIO(display, led, lcd, keyboard, rtc)
 
 	// setup the memory
 	mem, err := newMemory()
@@ -202,6 +211,7 @@ func newSystem() (*system, error) {
 		sound:    sound,
 		lcd:      lcd,
 		keyboard: keyboard,
+		rtc:      rtc,
 		uart:     uart,
 		pty:      pty,
 		io:       io,

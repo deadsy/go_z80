@@ -15,6 +15,7 @@ import (
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/led"
+	"github.com/deadsy/go_z80/device/rtc"
 	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/memory"
 	"github.com/deadsy/go_z80/z80"
@@ -141,6 +142,7 @@ type sysIO struct {
 	led      *led.LED          // speaker led
 	lcd      *hd44780.LCD      // LCD
 	keyboard *keyboard.Tec1G   // matrix keyboard
+	rtc      *rtc.RTC          // realtime clock
 	segment  uint8             // latched segment enable
 	digit    uint8             // latched digit enable
 	speaker  bool              // latched speaker/led enable
@@ -160,8 +162,7 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 		// TODO
 		return simpKeyboard
 	case rtcPort:
-		// TODO return 0xff to indicate no device
-		return 0xff
+		return io.rtc.Read()
 	case sdCardPort:
 		// TODO
 		return 0
@@ -207,7 +208,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		io.lcd.WriteData(val)
 		return
 	case rtcPort:
-		// TODO
+		io.rtc.Write(val)
 		return
 	case sdCardPort:
 		// TODO
@@ -220,12 +221,13 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	log.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *sixdigit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Tec1G) *sysIO {
+func newIO(display *sixdigit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Tec1G, rtc *rtc.RTC) *sysIO {
 	return &sysIO{
 		display:  display,
 		led:      led,
 		lcd:      lcd,
 		keyboard: keyboard,
+		rtc:      rtc,
 	}
 }
 
