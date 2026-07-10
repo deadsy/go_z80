@@ -106,6 +106,15 @@ func (c *circularBuffer) frames() int {
 	return c.n / 4
 }
 
+// empty the circular buffer of all samples
+func (c *circularBuffer) empty() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.n = 0
+	c.rd = 0
+	c.wr = 0
+}
+
 //-----------------------------------------------------------------------------
 // Low Pass Filter
 
@@ -265,6 +274,11 @@ func (s *Speaker) WriteSample(bit bool) error {
 // return the number of samples in the circular buffer
 func (s *Speaker) Samples() int {
 	return s.buffer.frames()
+}
+
+// empty the circular buffer of all samples
+func (s *Speaker) Empty() {
+	s.buffer.empty()
 }
 
 //-----------------------------------------------------------------------------

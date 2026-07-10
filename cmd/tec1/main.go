@@ -184,6 +184,7 @@ func (s *system) Update() error {
 
 	// start the sound (once)
 	if !s.soundStarted && s.sound.IsReady() && s.speaker.Samples() >= 800 {
+		log.Printf("starting sound\n")
 		err := s.sound.Start()
 		if err != nil {
 			log.Printf("unable to start sound: %s\n", err)
@@ -206,7 +207,8 @@ func (s *system) Update() error {
 		for s.audioSampleCycles <= 0 {
 			err := s.speaker.WriteSample(s.io.speaker)
 			if err != nil {
-				return fmt.Errorf("speaker.WriteSample: %s", err)
+				log.Printf("speaker.WriteSample: %s", err)
+				s.speaker.Empty()
 			}
 			s.audioSampleCycles += cpuCyclesPerAudioSample
 		}
