@@ -34,6 +34,12 @@ func New(cfg *Config) (*Sound, error) {
 	}, nil
 }
 
+// is the audio context ready?
+func (s *Sound) IsReady() bool {
+	return s.ctx.IsReady()
+}
+
+// start the sound player
 func (s *Sound) Start() error {
 	player, err := s.ctx.NewPlayer(s.cfg.Src)
 	if err != nil {
