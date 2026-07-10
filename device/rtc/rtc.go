@@ -199,6 +199,7 @@ func (rtc *RTC) write(adr int, data byte) {
 		// check write protect
 		if rtc.writeProtect && adr != clockWriteProtect {
 			log.Printf("write protect enabled\n")
+			return
 		}
 		//log.Printf("clock write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
 		switch adr {
@@ -221,8 +222,9 @@ func (rtc *RTC) write(adr int, data byte) {
 		// check write protect
 		if rtc.writeProtect {
 			log.Printf("write protect enabled\n")
+			return
 		}
-		log.Printf("ram write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
+		//log.Printf("ram write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
 		if ramAddressValid(adr) {
 			rtc.ram[adr] = data
 		} else {
