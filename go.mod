@@ -3,6 +3,7 @@ module github.com/deadsy/go_z80
 go 1.25.1
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/creack/pty v1.1.7
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	golang.org/x/image v0.31.0

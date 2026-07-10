@@ -200,9 +200,13 @@ func (s *system) Exit() {
 func (s *system) Update() error {
 
 	// start the sound (once)
-	if !s.soundStarted && s.speaker.Samples() >= 800 {
-		s.sound.Start()
-		s.soundStarted = true
+	if !s.soundStarted && s.sound.IsReady() && s.speaker.Samples() >= 800 {
+		err := s.sound.Start()
+		if err != nil {
+			log.Printf("unable to start sound: %s\n", err)
+		} else {
+			s.soundStarted = true
+		}
 	}
 
 	// run the cpu for as many cycles as are in an update tick
