@@ -1,5 +1,9 @@
 //-----------------------------------------------------------------------------
+/*
 
+Image Processing
+
+*/
 //-----------------------------------------------------------------------------
 
 package util
@@ -14,6 +18,7 @@ import (
 
 //-----------------------------------------------------------------------------
 
+// Save an image as a bitmap file (debug)
 func SaveImage(ebitenImg *ebiten.Image, outputPath string) error {
 	bounds := ebitenImg.Bounds()
 	rgbaImg := image.NewRGBA(bounds)

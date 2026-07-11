@@ -24,6 +24,7 @@ import (
 	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/device/sound"
 	"github.com/deadsy/go_z80/device/speaker"
+	"github.com/deadsy/go_z80/util"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -187,7 +188,7 @@ func newSystem() (*system, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("serial port at %s\n", pty.Name())
+	log.Printf("serial port at %s\n", pty.Name())
 
 	// setup the IO
 	io := newIO(display, led, lcd, keyboard, rtc)
@@ -303,6 +304,7 @@ func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func main() {
+	log.Printf("%s\n", util.GetBuildInfo())
 	s, err := newSystem()
 	if err != nil {
 		log.Fatalf("error: %s", err)
