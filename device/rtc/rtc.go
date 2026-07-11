@@ -39,7 +39,7 @@ var weekdayMap = [7]int{7, 1, 2, 3, 4, 5, 6}
 const baseYear = 2000
 
 //-----------------------------------------------------------------------------
-// ds1302 commmand byte
+// ds1302 command byte
 
 const rwBit = byte(1 << 0)  // read/write
 const rcBit = byte(1 << 6)  // ram/clock
@@ -71,7 +71,7 @@ const numClockRegisters = 9
 
 const writeProtectEnabled = byte(1 << 7) // in clockWriteProtect
 const clockHalted = byte(1 << 7)         // in clockSecond
-const mode12Bit = 7                      // in clockHour
+const mode12Hour = byte(1 << 7)          // in clockHour
 
 // return true if the clock address is valid
 func clockAddressValid(adr int) bool {
@@ -117,12 +117,14 @@ type RTC struct {
 }
 
 func New() (*RTC, error) {
-	rtc := &RTC{}
+	rtc := &RTC{
+		present: true,
+	}
 	rtc.reset()
-	rtc.setClock(time.Now().UTC())
 	// set power-on values
 	rtc.clock[clockWriteProtect] = writeProtectEnabled
 	rtc.clock[clockTrickleCharge] = 0x5c
+	rtc.setClock(time.Now().UTC().Add(rtc.offset))
 	return rtc, nil
 }
 
@@ -138,22 +140,32 @@ func (rtc *RTC) reset() {
 	rtc.out = false
 }
 
-// enable the rtc
-func (rtc *RTC) Enable() {
-	rtc.present = true
+// disbale the rtc
+func (rtc *RTC) Disable() {
+	rtc.present = false
 }
 
 //-----------------------------------------------------------------------------
 
+// is the clock running?
+func (rtc *RTC) isClockRunning() bool {
+	return rtc.clock[clockSecond]&clockHalted == 0
+}
+
+// is the write protect mode enabled?
+func (rtc *RTC) isWriteProtected() bool {
+	return rtc.clock[clockWriteProtect]&writeProtectEnabled != 0
+}
+
 // encode 0..23 to the clockHour byte
 func (rtc *RTC) encodeHour(n int) byte {
-	val := rtc.clock[clockHour] & (1 << mode12Bit)
+	val := rtc.clock[clockHour] & mode12Hour
 	if val != 0 {
 		// 12 hour mode
-		if n >= 12 {
+		if n >= 12 /* 12 == 12pm */ {
 			val |= (1 << 5) // PM
 		}
-		if n >= 13 {
+		if n >= 13 /* 13 == 1pm */ {
 			n -= 12
 		}
 	}
@@ -163,13 +175,13 @@ func (rtc *RTC) encodeHour(n int) byte {
 // decode the clockHour byte to 0..23
 func (rtc *RTC) decodeHour(val byte) int {
 	var pm bool
-	if val&(1<<mode12Bit) != 0 {
+	if val&mode12Hour != 0 {
 		// 12 hour clock
 		pm = val&(1<<5) != 0
 		val &= 0x1f
 	}
 	hour := bcdToInt(val)
-	if pm && hour != 12 {
+	if pm && hour != 12 /* 12pm == 12 */ {
 		hour += 12
 	}
 	return hour
@@ -230,8 +242,10 @@ func (rtc *RTC) getClock() time.Time {
 func (rtc *RTC) read(adr int) byte {
 	if rtc.command&rcBit == 0 {
 		//log.Printf("clock read [%d] (%s)\n", adr, rtc.mode())
-		// update the clock registers
-		rtc.setClock(time.Now().UTC().Add(rtc.offset))
+		if rtc.isClockRunning() {
+			// update the clock registers
+			rtc.setClock(time.Now().UTC().Add(rtc.offset))
+		}
 		if clockAddressValid(adr) {
 			return rtc.clock[adr]
 		} else {
@@ -248,16 +262,6 @@ func (rtc *RTC) read(adr int) byte {
 	return 0
 }
 
-// is the write protect mode enabled?
-func (rtc *RTC) isWriteProtected() bool {
-	return rtc.clock[clockWriteProtect]&writeProtectEnabled != 0
-}
-
-// is the clock halted?
-func (rtc *RTC) isClockHalted() bool {
-	return rtc.clock[clockSecond]&clockHalted != 0
-}
-
 func (rtc *RTC) write(adr int, data byte) {
 	if rtc.command&rcBit == 0 {
 		// check write protect
@@ -265,10 +269,12 @@ func (rtc *RTC) write(adr int, data byte) {
 			log.Printf("write protect enabled\n")
 			return
 		}
-		log.Printf("clock write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
+		//log.Printf("clock write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
 		if clockAddressValid(adr) {
 			rtc.clock[adr] = data & clockMask[adr]
-			rtc.offset = rtc.getClock().Sub(time.Now().UTC())
+			if rtc.isClockRunning() {
+				rtc.offset = rtc.getClock().Sub(time.Now().UTC())
+			}
 		} else {
 			log.Printf("bad clock address %d\n", adr)
 		}

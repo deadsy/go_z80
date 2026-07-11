@@ -8,7 +8,11 @@ Emulate the TEC-1G RTC Board (DS1302)
 
 package rtc
 
-import "testing"
+import (
+	"math/rand/v2"
+	"testing"
+	"time"
+)
 
 //-----------------------------------------------------------------------------
 
@@ -85,7 +89,7 @@ func Test_EncodeHour(t *testing.T) {
 
 	for i, v := range testMode12 {
 		rtc, _ := New()
-		rtc.clock[clockHour] = (1 << mode12Bit)
+		rtc.clock[clockHour] = mode12Hour
 		val := rtc.encodeHour(v.n)
 		if val != v.val {
 			t.Fatalf("case %d: bad value, expected 0x%02x, actual 0x%02x", i, v.val, val)
@@ -110,7 +114,7 @@ func Test_DecodeHour(t *testing.T) {
 	// 12 hour mode
 	for i := 0; i <= 23; i++ {
 		rtc, _ := New()
-		rtc.clock[clockHour] = (1 << mode12Bit)
+		rtc.clock[clockHour] = mode12Hour
 		val := rtc.encodeHour(i)
 		hour := rtc.decodeHour(val)
 		if i != hour {
@@ -118,6 +122,30 @@ func Test_DecodeHour(t *testing.T) {
 		}
 	}
 
+}
+
+//-----------------------------------------------------------------------------
+
+func randInt(min, max int) int {
+	return rand.IntN(max-min+1) + min
+}
+
+func Test_SetAndGet(t *testing.T) {
+	for i := 0; i < 2000; i++ {
+		year := randInt(2000, 2099)
+		month := time.Month(randInt(1, 12))
+		day := randInt(1, 31)
+		hour := randInt(0, 23)
+		min := randInt(0, 59)
+		sec := randInt(0, 59)
+		t_in := time.Date(year, month, day, hour, min, sec, 0, time.UTC)
+		rtc, _ := New()
+		rtc.setClock(t_in)
+		t_out := rtc.getClock()
+		if !t_in.Equal(t_out) {
+			t.Fatalf("case %d: in %s out %s", i, t_in, t_out)
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------

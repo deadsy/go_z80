@@ -170,7 +170,6 @@ func newSystem() (*system, error) {
 	if err != nil {
 		return nil, err
 	}
-	rtc.Enable()
 
 	// setup the serial
 	cfgSerial := serial.Config{
