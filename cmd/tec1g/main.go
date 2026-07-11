@@ -287,7 +287,12 @@ func (s *system) Update() error {
 	s.display.Update()
 	s.led.Update()
 	s.lcd.Update()
+
 	s.keyboard.Update()
+	if s.keyboard.Reset() {
+		s.cpu.Reset()
+	}
+
 	return nil
 }
 

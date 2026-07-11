@@ -9,7 +9,13 @@ the tec1g matrix keyboard scanning code.
 
 See: https://github.com/MarkJelic/TEC-1G/blob/main/Keyboards/Mechanical/TEC-1G_Matrix-Mechanical-Keyboard_Schematic-v10.pdf
 
-Note:
+Key mapping on a PC keyboard:
+
+reset = press both alt keys
+ctrl = left control
+function = right control
+
+Z80 Notes:
 
 When a Z80 performs an IN instruction, the lower 8 bits typically specifies
 the port number, but the upper 8 bits is set to a register value. This can
@@ -71,8 +77,9 @@ func rowToInt(row byte) (int, error) {
 //-----------------------------------------------------------------------------
 
 type Keyboard struct {
-	keys []ebiten.Key
-	row  [numRows]byte // row scan values
+	keys           []ebiten.Key
+	row            [numRows]byte // row scan values
+	reset1, reset2 bool
 }
 
 func New() (*Keyboard, error) {
@@ -91,11 +98,18 @@ func (k *Keyboard) Scan(row byte) (byte, error) {
 	return ^k.row[n], nil
 }
 
+// return true if the two "reset" keys are pressed.
+func (k *Keyboard) Reset() bool {
+	return k.reset1 && k.reset2
+}
+
 // clear all keys
 func (k *Keyboard) clear() {
 	for i := 0; i < numRows; i++ {
 		k.row[i] = 0
 	}
+	k.reset1 = false
+	k.reset2 = false
 }
 
 // set a key down (1) at the row/col
@@ -209,10 +223,14 @@ func (k *Keyboard) Update() {
 			k.set(1, 7)
 		case ebiten.KeyShift, ebiten.KeyShiftLeft, ebiten.KeyShiftRight: // A8_D0 shift
 			k.set(0, 0)
-		case ebiten.KeyControl, ebiten.KeyControlLeft, ebiten.KeyControlRight: // A8_D1 ctrl
+		case ebiten.KeyControlLeft: // A8_D1 ctrl
 			k.set(0, 1)
-		case ebiten.KeyAlt, ebiten.KeyAltLeft, ebiten.KeyAltRight: // A8_D2 function
+		case ebiten.KeyControlRight: // A8_D2 function
 			k.set(0, 2)
+		case ebiten.KeyAltLeft:
+			k.reset1 = true
+		case ebiten.KeyAltRight:
+			k.reset2 = true
 		case ebiten.KeyArrowUp: // A8_D3 up
 			k.set(0, 3)
 		case ebiten.KeyArrowDown: // A8_D4 down
@@ -223,6 +241,10 @@ func (k *Keyboard) Update() {
 			k.set(0, 6)
 		case ebiten.KeyCapsLock: // A8_D7 caps
 			k.set(0, 7)
+		case ebiten.KeyControl:
+			// null
+		case ebiten.KeyAlt:
+			// null
 		default:
 			fmt.Printf("unmapped key %s\n", key)
 		}
