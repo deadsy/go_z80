@@ -15,6 +15,16 @@ import (
 
 //-----------------------------------------------------------------------------
 
+func intToBcd(x int) byte {
+	return byte(((x / 10) << 4) | (x % 10))
+}
+
+func bcdToInt(x byte) int {
+	return int((x>>4)*10) + int(x&15)
+}
+
+//-----------------------------------------------------------------------------
+
 // latched write bits
 const ceBit = byte(1 << 4) // active high
 const clkBit = byte(1 << 6)
@@ -42,11 +52,6 @@ func cmdAddress(cmd byte) int {
 	return (int(cmd) >> 1) & 0x1f
 }
 
-// return true if the ram address is valid
-func ramAddressValid(adr int) bool {
-	return adr >= 0 && adr <= 30
-}
-
 //-----------------------------------------------------------------------------
 // ds1302 clock registers
 
@@ -62,17 +67,29 @@ const (
 	clockTrickleCharge = 8
 )
 
-const writeProtectBit = 7
+const numClockRegisters = 9
+
+const writeProtectEnabled = byte(1 << 7) // in clockWriteProtect
+const clockHalted = byte(1 << 7)         // in clockSecond
+const mode12Bit = 7                      // in clockHour
+
+// return true if the clock address is valid
+func clockAddressValid(adr int) bool {
+	return adr >= clockSecond && adr <= clockTrickleCharge
+}
+
+// mask the valid bits of the clock registers
+var clockMask = [numClockRegisters]byte{0xff, 0x7f, 0xbf, 0x3f, 0x1f, 0x07, 0xff, 0x80, 0xff}
 
 //-----------------------------------------------------------------------------
+// ds1302 ram registers
 
-func bcd1(x int) int {
-	return x % 10
+// return true if the ram address is valid
+func ramAddressValid(adr int) bool {
+	return adr >= 0 && adr <= 30
 }
 
-func bcd10(x int) int {
-	return x / 10
-}
+const numRamRegisters = 31
 
 //-----------------------------------------------------------------------------
 
@@ -85,26 +102,31 @@ const (
 )
 
 type RTC struct {
-	present      bool     // is the rtc present?
-	clk          bool     // clock state
-	state        rtcState // state
-	command      byte     // command register
-	data         byte     // data register
-	bits         int      // count of shift bits
-	address      int      // register address
-	burst        bool     // burst mode
-	out          bool     // output bit
-	clock        [9]byte  // clock registers
-	ram          [31]byte // ram registers
-	writeProtect bool     // write protected
+	present bool                    // is the rtc present?
+	clk     bool                    // clock state
+	state   rtcState                // state
+	command byte                    // command register
+	data    byte                    // data register
+	bits    int                     // count of shift bits
+	address int                     // register address
+	burst   bool                    // burst mode
+	out     bool                    // output bit
+	offset  time.Duration           // rtc time - utc time
+	clock   [numClockRegisters]byte // clock registers
+	ram     [numRamRegisters]byte   // ram registers
 }
 
 func New() (*RTC, error) {
-	return &RTC{
-		writeProtect: true,
-	}, nil
+	rtc := &RTC{}
+	rtc.reset()
+	rtc.setClock(time.Now().UTC())
+	// set power-on values
+	rtc.clock[clockWriteProtect] = writeProtectEnabled
+	rtc.clock[clockTrickleCharge] = 0x5c
+	return rtc, nil
 }
 
+// reset the rtc command/byte state variables
 func (rtc *RTC) reset() {
 	rtc.clk = false
 	rtc.state = commandState
@@ -115,6 +137,157 @@ func (rtc *RTC) reset() {
 	rtc.burst = false
 	rtc.out = false
 }
+
+// enable the rtc
+func (rtc *RTC) Enable() {
+	rtc.present = true
+}
+
+//-----------------------------------------------------------------------------
+
+// encode 0..23 to the clockHour byte
+func (rtc *RTC) encodeHour(n int) byte {
+	val := rtc.clock[clockHour] & (1 << mode12Bit)
+	if val != 0 {
+		// 12 hour mode
+		if n >= 12 {
+			val |= (1 << 5) // PM
+		}
+		if n >= 13 {
+			n -= 12
+		}
+	}
+	return val | intToBcd(n)
+}
+
+// decode the clockHour byte to 0..23
+func (rtc *RTC) decodeHour(val byte) int {
+	var pm bool
+	if val&(1<<mode12Bit) != 0 {
+		// 12 hour clock
+		pm = val&(1<<5) != 0
+		val &= 0x1f
+	}
+	hour := bcdToInt(val)
+	if pm && hour != 12 {
+		hour += 12
+	}
+	return hour
+}
+
+// set the clock registers from a time value
+func (rtc *RTC) setClock(t time.Time) {
+	var n int
+	// clockSecond
+	n = t.Second()
+	rtc.clock[clockSecond] &= clockHalted
+	rtc.clock[clockSecond] |= intToBcd(n)
+	// clockMinute
+	n = t.Minute()
+	rtc.clock[clockMinute] = intToBcd(n)
+	// clockHour
+	n = t.Hour()
+	rtc.clock[clockHour] = rtc.encodeHour(n)
+	// clockDayOfMonth
+	n = t.Day()
+	rtc.clock[clockDayOfMonth] = intToBcd(n)
+	// clockMonthOfYear
+	n = int(t.Month())
+	rtc.clock[clockMonthOfYear] = intToBcd(n)
+	// clockDayOfWeek
+	n = weekdayMap[t.Weekday()]
+	rtc.clock[clockDayOfWeek] = byte(n)
+	//clockYear
+	n = t.Year() - baseYear
+	rtc.clock[clockYear] = intToBcd(n)
+}
+
+// get the time value in the clock registers
+func (rtc *RTC) getClock() time.Time {
+	var n byte
+	// year
+	n = rtc.clock[clockYear]
+	year := baseYear + bcdToInt(n)
+	// month
+	n = rtc.clock[clockMonthOfYear]
+	month := time.Month(bcdToInt(n))
+	// day
+	n = rtc.clock[clockDayOfMonth]
+	day := bcdToInt(n)
+	// hour
+	n = rtc.clock[clockHour]
+	hour := rtc.decodeHour(n)
+	// minute
+	n = rtc.clock[clockMinute]
+	min := bcdToInt(n)
+	// second
+	n = rtc.clock[clockSecond] &^ clockHalted
+	sec := bcdToInt(n)
+
+	return time.Date(year, month, day, hour, min, sec, 0, time.UTC)
+}
+
+func (rtc *RTC) read(adr int) byte {
+	if rtc.command&rcBit == 0 {
+		//log.Printf("clock read [%d] (%s)\n", adr, rtc.mode())
+		// update the clock registers
+		rtc.setClock(time.Now().UTC().Add(rtc.offset))
+		if clockAddressValid(adr) {
+			return rtc.clock[adr]
+		} else {
+			log.Printf("bad clock address %d\n", adr)
+		}
+	} else {
+		//log.Printf("ram read [%d] (%s)\n", adr, rtc.mode())
+		if ramAddressValid(adr) {
+			return rtc.ram[adr]
+		} else {
+			log.Printf("bad ram address %d\n", adr)
+		}
+	}
+	return 0
+}
+
+// is the write protect mode enabled?
+func (rtc *RTC) isWriteProtected() bool {
+	return rtc.clock[clockWriteProtect]&writeProtectEnabled != 0
+}
+
+// is the clock halted?
+func (rtc *RTC) isClockHalted() bool {
+	return rtc.clock[clockSecond]&clockHalted != 0
+}
+
+func (rtc *RTC) write(adr int, data byte) {
+	if rtc.command&rcBit == 0 {
+		// check write protect
+		if rtc.isWriteProtected() && adr != clockWriteProtect {
+			log.Printf("write protect enabled\n")
+			return
+		}
+		log.Printf("clock write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
+		if clockAddressValid(adr) {
+			rtc.clock[adr] = data & clockMask[adr]
+			rtc.offset = rtc.getClock().Sub(time.Now().UTC())
+		} else {
+			log.Printf("bad clock address %d\n", adr)
+		}
+	} else {
+		// check write protect
+		if rtc.isWriteProtected() {
+			log.Printf("write protect enabled\n")
+			return
+		}
+		//log.Printf("ram write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
+		if ramAddressValid(adr) {
+			rtc.ram[adr] = data
+		} else {
+			log.Printf("bad ram address %d\n", adr)
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
 
 func (rtc *RTC) mode() string {
 	if rtc.burst {
@@ -138,104 +311,6 @@ func (rtc *RTC) burstIncrement() int {
 		}
 	}
 	return adr
-}
-
-func (rtc *RTC) getTime() {
-	t := time.Now().UTC()
-	var n int
-	// clockSecond
-	n = t.Second()
-	rtc.clock[clockSecond] = byte((bcd10(n) << 4) | (bcd1(n) << 0))
-	// clockMinute
-	n = t.Minute()
-	rtc.clock[clockMinute] = byte((bcd10(n) << 4) | (bcd1(n) << 0))
-	// clockHour
-	n = t.Hour()
-	rtc.clock[clockHour] = byte((bcd10(n) << 4) | (bcd1(n) << 0))
-	// clockDayOfMonth
-	n = t.Day()
-	rtc.clock[clockDayOfMonth] = byte((bcd10(n) << 4) | (bcd1(n) << 0))
-	// clockMonthOfYear
-	n = int(t.Month())
-	rtc.clock[clockMonthOfYear] = byte((bcd10(n) << 4) | (bcd1(n) << 0))
-	// clockDayOfWeek
-	n = weekdayMap[t.Weekday()]
-	rtc.clock[clockDayOfWeek] = byte(n)
-	//clockYear
-	n = t.Year() - baseYear
-	rtc.clock[clockYear] = byte((bcd10(n) << 4) | (bcd1(n) << 0))
-}
-
-func (rtc *RTC) read(adr int) byte {
-	if rtc.command&rcBit == 0 {
-		//log.Printf("clock read [%d] (%s)\n", adr, rtc.mode())
-		switch adr {
-		case clockSecond, clockMinute, clockHour, clockDayOfMonth, clockMonthOfYear, clockDayOfWeek, clockYear:
-			rtc.getTime()
-			return rtc.clock[adr]
-		case clockWriteProtect:
-			if rtc.writeProtect {
-				return 1 << writeProtectBit
-			}
-			return 0
-		case clockTrickleCharge:
-			return 0x5c // power-on state
-		default:
-			log.Printf("bad clock address %d\n", adr)
-		}
-	} else {
-		//log.Printf("ram read [%d] (%s)\n", adr, rtc.mode())
-		if ramAddressValid(adr) {
-			return rtc.ram[adr]
-		} else {
-			log.Printf("bad ram address %d\n", adr)
-		}
-	}
-	return 0
-}
-
-func (rtc *RTC) write(adr int, data byte) {
-	if rtc.command&rcBit == 0 {
-		// check write protect
-		if rtc.writeProtect && adr != clockWriteProtect {
-			log.Printf("write protect enabled\n")
-			return
-		}
-		//log.Printf("clock write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
-		switch adr {
-		case clockSecond:
-		case clockMinute:
-		case clockHour:
-		case clockDayOfMonth:
-		case clockMonthOfYear:
-		case clockDayOfWeek:
-		case clockYear:
-		case clockWriteProtect:
-			rtc.writeProtect = data&(1<<writeProtectBit) != 0
-		case clockTrickleCharge:
-			// whatever...
-		default:
-			log.Printf("bad clock address %d\n", adr)
-		}
-
-	} else {
-		// check write protect
-		if rtc.writeProtect {
-			log.Printf("write protect enabled\n")
-			return
-		}
-		//log.Printf("ram write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
-		if ramAddressValid(adr) {
-			rtc.ram[adr] = data
-		} else {
-			log.Printf("bad ram address %d\n", adr)
-		}
-	}
-}
-
-// enable the rtc
-func (rtc *RTC) Enable() {
-	rtc.present = true
 }
 
 // read a value from the RTC board buffer
