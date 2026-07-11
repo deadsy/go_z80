@@ -17,7 +17,7 @@ import (
 	"log"
 	"math"
 
-	"github.com/deadsy/go_z80/device/keyboard"
+	"github.com/deadsy/go_z80/cmd/jace/keyboard"
 	"github.com/deadsy/go_z80/device/sound"
 	"github.com/deadsy/go_z80/device/speaker"
 	"github.com/deadsy/go_z80/device/video"
@@ -93,20 +93,20 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 //-----------------------------------------------------------------------------
 
 type system struct {
-	speaker           *speaker.Speaker // audio speaker
-	sound             *sound.Sound     // ebiten audio
-	keyboard          *keyboard.Jace   // matrix keyboard
-	video             *video.Video     // video
-	io                *sysIO           // system IO
-	mem               *sysMemory       // system memory
-	bus               *Bus             // system bus
-	cpu               *z80.CPU         // z80 cpu
-	background        *ebiten.Image    // background graphic
-	width, height     int              // window dimensions
-	tickCycles        float32          // ebiten tick cpu cycles
-	audioSampleCycles float32          // audio sample cpu cycles
-	interruptCycles   float32          // periodic interrupt
-	soundStarted      bool             // has the sound been started?
+	speaker           *speaker.Speaker   // audio speaker
+	sound             *sound.Sound       // ebiten audio
+	keyboard          *keyboard.Keyboard // matrix keyboard
+	video             *video.Video       // video
+	io                *sysIO             // system IO
+	mem               *sysMemory         // system memory
+	bus               *Bus               // system bus
+	cpu               *z80.CPU           // z80 cpu
+	background        *ebiten.Image      // background graphic
+	width, height     int                // window dimensions
+	tickCycles        float32            // ebiten tick cpu cycles
+	audioSampleCycles float32            // audio sample cpu cycles
+	interruptCycles   float32            // periodic interrupt
+	soundStarted      bool               // has the sound been started?
 }
 
 func newSystem() (*system, error) {
@@ -135,7 +135,7 @@ func newSystem() (*system, error) {
 	}
 
 	// setup the keyboard
-	keyboard, err := keyboard.NewJace()
+	keyboard, err := keyboard.New()
 	if err != nil {
 		return nil, err
 	}

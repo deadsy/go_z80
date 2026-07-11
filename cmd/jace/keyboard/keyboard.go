@@ -23,6 +23,13 @@ the jupiter ace matrix keyboard scanning code.
 # ; Start         +------------>--------------------->-------------+        End
 # ;
 
+Note:
+
+When a Z80 performs an IN instruction, the lower 8 bits typically specifies
+the port number, but the upper 8 bits is set to a register value. This can
+be used by matrix scanning code to simultaneously set a row value while reading
+the resulting column value.
+
 */
 //-----------------------------------------------------------------------------
 
@@ -36,20 +43,60 @@ import (
 )
 
 //-----------------------------------------------------------------------------
+// key row values (the low bit selects the row)
 
-type Jace struct {
+const numRows = 8
+
+const keyRow0 = byte(0xfe) // A8
+const keyRow1 = byte(0xfd) // A9
+const keyRow2 = byte(0xfb) // A10
+const keyRow3 = byte(0xf7) // A11
+const keyRow4 = byte(0xef) // A12
+const keyRow5 = byte(0xdf) // A13
+const keyRow6 = byte(0xbf) // A14
+const keyRow7 = byte(0x7f) // A15
+
+func rowToInt(row byte) (int, error) {
+	var n int
+	switch row {
+	case keyRow0:
+		n = 0
+	case keyRow1:
+		n = 1
+	case keyRow2:
+		n = 2
+	case keyRow3:
+		n = 3
+	case keyRow4:
+		n = 4
+	case keyRow5:
+		n = 5
+	case keyRow6:
+		n = 6
+	case keyRow7:
+		n = 7
+	default:
+		return 0, fmt.Errorf("bad row 0x%02x", row)
+
+	}
+	return n, nil
+}
+
+//-----------------------------------------------------------------------------
+
+type Keyboard struct {
 	keys []ebiten.Key
 	row  [numRows]byte // row scan values
 }
 
-func NewJace() (*Jace, error) {
-	return &Jace{
+func New() (*Keyboard, error) {
+	return &Keyboard{
 		keys: make([]ebiten.Key, 16),
 	}, nil
 }
 
 // return the scan code for a row
-func (k *Jace) Scan(row byte) (byte, error) {
+func (k *Keyboard) Scan(row byte) (byte, error) {
 	n, err := rowToInt(row)
 	if err != nil {
 		return 0xff, err
@@ -59,19 +106,19 @@ func (k *Jace) Scan(row byte) (byte, error) {
 }
 
 // clear all keys
-func (k *Jace) clear() {
+func (k *Keyboard) clear() {
 	for i := 0; i < numRows; i++ {
 		k.row[i] = 0
 	}
 }
 
 // set a key down (1) at the row/col
-func (k *Jace) set(row, col int) {
+func (k *Keyboard) set(row, col int) {
 	k.row[row] |= (1 << col)
 }
 
 // Update the keyboard logic (called from ebiten update)
-func (k *Jace) Update() {
+func (k *Keyboard) Update() {
 	k.keys = inpututil.AppendPressedKeys(k.keys[:0])
 	k.clear()
 	for _, key := range k.keys {

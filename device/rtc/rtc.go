@@ -140,7 +140,7 @@ func (rtc *RTC) reset() {
 	rtc.out = false
 }
 
-// disbale the rtc
+// disable the rtc
 func (rtc *RTC) Disable() {
 	rtc.present = false
 }

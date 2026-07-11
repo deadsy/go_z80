@@ -15,8 +15,8 @@ import (
 	"image/png"
 	"log"
 
+	"github.com/deadsy/go_z80/cmd/tec1g/keyboard"
 	"github.com/deadsy/go_z80/device/hd44780"
-	"github.com/deadsy/go_z80/device/keyboard"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/rtc"
 	"github.com/deadsy/go_z80/device/serial"
@@ -77,25 +77,25 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 //-----------------------------------------------------------------------------
 
 type system struct {
-	display            *sixdigit.Display // 6 digit display
-	led                *led.LED          // speaker activity LED
-	speaker            *speaker.Speaker  // audio speaker
-	sound              *sound.Sound      // ebiten audio
-	lcd                *hd44780.LCD      // lcd
-	keyboard           *keyboard.Tec1G   // matrix keyboard
-	rtc                *rtc.RTC          // rtc board
-	uart               *serial.UART      // serial uart
-	pty                *serial.PTY       // pseudo tty
-	io                 *sysIO            // system IO
-	mem                *sysMemory        // system memory
-	bus                *Bus              // system bus
-	cpu                *z80.CPU          // z80 cpu
-	background         *ebiten.Image     // background graphic
-	width, height      int               // window dimensions
-	tickCycles         float32           // ebiten tick cpu cycles
-	audioSampleCycles  float32           // audio sample cpu cycles
-	serialSampleCycles float32           // serial sample cpu cycles
-	soundStarted       bool              // has the sound been started?
+	display            *sixdigit.Display  // 6 digit display
+	led                *led.LED           // speaker activity LED
+	speaker            *speaker.Speaker   // audio speaker
+	sound              *sound.Sound       // ebiten audio
+	lcd                *hd44780.LCD       // lcd
+	keyboard           *keyboard.Keyboard // matrix keyboard
+	rtc                *rtc.RTC           // rtc board
+	uart               *serial.UART       // serial uart
+	pty                *serial.PTY        // pseudo tty
+	io                 *sysIO             // system IO
+	mem                *sysMemory         // system memory
+	bus                *Bus               // system bus
+	cpu                *z80.CPU           // z80 cpu
+	background         *ebiten.Image      // background graphic
+	width, height      int                // window dimensions
+	tickCycles         float32            // ebiten tick cpu cycles
+	audioSampleCycles  float32            // audio sample cpu cycles
+	serialSampleCycles float32            // serial sample cpu cycles
+	soundStarted       bool               // has the sound been started?
 }
 
 func newSystem() (*system, error) {
@@ -160,7 +160,7 @@ func newSystem() (*system, error) {
 	}
 
 	// setup the keyboard
-	keyboard, err := keyboard.NewTec1G()
+	keyboard, err := keyboard.New()
 	if err != nil {
 		return nil, err
 	}

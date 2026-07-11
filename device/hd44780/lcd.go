@@ -10,9 +10,9 @@ package hd44780
 
 import (
 	"errors"
-	"fmt"
 	"image"
 	"image/color"
+	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -203,7 +203,7 @@ func New(cfg *Config) (*LCD, error) {
 }
 
 func (lcd *LCD) ddramWrite(val byte) {
-	//fmt.Printf("ddram write [0x%02x] = 0x%02x\n", lcd.ddAddr, val)
+	//log.Printf("ddram write [0x%02x] = 0x%02x\n", lcd.ddAddr, val)
 
 	lcd.ddram[lcd.ddAddr] = val
 
@@ -236,7 +236,7 @@ func (lcd *LCD) ddramWrite(val byte) {
 }
 
 func (lcd *LCD) cgramWrite(val byte) {
-	fmt.Printf("cgram write\n")
+	log.Printf("cgram write\n")
 	/*
 	   n = self->mcu.CGRAM_counter / 8;
 	   m = self->mcu.CGRAM_counter % 8;
@@ -264,7 +264,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		// ddram address is 7 bits
 		lcd.ddAddr = cmd & 0x7f
 		lcd.ramMode = ddramMode
-		//fmt.Printf("ddAddr = 0x%02x\n", lcd.ddAddr)
+		//log.Printf("ddAddr = 0x%02x\n", lcd.ddAddr)
 
 	} else if cmd&cmdSetCgramAddr != 0 {
 		// cgram address is 6 bits
@@ -277,7 +277,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		lcd.fFlag = cmd&(1<<2) != 0
 
 	} else if cmd&cmdShift != 0 {
-		fmt.Printf("shift\n")
+		log.Printf("shift\n")
 
 	} else if cmd&cmdDisplay != 0 {
 		lcd.cursorBlink = (cmd & (1 << 0)) != 0
@@ -288,7 +288,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 	} else if cmd&cmdEntryMode != 0 {
 		lcd.incMode = cmd&(1<<1) != 0
 		if cmd&(1<<0) != 0 {
-			fmt.Printf("TODO: entry mode shift\n")
+			log.Printf("TODO: entry mode shift\n")
 		}
 	} else if cmd&cmdHome != 0 {
 		lcd.ddAddr = 0
@@ -306,7 +306,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 
 // read data (RS = 1, RW = 1)
 func (lcd *LCD) ReadData() byte {
-	fmt.Printf("lcd data read\n")
+	log.Printf("lcd data read\n")
 	return 0
 }
 

@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/deadsy/go_z80/device/keyboard"
+	"github.com/deadsy/go_z80/cmd/jace/keyboard"
 	"github.com/deadsy/go_z80/memory"
 	"github.com/deadsy/go_z80/z80"
 )
@@ -137,8 +137,8 @@ const keyboardPort = 0xfe // Matrix Keyboard Input
 
 // System IO
 type sysIO struct {
-	keyboard *keyboard.Jace // matrix keyboard
-	speaker  bool           // latched speaker bit
+	keyboard *keyboard.Keyboard // matrix keyboard
+	speaker  bool               // latched speaker bit
 }
 
 // Read8 reads a byte from an IO port.
@@ -171,7 +171,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	log.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(keyboard *keyboard.Jace) *sysIO {
+func newIO(keyboard *keyboard.Keyboard) *sysIO {
 	return &sysIO{
 		keyboard: keyboard,
 	}
