@@ -49,7 +49,7 @@ func Test_EncodeHour(t *testing.T) {
 	}
 
 	for i, v := range testMode24 {
-		rtc, _ := New()
+		rtc, _ := New(&Config{})
 		rtc.clock[clockHour] = 0
 		val := rtc.encodeHour(v.n)
 		if val != v.val {
@@ -88,7 +88,7 @@ func Test_EncodeHour(t *testing.T) {
 	}
 
 	for i, v := range testMode12 {
-		rtc, _ := New()
+		rtc, _ := New(&Config{})
 		rtc.clock[clockHour] = mode12Hour
 		val := rtc.encodeHour(v.n)
 		if val != v.val {
@@ -102,7 +102,7 @@ func Test_EncodeHour(t *testing.T) {
 
 func encodeDecode(t *testing.T, mode byte) {
 	for i := 0; i <= 23; i++ {
-		rtc, _ := New()
+		rtc, _ := New(&Config{})
 		rtc.clock[clockHour] = mode
 		val := rtc.encodeHour(i)
 		hour := rtc.decodeHour(val)
@@ -134,7 +134,7 @@ func setGet(t *testing.T, mode byte) {
 		min := randInt(0, 59)
 		sec := randInt(0, 59)
 		t_in := time.Date(year, month, day, hour, min, sec, 0, time.UTC)
-		rtc, _ := New()
+		rtc, _ := New(&Config{})
 		rtc.clock[clockHour] = mode
 		rtc.setClock(t_in)
 		t_out := rtc.getClock()
