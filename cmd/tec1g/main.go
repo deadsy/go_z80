@@ -247,7 +247,7 @@ func (s *system) Update() error {
 		log.Printf("starting sound\n")
 		err := s.sound.Start()
 		if err != nil {
-			log.Printf("unable to start sound: %s\n", err)
+			log.Printf("unable to start sound: %s", err)
 		} else {
 			s.soundStarted = true
 		}
@@ -290,6 +290,7 @@ func (s *system) Update() error {
 
 	s.keyboard.Update()
 	if s.keyboard.Reset() {
+		//log.Printf("reset from keyboard...")
 		s.cpu.Reset()
 	}
 

@@ -33,7 +33,7 @@ const inBit = byte(1 << 7) // maps to D7
 // buffered read bits
 const outBit = byte(1 << 0) // maps to D0
 
-// per the tec1-g monitor mapping
+// per the tec-1g monitor mapping
 var weekdayMap = [7]int{7, 1, 2, 3, 4, 5, 6}
 
 const baseYear = 2000
@@ -241,7 +241,7 @@ func (rtc *RTC) getClock() time.Time {
 
 func (rtc *RTC) read(adr int) byte {
 	if rtc.command&rcBit == 0 {
-		//log.Printf("clock read [%d] (%s)\n", adr, rtc.mode())
+		//log.Printf("clock read [%d] (%s)", adr, rtc.mode())
 		if rtc.isClockRunning() {
 			// update the clock registers
 			rtc.setClock(time.Now().UTC().Add(rtc.offset))
@@ -249,14 +249,14 @@ func (rtc *RTC) read(adr int) byte {
 		if clockAddressValid(adr) {
 			return rtc.clock[adr]
 		} else {
-			log.Printf("bad clock address %d\n", adr)
+			log.Printf("rtc read: bad clock address %d", adr)
 		}
 	} else {
-		//log.Printf("ram read [%d] (%s)\n", adr, rtc.mode())
+		//log.Printf("ram read [%d] (%s)", adr, rtc.mode())
 		if ramAddressValid(adr) {
 			return rtc.ram[adr]
 		} else {
-			log.Printf("bad ram address %d\n", adr)
+			log.Printf("rtc read: bad ram address %d", adr)
 		}
 	}
 	return 0
@@ -266,29 +266,29 @@ func (rtc *RTC) write(adr int, data byte) {
 	if rtc.command&rcBit == 0 {
 		// check write protect
 		if rtc.isWriteProtected() && adr != clockWriteProtect {
-			log.Printf("write protect enabled\n")
+			log.Printf("rtc: write protect enabled")
 			return
 		}
-		//log.Printf("clock write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
+		//log.Printf("clock write [%d]=0x%02x (%s)", adr, data, rtc.mode())
 		if clockAddressValid(adr) {
 			rtc.clock[adr] = data & clockMask[adr]
 			if rtc.isClockRunning() {
 				rtc.offset = rtc.getClock().Sub(time.Now().UTC())
 			}
 		} else {
-			log.Printf("bad clock address %d\n", adr)
+			log.Printf("rtc write: bad clock address %d", adr)
 		}
 	} else {
 		// check write protect
 		if rtc.isWriteProtected() {
-			log.Printf("write protect enabled\n")
+			log.Printf("rtc: write protect enabled")
 			return
 		}
-		//log.Printf("ram write [%d]=0x%02x (%s)\n", adr, data, rtc.mode())
+		//log.Printf("ram write [%d]=0x%02x (%s)", adr, data, rtc.mode())
 		if ramAddressValid(adr) {
 			rtc.ram[adr] = data
 		} else {
-			log.Printf("bad ram address %d\n", adr)
+			log.Printf("rtc write: bad ram address %d", adr)
 		}
 	}
 }

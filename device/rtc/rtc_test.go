@@ -98,30 +98,25 @@ func Test_EncodeHour(t *testing.T) {
 
 }
 
+//-----------------------------------------------------------------------------
+
+func encodeDecode(t *testing.T, mode byte) {
+	for i := 0; i <= 23; i++ {
+		rtc, _ := New()
+		rtc.clock[clockHour] = mode
+		val := rtc.encodeHour(i)
+		hour := rtc.decodeHour(val)
+		if i != hour {
+			t.Fatalf("case %d: bad value, expected %d, actual %d", i, i, hour)
+		}
+	}
+}
+
 func Test_DecodeHour(t *testing.T) {
-
 	// 24 hour mode
-	for i := 0; i <= 23; i++ {
-		rtc, _ := New()
-		rtc.clock[clockHour] = 0
-		val := rtc.encodeHour(i)
-		hour := rtc.decodeHour(val)
-		if i != hour {
-			t.Fatalf("case %d: bad value, expected %d, actual %d", i, i, hour)
-		}
-	}
-
+	encodeDecode(t, 0)
 	// 12 hour mode
-	for i := 0; i <= 23; i++ {
-		rtc, _ := New()
-		rtc.clock[clockHour] = mode12Hour
-		val := rtc.encodeHour(i)
-		hour := rtc.decodeHour(val)
-		if i != hour {
-			t.Fatalf("case %d: bad value, expected %d, actual %d", i, i, hour)
-		}
-	}
-
+	encodeDecode(t, mode12Hour)
 }
 
 //-----------------------------------------------------------------------------
@@ -130,7 +125,7 @@ func randInt(min, max int) int {
 	return rand.IntN(max-min+1) + min
 }
 
-func Test_SetAndGet(t *testing.T) {
+func setGet(t *testing.T, mode byte) {
 	for i := 0; i < 2000; i++ {
 		year := randInt(2000, 2099)
 		month := time.Month(randInt(1, 12))
@@ -140,12 +135,20 @@ func Test_SetAndGet(t *testing.T) {
 		sec := randInt(0, 59)
 		t_in := time.Date(year, month, day, hour, min, sec, 0, time.UTC)
 		rtc, _ := New()
+		rtc.clock[clockHour] = mode
 		rtc.setClock(t_in)
 		t_out := rtc.getClock()
 		if !t_in.Equal(t_out) {
 			t.Fatalf("case %d: in %s out %s", i, t_in, t_out)
 		}
 	}
+}
+
+func Test_SetAndGet(t *testing.T) {
+	// 24 hour mode
+	setGet(t, 0)
+	// 12 hour mode
+	setGet(t, mode12Hour)
 }
 
 //-----------------------------------------------------------------------------
