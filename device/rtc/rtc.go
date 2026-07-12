@@ -9,6 +9,7 @@ Emulate the TEC-1G RTC Board (DS1302)
 package rtc
 
 import (
+	"errors"
 	"log"
 	"time"
 )
@@ -81,6 +82,16 @@ func clockAddressValid(adr int) bool {
 // mask the valid bits of the clock registers
 var clockMask = [numClockRegisters]byte{0xff, 0x7f, 0xbf, 0x3f, 0x1f, 0x07, 0xff, 0x80, 0xff}
 
+// return true if a write to this address requires an offset update
+func offsetUpdate(adr int) bool {
+	if (adr == clockWriteProtect) ||
+		(adr == clockTrickleCharge) ||
+		(adr == clockDayOfWeek) {
+		return false
+	}
+	return true
+}
+
 //-----------------------------------------------------------------------------
 // ds1302 ram registers
 
@@ -101,8 +112,15 @@ const (
 	byteWriteState          // writing byte(s)
 )
 
+type Config struct {
+	Enable bool          `toml:"enable"`  // is the rtc enabled?
+	Mode12 bool          `toml:"mode_12"` // 12 hour (am/pm) OR 24 hour clock
+	Offset time.Duration `toml:"offset"`  // time offset from UTC
+	RAM    []byte        `toml:"ram"`     // ram contents
+}
+
 type RTC struct {
-	present bool                    // is the rtc present?
+	enable  bool                    // is the rtc enabled?
 	clk     bool                    // clock state
 	state   rtcState                // state
 	command byte                    // command register
@@ -116,16 +134,36 @@ type RTC struct {
 	ram     [numRamRegisters]byte   // ram registers
 }
 
-func New() (*RTC, error) {
-	rtc := &RTC{
-		present: true,
+func New(cfg *Config) (*RTC, error) {
+	if cfg == nil {
+		return nil, errors.New("no configuration")
 	}
+	rtc := &RTC{}
+
+	// defaults
 	rtc.reset()
-	// set power-on values
-	rtc.clock[clockWriteProtect] = writeProtectEnabled
 	rtc.clock[clockTrickleCharge] = 0x5c
-	rtc.setClock(time.Now().UTC().Add(rtc.offset))
+	rtc.clock[clockWriteProtect] = writeProtectEnabled
+
+	// apply the configuration
+	rtc.enable = cfg.Enable
+	if cfg.Mode12 {
+		rtc.clock[clockHour] = mode12Hour
+	}
+	rtc.offset = cfg.Offset
+	copy(rtc.ram[:], cfg.RAM)
+
 	return rtc, nil
+}
+
+// return a config based on the current state
+func (rtc *RTC) GetConfig() Config {
+	return Config{
+		Enable: rtc.enable,
+		Mode12: rtc.clock[clockHour]&mode12Hour != 0,
+		Offset: rtc.offset,
+		RAM:    rtc.ram[:],
+	}
 }
 
 // reset the rtc command/byte state variables
@@ -138,11 +176,6 @@ func (rtc *RTC) reset() {
 	rtc.address = 0
 	rtc.burst = false
 	rtc.out = false
-}
-
-// disable the rtc
-func (rtc *RTC) Disable() {
-	rtc.present = false
 }
 
 //-----------------------------------------------------------------------------
@@ -270,9 +303,13 @@ func (rtc *RTC) write(adr int, data byte) {
 			return
 		}
 		//log.Printf("clock write [%d]=0x%02x (%s)", adr, data, rtc.mode())
+		if rtc.isClockRunning() {
+			// update the clock registers
+			rtc.setClock(time.Now().UTC().Add(rtc.offset))
+		}
 		if clockAddressValid(adr) {
 			rtc.clock[adr] = data & clockMask[adr]
-			if rtc.isClockRunning() {
+			if rtc.isClockRunning() && offsetUpdate(adr) {
 				rtc.offset = rtc.getClock().Sub(time.Now().UTC())
 			}
 		} else {
@@ -321,7 +358,7 @@ func (rtc *RTC) burstIncrement() int {
 
 // read a value from the RTC board buffer
 func (rtc *RTC) Read() byte {
-	if !rtc.present {
+	if !rtc.enable {
 		// no device present
 		return 0xff
 	}
@@ -333,7 +370,7 @@ func (rtc *RTC) Read() byte {
 
 // write a value to the RTC board latch
 func (rtc *RTC) Write(data byte) {
-	if !rtc.present {
+	if !rtc.enable {
 		// no device present
 		return
 	}

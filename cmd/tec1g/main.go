@@ -77,6 +77,7 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 //-----------------------------------------------------------------------------
 
 type system struct {
+	cfg                *Config            // configuration
 	display            *sixdigit.Display  // 6 digit display
 	led                *led.LED           // speaker activity LED
 	speaker            *speaker.Speaker   // audio speaker
@@ -98,7 +99,7 @@ type system struct {
 	soundStarted       bool               // has the sound been started?
 }
 
-func newSystem() (*system, error) {
+func newSystem(cfg *Config) (*system, error) {
 
 	// setup the display
 	const digitSize = float32(70.0)
@@ -166,7 +167,7 @@ func newSystem() (*system, error) {
 	}
 
 	// setup the RTC
-	rtc, err := rtc.New()
+	rtc, err := rtc.New(&cfg.RTC)
 	if err != nil {
 		return nil, err
 	}
@@ -205,6 +206,7 @@ func newSystem() (*system, error) {
 	cpu := z80.New(io, mem, bus)
 
 	s := &system{
+		cfg:      cfg,
 		display:  display,
 		led:      led,
 		speaker:  speaker,
@@ -237,6 +239,13 @@ func newSystem() (*system, error) {
 
 // exit cleans up system resources
 func (s *system) Exit() {
+	log.Printf("system exit")
+	err := s.cfg.saveConfig(s, configFile)
+	if err != nil {
+		log.Printf("unable to save config: %s", err)
+	} else {
+		log.Printf("saved config to %s", configFile)
+	}
 	s.pty.Close()
 }
 
@@ -244,7 +253,7 @@ func (s *system) Update() error {
 
 	// start the sound (once)
 	if !s.soundStarted && s.sound.IsReady() && s.speaker.Samples() >= 800 {
-		log.Printf("starting sound\n")
+		log.Printf("starting sound")
 		err := s.sound.Start()
 		if err != nil {
 			log.Printf("unable to start sound: %s", err)
@@ -290,8 +299,11 @@ func (s *system) Update() error {
 
 	s.keyboard.Update()
 	if s.keyboard.Reset() {
-		//log.Printf("reset from keyboard...")
 		s.cpu.Reset()
+	}
+
+	if ebiten.IsWindowBeingClosed() {
+		s.Exit()
 	}
 
 	return nil
@@ -310,11 +322,20 @@ func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func main() {
 	log.Printf("%s\n", util.GetBuildInfo())
-	s, err := newSystem()
+
+	// read the config
+	cfg, err := loadConfig(configFile)
+	if err != nil {
+		log.Printf("unable to read %s, using defaults", configFile)
+		cfg = defaultConfig()
+	} else {
+		log.Printf("read config from %s", configFile)
+	}
+
+	s, err := newSystem(cfg)
 	if err != nil {
 		log.Fatalf("error: %s", err)
 	}
-	defer s.Exit()
 
 	ebiten.SetWindowSize(s.width, s.height)
 	ebiten.SetWindowTitle("TEC-1G")
