@@ -131,6 +131,73 @@ func (rtc *RTC) Close() {
 
 //-----------------------------------------------------------------------------
 
+type rtcTime struct {
+	second      uint // 0..59
+	minute      uint // 0..59
+	hour        uint // 0..23
+	dayOfMonth  uint // 0..x (x = 27,28,29,30)
+	monthOfYear uint // 0..11
+	year        uint // 0..99
+}
+
+// return the number of days (28,29,30,31) in a month (0..11)
+func (t *rtcTime) daysPerMonth() uint {
+	switch t.monthOfYear {
+	case 0, 2, 4, 6, 7, 9, 11: // jan mar may jul aug oct dec
+		return 31
+	case 3, 5, 8, 10: // apr jun sep nov
+		return 30
+	case 1: // feb
+		if t.year&3 == 0 {
+			return 29
+		}
+		return 28
+	}
+	panic("ds1302: bad month")
+}
+
+const secondsPerMinute = 60
+const minutesPerHour = 60
+const hoursPerDay = 24
+const monthsPerYear = 12
+const yearsPerCentury = 100
+
+// increment the rtc time by 1 second
+func (t *rtcTime) increment() {
+	t.second += 1
+	if t.second < secondsPerMinute {
+		return
+	}
+	t.second = 0
+	t.minute += 1
+	if t.minute < minutesPerHour {
+		return
+	}
+	t.minute = 0
+	t.hour += 1
+	if t.hour < hoursPerDay {
+		return
+	}
+	t.hour = 0
+	t.dayOfMonth += 1
+	if t.dayOfMonth < t.daysPerMonth() {
+		return
+	}
+	t.dayOfMonth = 0
+	t.monthOfYear += 1
+	if t.monthOfYear < monthsPerYear {
+		return
+	}
+	t.monthOfYear = 0
+	t.year += 1
+	if t.year < yearsPerCentury {
+		return
+	}
+	t.year = 0
+}
+
+//-----------------------------------------------------------------------------
+
 // update the rtc time every second
 func backgroundTick(ctx context.Context, rtc *RTC) {
 	for {
