@@ -52,6 +52,14 @@ const writeProtectEnabled = byte(1 << 7) // in clockWriteProtect
 const clockHalted = byte(1 << 7)         // in clockSecond
 const mode12Hour = byte(1 << 7)          // in clockHour
 
+// return true if the clock address is valid
+func clockAddressValid(adr int) bool {
+	return adr >= clockSecond && adr <= clockTrickleCharge
+}
+
+// mask the valid bits of the clock registers
+var clockMask = [9]byte{0xff, 0x7f, 0xbf, 0x3f, 0x1f, 0x07, 0xff, 0x80, 0xff}
+
 //-----------------------------------------------------------------------------
 // ds1302 ram registers
 
@@ -145,7 +153,7 @@ func New(cfg *Config) (*RTC, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	rtc.cancel = cancel
 	t := time.Now().UTC().Add(cfg.TimeOffset)
-	rtc.clockTime = newRtcTime(t, cfg.BaseYear)
+	rtc.clockTime = newRtcTime(t, rtc.baseYear, rtc.weekDayOffset)
 	go backgroundTick(ctx, rtc)
 
 	return rtc, nil
@@ -178,10 +186,11 @@ type rtcTime struct {
 	day    int // 0..x (x = 27,28,29,30)
 	month  int // 0..11
 	year   int // 0..99
+	dow    int // 0..6, day of week
 }
 
 // convert a go time to an rtc time
-func newRtcTime(t time.Time, baseYear int) rtcTime {
+func newRtcTime(t time.Time, baseYear, dowOffset int) rtcTime {
 	return rtcTime{
 		second: t.Second(),
 		minute: t.Minute(),
@@ -189,6 +198,7 @@ func newRtcTime(t time.Time, baseYear int) rtcTime {
 		day:    t.Day() - 1,
 		month:  int(t.Month()) - 1,
 		year:   t.Year() - baseYear,
+		dow:    (int(t.Weekday()) + dowOffset) % 7,
 	}
 }
 
@@ -224,6 +234,7 @@ const minutesPerHour = 60
 const hoursPerDay = 24
 const monthsPerYear = 12
 const yearsPerCentury = 100
+const daysPerWeek = 7
 
 // increment the rtc time by 1 second
 func (t *rtcTime) increment() {
@@ -243,6 +254,7 @@ func (t *rtcTime) increment() {
 	}
 	t.hour = 0
 	t.day += 1
+	t.dow = (t.dow + 1) % daysPerWeek
 	if t.day < t.daysPerMonth() {
 		return
 	}
@@ -260,7 +272,7 @@ func (t *rtcTime) increment() {
 }
 
 //-----------------------------------------------------------------------------
-// background once a second second ticker
+// background once-a-second ticker
 
 // unhalt clears the halt flag and resyncs the background ticker
 // so the next tick lands exactly 1 second from now.
@@ -315,23 +327,95 @@ func backgroundTick(ctx context.Context, rtc *RTC) {
 
 //-----------------------------------------------------------------------------
 
+// encode 0..23 to the clockHour byte
+func encodeHour(n int, mode12 bool) byte {
+	val := boolToByte(mode12, mode12Hour)
+	if val != 0 {
+		// 12 hour mode
+		if n >= 12 /* 12 == 12pm */ {
+			val |= (1 << 5) // PM
+		}
+		if n >= 13 /* 13 == 1pm */ {
+			n -= 12
+		}
+	}
+	return val | intToBcd(n)
+}
+
+// decode the clockHour byte to 0..23
+func decodeHour(val byte) int {
+	var pm bool
+	if val&mode12Hour != 0 {
+		// 12 hour clock
+		pm = val&(1<<5) != 0
+		val &= 0x1f
+	}
+	hour := bcdToInt(val)
+	if pm && hour != 12 /* 12pm == 12 */ {
+		hour += 12
+	}
+	return hour
+}
+
+// read a clock register
+func (rtc *RTC) readClock(adr int) byte {
+	//log.Printf("clock read [%d] (%s)", adr, rtc.mode())
+	rtc.lock.Lock()
+	defer rtc.lock.Unlock()
+
+	switch adr {
+	case clockSecond:
+		return boolToByte(rtc.clockHalted, clockHalted) | intToBcd(rtc.clockTime.second)
+	case clockMinute:
+		return intToBcd(rtc.clockTime.minute)
+	case clockHour:
+		return encodeHour(rtc.clockTime.hour, rtc.mode12)
+	case clockDayOfMonth:
+		return intToBcd(rtc.clockTime.day + 1)
+	case clockMonthOfYear:
+		return intToBcd(rtc.clockTime.month + 1)
+	case clockDayOfWeek:
+		return byte(rtc.clockTime.dow + 1)
+	case clockYear:
+		return intToBcd(rtc.clockTime.year)
+	case clockWriteProtect:
+		return boolToByte(rtc.writeProtect, writeProtectEnabled)
+	case clockTrickleCharge:
+		return rtc.trickleCharge
+	}
+
+	return 0
+}
+
+// write a clock register
+func (rtc *RTC) writeClock(adr int, data byte) {
+	//log.Printf("clock write [%d]=0x%02x (%s)", adr, data, rtc.mode())
+	rtc.lock.Lock()
+	defer rtc.lock.Unlock()
+
+	switch adr {
+	case clockSecond:
+	case clockMinute:
+	case clockHour:
+		rtc.clockTime.hour = decodeHour(data)
+		rtc.mode12 = (data & mode12Hour) != 1
+	case clockDayOfMonth:
+	case clockMonthOfYear:
+	case clockDayOfWeek:
+	case clockYear:
+	case clockWriteProtect:
+		rtc.writeProtect = (data & writeProtectEnabled) != 0
+	case clockTrickleCharge:
+		rtc.trickleCharge = data
+	}
+}
+
 // read a clock or ram register
 func (rtc *RTC) read(adr int) byte {
 	if rtc.command&rcBit == 0 {
-		//log.Printf("clock read [%d] (%s)", adr, rtc.mode())
-		switch adr {
-		case clockSecond:
-		case clockMinute:
-		case clockHour:
-		case clockDayOfMonth:
-		case clockMonthOfYear:
-		case clockDayOfWeek:
-		case clockYear:
-		case clockWriteProtect:
-			return boolToByte(rtc.writeProtect, writeProtectEnabled)
-		case clockTrickleCharge:
-			return rtc.trickleCharge
-		default:
+		if clockAddressValid(adr) {
+			return rtc.readClock(adr)
+		} else {
 			log.Printf("rtc read: bad clock address %d", adr)
 		}
 	} else {
@@ -353,20 +437,9 @@ func (rtc *RTC) write(adr int, data byte) {
 			log.Printf("rtc: write protect enabled")
 			return
 		}
-		//log.Printf("clock write [%d]=0x%02x (%s)", adr, data, rtc.mode())
-		switch adr {
-		case clockSecond:
-		case clockMinute:
-		case clockHour:
-		case clockDayOfMonth:
-		case clockMonthOfYear:
-		case clockDayOfWeek:
-		case clockYear:
-		case clockWriteProtect:
-			rtc.writeProtect = data&writeProtectEnabled != 0
-		case clockTrickleCharge:
-			rtc.trickleCharge = data
-		default:
+		if clockAddressValid(adr) {
+			rtc.writeClock(adr, data&clockMask[adr])
+		} else {
 			log.Printf("rtc write: bad clock address %d", adr)
 		}
 	} else {
