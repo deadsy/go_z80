@@ -19,6 +19,7 @@ import (
 	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/memory"
 	"github.com/deadsy/go_z80/z80"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 //-----------------------------------------------------------------------------
@@ -147,38 +148,50 @@ const simpKeyboard = byte(1 << 0) // 0 == encoder, 1 == matrix
 // const simpGimp = byte(1 << 5)
 // const simpKey = byte(1 << 6)
 
+type ioDevices struct {
+	display    *sixdigit.Display  // 6 digit display
+	ledSpeaker *led.LED           // speaker led
+	ledHalt    *led.LED           // halt led
+	lcd        *hd44780.LCD       // LCD
+	keyboard   *keyboard.Keyboard // matrix keyboard
+	rtc        *ds1302.RTC        // realtime clock
+}
+
 type sysIO struct {
-	display  *sixdigit.Display  // 6 digit display
-	led      *led.LED           // speaker led
-	lcd      *hd44780.LCD       // LCD
-	keyboard *keyboard.Keyboard // matrix keyboard
-	rtc      *ds1302.RTC        // realtime clock
-	segment  uint8              // latched segment enable
-	digit    uint8              // latched digit enable
-	speaker  bool               // latched speaker/led enable
-	serialTx bool               // serial tx line
-	serialRx bool               // serial rx line
+	dev      *ioDevices
+	segment  uint8 // latched segment enable
+	digit    uint8 // latched digit enable
+	speaker  bool  // latched speaker/led enable
+	serialTx bool  // serial tx line
+	serialRx bool  // serial rx line
+}
+
+func newIO(dev *ioDevices) *sysIO {
+	return &sysIO{
+		dev: dev,
+	}
 }
 
 // Read8 reads a byte from an IO port.
 func (io *sysIO) Read8(adr uint16) uint8 {
+	dev := io.dev
 	row := uint8(adr >> 8)
 	adr &= 0xff
 	switch adr {
 	case keypadPort:
 		return 0
 	case lcdCmdPort:
-		return io.lcd.ReadCommand()
+		return dev.lcd.ReadCommand()
 	case simpPort:
 		// TODO
 		return simpKeyboard | boolToByte(io.serialRx, 1<<7 /*D7*/)
 	case rtcPort:
-		return boolToByte(io.rtc.Read(), 1<<0 /*D0*/)
+		return boolToByte(dev.rtc.Read(), 1<<0 /*D0*/)
 	case sdCardPort:
 		// TODO
 		return 0
 	case keyboardPort:
-		code, err := io.keyboard.Scan(row)
+		code, err := dev.keyboard.Scan(row)
 		if err != nil {
 			log.Printf("keyboard scan error: %s\n", err)
 		}
@@ -190,21 +203,22 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 
 // Write8 writes a byte to an IO port.
 func (io *sysIO) Write8(adr uint16, val uint8) {
+	dev := io.dev
 	adr &= 0xff
 	switch adr {
 	case digitPort:
 		io.digit = val & digitMask
 		io.speaker = (val & speakerMask) != 0
 		io.serialTx = (val & serialTxMask) != 0
-		io.display.Enable(io.digit, io.segment)
-		io.led.Control(io.speaker)
+		dev.display.Enable(io.digit, io.segment)
+		dev.ledSpeaker.Control(io.speaker)
 		return
 	case segmentPort:
 		io.segment = val
-		io.display.Enable(io.digit, io.segment)
+		dev.display.Enable(io.digit, io.segment)
 		return
 	case lcdCmdPort:
-		io.lcd.WriteCommand(val)
+		dev.lcd.WriteCommand(val)
 		return
 	case x88Port:
 		// TODO
@@ -216,13 +230,13 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		// TODO
 		return
 	case lcdDataPort:
-		io.lcd.WriteData(val)
+		dev.lcd.WriteData(val)
 		return
 	case rtcPort:
 		ce := val&(1<<4) != 0  // D4 active high
 		clk := val&(1<<6) != 0 // D6
 		in := val&(1<<7) != 0  // D7
-		io.rtc.Write(ce, clk, in)
+		dev.rtc.Write(ce, clk, in)
 		return
 	case sdCardPort:
 		// TODO
@@ -235,14 +249,19 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	log.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *sixdigit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Keyboard, rtc *ds1302.RTC) *sysIO {
-	return &sysIO{
-		display:  display,
-		led:      led,
-		lcd:      lcd,
-		keyboard: keyboard,
-		rtc:      rtc,
-	}
+func (io *sysIO) Update() {
+	io.dev.display.Update()
+	io.dev.ledSpeaker.Update()
+	io.dev.ledHalt.Update()
+	io.dev.lcd.Update()
+	io.dev.keyboard.Update()
+}
+
+func (io *sysIO) Draw(screen *ebiten.Image) {
+	io.dev.display.Draw(screen)
+	io.dev.ledSpeaker.Draw(screen)
+	io.dev.ledHalt.Draw(screen)
+	io.dev.lcd.Draw(screen)
 }
 
 //-----------------------------------------------------------------------------

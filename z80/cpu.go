@@ -379,6 +379,11 @@ func (cpu *CPU) IRQ() {
 	cpu.irq = true
 }
 
+// Return true if the CPU is halted
+func (cpu *CPU) IsHalted() bool {
+	return cpu.halt
+}
+
 // IM0 interrupt mode handling
 func (cpu *CPU) handleIM0() (int, error) {
 	// read an opcode from the bus (single byte only)

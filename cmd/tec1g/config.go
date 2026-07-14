@@ -71,7 +71,7 @@ func loadConfig(path string) (*Config, error) {
 // save the config to a file
 func (cfg *Config) saveConfig(sys *system, path string) error {
 	// rtc may have changed
-	cfg.RTC = sys.rtc.GetConfig()
+	cfg.RTC = sys.io.dev.rtc.GetConfig()
 	return os.WriteFile(path, []byte(cfg.String()), 0664)
 }
 

@@ -78,26 +78,21 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 //-----------------------------------------------------------------------------
 
 type system struct {
-	cfg                *Config            // configuration
-	display            *sixdigit.Display  // 6 digit display
-	led                *led.LED           // speaker activity LED
-	speaker            *speaker.Speaker   // audio speaker
-	sound              *sound.Sound       // ebiten audio
-	lcd                *hd44780.LCD       // lcd
-	keyboard           *keyboard.Keyboard // matrix keyboard
-	rtc                *ds1302.RTC        // rtc board
-	uart               *serial.UART       // serial uart
-	pty                *serial.PTY        // pseudo tty
-	io                 *sysIO             // system IO
-	mem                *sysMemory         // system memory
-	bus                *Bus               // system bus
-	cpu                *z80.CPU           // z80 cpu
-	background         *ebiten.Image      // background graphic
-	width, height      int                // window dimensions
-	tickCycles         float32            // ebiten tick cpu cycles
-	audioSampleCycles  float32            // audio sample cpu cycles
-	serialSampleCycles float32            // serial sample cpu cycles
-	soundStarted       bool               // has the sound been started?
+	cfg                *Config          // configuration
+	speaker            *speaker.Speaker // audio speaker
+	sound              *sound.Sound     // ebiten audio
+	uart               *serial.UART     // serial uart
+	pty                *serial.PTY      // pseudo tty
+	io                 *sysIO           // system IO
+	mem                *sysMemory       // system memory
+	bus                *Bus             // system bus
+	cpu                *z80.CPU         // z80 cpu
+	background         *ebiten.Image    // background graphic
+	width, height      int              // window dimensions
+	tickCycles         float32          // ebiten tick cpu cycles
+	audioSampleCycles  float32          // audio sample cpu cycles
+	serialSampleCycles float32          // serial sample cpu cycles
+	soundStarted       bool             // has the sound been started?
 }
 
 func newSystem(cfg *Config) (*system, error) {
@@ -114,8 +109,8 @@ func newSystem(cfg *Config) (*system, error) {
 	}
 	display := sixdigit.New(&cfgDisplay)
 
-	// setup the LED
-	cfgLED := led.Config{
+	// setup the Speaker LED
+	cfgSpeakerLed := led.Config{
 		Type:   led.Round,
 		X:      931,
 		Y:      514,
@@ -123,7 +118,7 @@ func newSystem(cfg *Config) (*system, error) {
 		On:     color.RGBA{255, 255, 255, 128},
 		Off:    color.RGBA{0, 0, 0, 0},
 	}
-	led, err := led.New(&cfgLED)
+	ledSpeaker, err := led.New(&cfgSpeakerLed)
 	if err != nil {
 		return nil, err
 	}
@@ -194,8 +189,30 @@ func newSystem(cfg *Config) (*system, error) {
 	}
 	log.Printf("serial port at %s\n", pty.Name())
 
+	// setup the Halt LED
+	cfgHaltLed := led.Config{
+		Type:   led.Round,
+		X:      1271,
+		Y:      526,
+		Radius: 12,
+		On:     color.RGBA{255, 0, 0, 128},
+		Off:    color.RGBA{0, 0, 0, 0},
+	}
+	ledHalt, err := led.New(&cfgHaltLed)
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the IO
-	io := newIO(display, led, lcd, keyboard, rtc)
+	devices := ioDevices{
+		display:    display,
+		ledSpeaker: ledSpeaker,
+		ledHalt:    ledHalt,
+		lcd:        lcd,
+		keyboard:   keyboard,
+		rtc:        rtc,
+	}
+	io := newIO(&devices)
 
 	// setup the memory
 	mem, err := newMemory()
@@ -210,20 +227,15 @@ func newSystem(cfg *Config) (*system, error) {
 	cpu := z80.New(io, mem, bus)
 
 	s := &system{
-		cfg:      cfg,
-		display:  display,
-		led:      led,
-		speaker:  speaker,
-		sound:    sound,
-		lcd:      lcd,
-		keyboard: keyboard,
-		rtc:      rtc,
-		uart:     uart,
-		pty:      pty,
-		io:       io,
-		mem:      mem,
-		bus:      bus,
-		cpu:      cpu,
+		cfg:     cfg,
+		speaker: speaker,
+		sound:   sound,
+		uart:    uart,
+		pty:     pty,
+		io:      io,
+		mem:     mem,
+		bus:     bus,
+		cpu:     cpu,
 	}
 
 	// build the background image
@@ -250,7 +262,7 @@ func (s *system) Exit() {
 	} else {
 		log.Printf("saved config to %s", configFile)
 	}
-	s.rtc.Close()
+	s.io.dev.rtc.Close()
 	s.pty.Close()
 }
 
@@ -307,12 +319,13 @@ func (s *system) Update() error {
 		}
 	}
 
-	s.display.Update()
-	s.led.Update()
-	s.lcd.Update()
+	// halt LED
+	s.io.dev.ledHalt.Control(s.cpu.IsHalted())
 
-	s.keyboard.Update()
-	if s.keyboard.Reset() {
+	// update the IO devices
+	s.io.Update()
+
+	if s.io.dev.keyboard.Reset() {
 		s.cpu.Reset()
 	}
 
@@ -325,9 +338,8 @@ func (s *system) Update() error {
 
 func (s *system) Draw(screen *ebiten.Image) {
 	screen.DrawImage(s.background, nil)
-	s.display.Draw(screen)
-	s.led.Draw(screen)
-	s.lcd.Draw(screen)
+	// draw the IO devices
+	s.io.Draw(screen)
 }
 
 func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {
