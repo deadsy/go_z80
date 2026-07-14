@@ -123,11 +123,11 @@ type RTC struct {
 	out     bool        // output bit
 
 	// register state
-	clockHalted   bool    // is the clock halted
+	clockHalted   bool    // is the clock halted (must hold lock!)
 	writeProtect  bool    // write protect the registers
 	offsetDirty   bool    // has the set time been modified?
 	trickleCharge byte    // trickle charge register
-	clockTime     rtcTime // rtc time
+	clockTime     rtcTime // rtc time (must hold lock!)
 
 	// background ticker
 	cancel func()        // cancel the background ticker
@@ -251,7 +251,7 @@ func (t *rtcTime) daysPerMonth() int {
 		}
 		return 28
 	}
-	panic("ds1302: bad month")
+	panic("bad month")
 }
 
 const secondsPerMinute = 60
@@ -472,14 +472,14 @@ func (rtc *RTC) read(adr int) byte {
 		if clockAddressValid(adr) {
 			return rtc.readClock(adr)
 		} else {
-			log.Printf("rtc read: bad clock address %d", adr)
+			log.Printf("ds1302 read: bad clock address %d", adr)
 		}
 	} else {
 		//log.Printf("ram read [%d] (%s)", adr, rtc.mode())
 		if ramAddressValid(adr) {
 			return rtc.ram[adr]
 		} else {
-			log.Printf("rtc read: bad ram address %d", adr)
+			log.Printf("ds1302 read: bad ram address %d", adr)
 		}
 	}
 	return 0
@@ -490,25 +490,25 @@ func (rtc *RTC) write(adr int, data byte) {
 	if rtc.command&rcBit == 0 {
 		// check write protect
 		if rtc.writeProtect && adr != clockWriteProtect {
-			log.Printf("rtc: write protect enabled")
+			log.Printf("ds1302: write protect enabled")
 			return
 		}
 		if clockAddressValid(adr) {
 			rtc.writeClock(adr, data)
 		} else {
-			log.Printf("rtc write: bad clock address %d", adr)
+			log.Printf("ds1302 write: bad clock address %d", adr)
 		}
 	} else {
 		// check write protect
 		if rtc.writeProtect {
-			log.Printf("rtc: write protect enabled")
+			log.Printf("ds1302: write protect enabled")
 			return
 		}
 		//log.Printf("ram write [%d]=0x%02x (%s)", adr, data, rtc.mode())
 		if ramAddressValid(adr) {
 			rtc.ram[adr] = data
 		} else {
-			log.Printf("rtc write: bad ram address %d", adr)
+			log.Printf("ds1302 write: bad ram address %d", adr)
 		}
 	}
 }
@@ -588,7 +588,7 @@ func (rtc *RTC) Write(chipEnable, serialClock, inputBit bool) {
 			rtc.bits += 1
 			if rtc.bits == 8 {
 				if rtc.command&topBit == 0 {
-					log.Printf("bad command byte %02x\n", rtc.command)
+					log.Printf("ds1302: bad command byte %02x", rtc.command)
 					rtc.reset()
 					return
 				}
