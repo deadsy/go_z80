@@ -16,9 +16,9 @@ import (
 	"log"
 
 	"github.com/deadsy/go_z80/cmd/tec1g/keyboard"
+	"github.com/deadsy/go_z80/device/ds1302"
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
-	"github.com/deadsy/go_z80/device/rtc"
 	"github.com/deadsy/go_z80/device/serial"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
@@ -84,7 +84,7 @@ type system struct {
 	sound              *sound.Sound       // ebiten audio
 	lcd                *hd44780.LCD       // lcd
 	keyboard           *keyboard.Keyboard // matrix keyboard
-	rtc                *rtc.RTC           // rtc board
+	rtc                *ds1302.RTC        // rtc board
 	uart               *serial.UART       // serial uart
 	pty                *serial.PTY        // pseudo tty
 	io                 *sysIO             // system IO
@@ -167,7 +167,7 @@ func newSystem(cfg *Config) (*system, error) {
 	}
 
 	// setup the RTC
-	rtc, err := rtc.New(&cfg.RTC)
+	rtc, err := ds1302.New(&cfg.RTC)
 	if err != nil {
 		return nil, err
 	}
@@ -246,6 +246,7 @@ func (s *system) Exit() {
 	} else {
 		log.Printf("saved config to %s", configFile)
 	}
+	s.rtc.Close()
 	s.pty.Close()
 }
 

@@ -104,28 +104,36 @@ type Config struct {
 }
 
 type RTC struct {
-	enable bool          // is the rtc enabled?
-	cancel func()        // cancel the background ticker
-	lock   sync.Mutex    // lock for ticker access
-	resync chan struct{} // resync the background ticker
+	// configuration
+	enable        bool                  // is the rtc enabled?
+	baseYear      int                   // base year
+	mode12        bool                  // 12 hour (am/pm) OR 24 hour clock
+	weekDayOffset int                   // weekday offset 0..6
+	timeOffset    time.Duration         // configured time offset
+	ram           [numRamRegisters]byte // ram registers
+
 	// serial bus state
-	clk     bool        // clock state
 	state   serialState // serial transfer state
+	clk     bool        // clock state
 	command byte        // command register
 	data    byte        // data register
 	bits    int         // count of shift bits
 	address int         // register address
 	burst   bool        // burst mode
 	out     bool        // output bit
+
 	// register state
-	mode12        bool                  // 12 hour (am/pm) OR 24 hour clock
-	clockHalted   bool                  // is the clock halted
-	writeProtect  bool                  // write protect the registers
-	weekDayOffset int                   // weekday offset 0..6
-	baseYear      int                   // base year
-	trickleCharge byte                  // trickle charge register
-	clockTime     rtcTime               // rtc time
-	ram           [numRamRegisters]byte // ram registers
+	clockHalted   bool    // is the clock halted
+	writeProtect  bool    // write protect the registers
+	offsetDirty   bool    // has the set time been modified?
+	trickleCharge byte    // trickle charge register
+	clockTime     rtcTime // rtc time
+
+	// background ticker
+	cancel func()        // cancel the background ticker
+	lock   sync.Mutex    // lock for ticker access
+	resync chan struct{} // resync the background ticker
+
 }
 
 func New(cfg *Config) (*RTC, error) {
@@ -137,6 +145,7 @@ func New(cfg *Config) (*RTC, error) {
 		baseYear:      cfg.BaseYear,
 		mode12:        cfg.Mode12,
 		weekDayOffset: cfg.WeekDayOffset,
+		timeOffset:    cfg.TimeOffset,
 		clockHalted:   false,
 		writeProtect:  true,
 		trickleCharge: 0x5c, // power-on state
@@ -148,33 +157,39 @@ func New(cfg *Config) (*RTC, error) {
 	// serial bus reset
 	rtc.reset()
 
-	// start the background second ticker
-	rtc.resync = make(chan struct{}, 1) // buffered so unhalt never blocks
-	ctx, cancel := context.WithCancel(context.Background())
-	rtc.cancel = cancel
-	t := time.Now().UTC().Add(cfg.TimeOffset)
-	rtc.clockTime = newRtcTime(t, rtc.baseYear, rtc.weekDayOffset)
-	go backgroundTick(ctx, rtc)
+	if rtc.enable {
+		// start the background second ticker
+		rtc.resync = make(chan struct{}, 1) // buffered so unhalt never blocks
+		ctx, cancel := context.WithCancel(context.Background())
+		rtc.cancel = cancel
+		t := time.Now().UTC().Add(rtc.timeOffset)
+		rtc.clockTime = newRtcTime(t, rtc.baseYear, rtc.weekDayOffset)
+		go backgroundTick(ctx, rtc)
+	}
 
 	return rtc, nil
 }
 
 // return a config based on the current state
 func (rtc *RTC) GetConfig() Config {
-	timeOffset := rtc.clockTime.getTime(rtc.baseYear).Sub(time.Now().UTC())
+	if rtc.enable && rtc.offsetDirty {
+		rtc.timeOffset = rtc.clockTime.getTime(rtc.baseYear).Sub(time.Now().UTC())
+	}
 	return Config{
 		Enable:        rtc.enable,
 		BaseYear:      rtc.baseYear,
 		Mode12:        rtc.mode12,
 		WeekDayOffset: rtc.weekDayOffset,
-		TimeOffset:    timeOffset,
+		TimeOffset:    rtc.timeOffset,
 		RAM:           rtc.ram[:],
 	}
 }
 
 func (rtc *RTC) Close() {
 	// stop the background ticker
-	rtc.cancel()
+	if rtc.enable {
+		rtc.cancel()
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -186,7 +201,7 @@ type rtcTime struct {
 	day    int // 0..x (x = 27,28,29,30)
 	month  int // 0..11
 	year   int // 0..99
-	dow    int // 0..6, day of week
+	dow    int // 0..6 day of week
 }
 
 // convert a go time to an rtc time
@@ -198,7 +213,7 @@ func newRtcTime(t time.Time, baseYear, dowOffset int) rtcTime {
 		day:    t.Day() - 1,
 		month:  int(t.Month()) - 1,
 		year:   t.Year() - baseYear,
-		dow:    (int(t.Weekday()) + dowOffset) % 7,
+		dow:    (int(t.Weekday()) + dowOffset) % daysPerWeek,
 	}
 }
 
@@ -273,19 +288,6 @@ func (t *rtcTime) increment() {
 
 //-----------------------------------------------------------------------------
 // background once-a-second ticker
-
-// unhalt clears the halt flag and resyncs the background ticker
-// so the next tick lands exactly 1 second from now.
-func (rtc *RTC) unhalt() {
-	rtc.lock.Lock()
-	rtc.clockHalted = false
-	rtc.lock.Unlock()
-	// non-blocking send: if a resync is already pending, that's fine
-	select {
-	case rtc.resync <- struct{}{}:
-	default:
-	}
-}
 
 // update the rtc time every second
 func backgroundTick(ctx context.Context, rtc *RTC) {
@@ -390,23 +392,51 @@ func (rtc *RTC) readClock(adr int) byte {
 // write a clock register
 func (rtc *RTC) writeClock(adr int, data byte) {
 	//log.Printf("clock write [%d]=0x%02x (%s)", adr, data, rtc.mode())
+
+	// zero out any illegal bits
+	data &= clockMask[adr]
+
 	rtc.lock.Lock()
 	defer rtc.lock.Unlock()
 
+	wasHalted := rtc.clockHalted
+
 	switch adr {
 	case clockSecond:
+		rtc.offsetDirty = true
+		rtc.clockTime.second = bcdToInt(data &^ clockHalted)
+		rtc.clockHalted = (data & clockHalted) != 0
 	case clockMinute:
+		rtc.offsetDirty = true
+		rtc.clockTime.minute = bcdToInt(data)
 	case clockHour:
+		rtc.offsetDirty = true
 		rtc.clockTime.hour = decodeHour(data)
-		rtc.mode12 = (data & mode12Hour) != 1
+		rtc.mode12 = (data & mode12Hour) != 0
 	case clockDayOfMonth:
+		rtc.offsetDirty = true
+		rtc.clockTime.day = bcdToInt(data) - 1
 	case clockMonthOfYear:
+		rtc.offsetDirty = true
+		rtc.clockTime.month = bcdToInt(data) - 1
 	case clockDayOfWeek:
+		rtc.clockTime.dow = int((data & 7) - 1)
 	case clockYear:
+		rtc.offsetDirty = true
+		rtc.clockTime.year = bcdToInt(data)
 	case clockWriteProtect:
 		rtc.writeProtect = (data & writeProtectEnabled) != 0
 	case clockTrickleCharge:
 		rtc.trickleCharge = data
+	}
+
+	// are we un-halting the clock?
+	if wasHalted && !rtc.clockHalted {
+		// non-blocking send: if a resync is pending it's ok
+		select {
+		case rtc.resync <- struct{}{}:
+		default:
+		}
 	}
 }
 
@@ -438,7 +468,7 @@ func (rtc *RTC) write(adr int, data byte) {
 			return
 		}
 		if clockAddressValid(adr) {
-			rtc.writeClock(adr, data&clockMask[adr])
+			rtc.writeClock(adr, data)
 		} else {
 			log.Printf("rtc write: bad clock address %d", adr)
 		}
@@ -458,6 +488,13 @@ func (rtc *RTC) write(adr int, data byte) {
 }
 
 //-----------------------------------------------------------------------------
+
+func (rtc *RTC) mode() string {
+	if rtc.burst {
+		return "burst"
+	}
+	return "single"
+}
 
 // reset the rtc command/byte state variables
 func (rtc *RTC) reset() {

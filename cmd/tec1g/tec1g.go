@@ -13,13 +13,22 @@ import (
 	"log"
 
 	"github.com/deadsy/go_z80/cmd/tec1g/keyboard"
+	"github.com/deadsy/go_z80/device/ds1302"
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
-	"github.com/deadsy/go_z80/device/rtc"
 	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/memory"
 	"github.com/deadsy/go_z80/z80"
 )
+
+//-----------------------------------------------------------------------------
+
+func boolToByte(x bool, val byte) byte {
+	if x {
+		return val
+	}
+	return 0
+}
 
 //-----------------------------------------------------------------------------
 // System Memory
@@ -142,7 +151,7 @@ type sysIO struct {
 	led      *led.LED           // speaker led
 	lcd      *hd44780.LCD       // LCD
 	keyboard *keyboard.Keyboard // matrix keyboard
-	rtc      *rtc.RTC           // realtime clock
+	rtc      *ds1302.RTC        // realtime clock
 	segment  uint8              // latched segment enable
 	digit    uint8              // latched digit enable
 	speaker  bool               // latched speaker/led enable
@@ -162,7 +171,7 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 		// TODO
 		return simpKeyboard
 	case rtcPort:
-		return io.rtc.Read()
+		return boolToByte(io.rtc.Read(), 1<<0 /*D0*/)
 	case sdCardPort:
 		// TODO
 		return 0
@@ -208,7 +217,10 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		io.lcd.WriteData(val)
 		return
 	case rtcPort:
-		io.rtc.Write(val)
+		ce := val&(1<<4) != 0  // D4 active high
+		clk := val&(1<<6) != 0 // D6
+		in := val&(1<<7) != 0  // D7
+		io.rtc.Write(ce, clk, in)
 		return
 	case sdCardPort:
 		// TODO
@@ -221,7 +233,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	log.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
 
-func newIO(display *sixdigit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Keyboard, rtc *rtc.RTC) *sysIO {
+func newIO(display *sixdigit.Display, led *led.LED, lcd *hd44780.LCD, keyboard *keyboard.Keyboard, rtc *ds1302.RTC) *sysIO {
 	return &sysIO{
 		display:  display,
 		led:      led,

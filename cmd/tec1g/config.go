@@ -16,7 +16,7 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
-	"github.com/deadsy/go_z80/device/rtc"
+	"github.com/deadsy/go_z80/device/ds1302"
 )
 
 //-----------------------------------------------------------------------------
@@ -26,7 +26,7 @@ const configFile = "tec1g.cfg"
 //-----------------------------------------------------------------------------
 
 type Config struct {
-	RTC rtc.Config `toml:"rtc"`
+	RTC ds1302.Config `toml:"rtc"`
 }
 
 func (cfg *Config) String() string {
@@ -43,8 +43,10 @@ func (cfg *Config) String() string {
 // return a default config
 func defaultConfig() *Config {
 	// rtc
-	rtc := rtc.Config{
-		Enable: true,
+	rtc := ds1302.Config{
+		Enable:        true,
+		BaseYear:      2000,
+		WeekDayOffset: 6,
 	}
 	cfg := &Config{
 		RTC: rtc,
