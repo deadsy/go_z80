@@ -63,12 +63,12 @@ var clockMask = [9]byte{0xff, 0x7f, 0xbf, 0x3f, 0x1f, 0x07, 0xff, 0x80, 0xff}
 //-----------------------------------------------------------------------------
 // ds1302 ram registers
 
+const numRamRegisters = 31
+
 // return true if the ram address is valid
 func ramAddressValid(adr int) bool {
-	return adr >= 0 && adr <= 30
+	return adr >= 0 && adr < numRamRegisters
 }
-
-const numRamRegisters = 31
 
 //-----------------------------------------------------------------------------
 // ds1302 command byte
@@ -172,16 +172,25 @@ func New(cfg *Config) (*RTC, error) {
 
 // return a config based on the current state
 func (rtc *RTC) GetConfig() Config {
+
+	rtc.lock.Lock()
+	defer rtc.lock.Unlock()
+
 	if rtc.enable && rtc.offsetDirty {
 		rtc.timeOffset = rtc.clockTime.getTime(rtc.baseYear).Sub(time.Now().UTC())
 	}
+
+	// copy the ram
+	ram := make([]byte, len(rtc.ram))
+	copy(ram, rtc.ram[:])
+
 	return Config{
 		Enable:        rtc.enable,
 		BaseYear:      rtc.baseYear,
 		Mode12:        rtc.mode12,
 		WeekDayOffset: rtc.weekDayOffset,
 		TimeOffset:    rtc.timeOffset,
-		RAM:           rtc.ram[:],
+		RAM:           ram,
 	}
 }
 
@@ -228,7 +237,8 @@ func (t *rtcTime) getTime(baseYear int) time.Time {
 	return time.Date(year, month, day, hour, minute, second, 0, time.UTC)
 }
 
-// return the number of days (28,29,30,31) in a month (0..11)
+// Return the number of days (28,29,30,31) in a month (0..11)
+// Leap year checking is simple, supposedly matching the ds1302.
 func (t *rtcTime) daysPerMonth() int {
 	switch t.month {
 	case 0, 2, 4, 6, 7, 9, 11: // jan mar may jul aug oct dec
@@ -329,6 +339,15 @@ func backgroundTick(ctx context.Context, rtc *RTC) {
 
 //-----------------------------------------------------------------------------
 
+// check that n is in [min, max]
+func checkRange(n, min, max int, msg string) int {
+	if n < min || n > max {
+		log.Printf("ds1302: bad %s value: %d", msg, n)
+		return min
+	}
+	return n
+}
+
 // encode 0..23 to the clockHour byte
 func encodeHour(n int, mode12 bool) byte {
 	val := boolToByte(mode12, mode12Hour)
@@ -404,26 +423,33 @@ func (rtc *RTC) writeClock(adr int, data byte) {
 	switch adr {
 	case clockSecond:
 		rtc.offsetDirty = true
-		rtc.clockTime.second = bcdToInt(data &^ clockHalted)
+		n := bcdToInt(data &^ clockHalted)
+		rtc.clockTime.second = checkRange(n, 0, 59, "second")
 		rtc.clockHalted = (data & clockHalted) != 0
 	case clockMinute:
 		rtc.offsetDirty = true
-		rtc.clockTime.minute = bcdToInt(data)
+		n := bcdToInt(data)
+		rtc.clockTime.minute = checkRange(n, 0, 59, "minute")
 	case clockHour:
 		rtc.offsetDirty = true
-		rtc.clockTime.hour = decodeHour(data)
+		n := decodeHour(data)
+		rtc.clockTime.hour = checkRange(n, 0, 23, "hour")
 		rtc.mode12 = (data & mode12Hour) != 0
 	case clockDayOfMonth:
 		rtc.offsetDirty = true
-		rtc.clockTime.day = bcdToInt(data) - 1
+		n := bcdToInt(data) - 1
+		rtc.clockTime.day = checkRange(n, 0, 30, "day")
 	case clockMonthOfYear:
 		rtc.offsetDirty = true
-		rtc.clockTime.month = bcdToInt(data) - 1
+		n := bcdToInt(data) - 1
+		rtc.clockTime.month = checkRange(n, 0, 11, "month")
 	case clockDayOfWeek:
-		rtc.clockTime.dow = int((data & 7) - 1)
+		n := int((data & 7) - 1)
+		rtc.clockTime.dow = checkRange(n, 0, 6, "day of week")
 	case clockYear:
 		rtc.offsetDirty = true
-		rtc.clockTime.year = bcdToInt(data)
+		n := bcdToInt(data)
+		rtc.clockTime.year = checkRange(n, 0, 99, "year")
 	case clockWriteProtect:
 		rtc.writeProtect = (data & writeProtectEnabled) != 0
 	case clockTrickleCharge:
