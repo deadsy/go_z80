@@ -48,6 +48,7 @@ func newMemory() (*sysMemory, error) {
 	// ROM
 	rom := memory.New(14).ROM() // 16 KiB
 	data, err := assets.ReadFile("assets/mon3_2025BC_16.bin")
+	//data, err := assets.ReadFile("assets/DIAG-1G_CH24-11.bin")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read embedded ROM: %w", err)
 	}

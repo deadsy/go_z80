@@ -16,35 +16,30 @@ import (
 )
 
 //-----------------------------------------------------------------------------
-// LED color definitions
 
-var (
-	ledColorOff = color.RGBA{0, 0, 0, 0}     // transparent
-	ledColorOn  = color.RGBA{0, 255, 0, 255} // bright green for lit led
-)
-
-func ledColor(on bool) color.RGBA {
-	if on {
-		return ledColorOn
-	}
-	return ledColorOff
-}
-
-//-----------------------------------------------------------------------------
-
-const ledFadeCount = 2
+const fadeCount = 2
 
 type ledState int
 
 const (
-	ledOff ledState = iota
-	ledOn
-	ledFading
+	stateOff    ledState = iota // led is OFF
+	stateOn                     // led is ON
+	stateFading                 // led to turn off N updates
+)
+
+type Type int
+
+const (
+	Round Type = iota
+	Rectangle
 )
 
 type Config struct {
-	XBase, YBase float32 // xy position of display on screen
-	Radius       float32 // radius of LED
+	Type          Type       // led type
+	X, Y          float32    // xy position of display on screen
+	Radius        float32    // radius (round only)
+	Width, Height float32    // width/height size (rectangular only)
+	On, Off       color.RGBA // on/off colors
 }
 
 type LED struct {
@@ -53,38 +48,51 @@ type LED struct {
 	fade   int
 }
 
-func New(k *Config) (*LED, error) {
+func New(cfg *Config) (*LED, error) {
 	return &LED{
-		config: k,
+		config: cfg,
 	}, nil
 }
 
+//-----------------------------------------------------------------------------
+
 // Control the LED (called from the IO layer)
-func (l *LED) Control(state bool) {
+func (led *LED) Control(state bool) {
 	if state {
-		l.state = ledOn
+		led.state = stateOn
 	} else {
-		if l.state == ledOn {
-			l.state = ledFading
-			l.fade = ledFadeCount
+		if led.state == stateOn {
+			led.state = stateFading
+			led.fade = fadeCount
 		}
 	}
 }
 
 // Draw the LED (called from ebiten draw function)
-func (l *LED) Draw(screen *ebiten.Image) {
-	on := l.state != ledOff
-	c := ledColor(on)
-	vector.FillCircle(screen, l.config.XBase, l.config.YBase, l.config.Radius, c, true)
+func (led *LED) Draw(screen *ebiten.Image) {
+	cfg := led.config
+	// work out the color
+	var color color.RGBA
+	if led.state != stateOff {
+		color = cfg.On
+	} else {
+		color = cfg.Off
+	}
+	switch cfg.Type {
+	case Round:
+		vector.FillCircle(screen, cfg.X, cfg.Y, cfg.Radius, color, true)
+	case Rectangle:
+		vector.FillRect(screen, cfg.X, cfg.Y, cfg.Width, cfg.Height, color, true)
+	}
 }
 
 // Update the LED logic (called from ebiten update)
-func (l *LED) Update() {
+func (led *LED) Update() {
 	// Fade the led to the off state.
-	if (l.state == ledFading) && (l.fade > 0) {
-		l.fade -= 1
-		if l.fade == 0 {
-			l.state = ledOff
+	if (led.state == stateFading) && (led.fade > 0) {
+		led.fade -= 1
+		if led.fade == 0 {
+			led.state = stateOff
 		}
 	}
 }

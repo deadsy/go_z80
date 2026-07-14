@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	"image/color"
 	"image/png"
 	"log"
 
@@ -31,7 +32,7 @@ import (
 
 //-----------------------------------------------------------------------------
 
-//go:embed assets/mon3_2025BC_16.bin assets/tec1g.png
+//go:embed assets/mon3_2025BC_16.bin assets/tec1g.png assets/DIAG-1G_CH24-11.bin
 var assets embed.FS
 
 //-----------------------------------------------------------------------------
@@ -115,9 +116,12 @@ func newSystem(cfg *Config) (*system, error) {
 
 	// setup the LED
 	cfgLED := led.Config{
-		XBase:  926,
-		YBase:  514,
-		Radius: 15,
+		Type:   led.Round,
+		X:      931,
+		Y:      514,
+		Radius: 12,
+		On:     color.RGBA{255, 255, 255, 128},
+		Off:    color.RGBA{0, 0, 0, 0},
 	}
 	led, err := led.New(&cfgLED)
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	"image/color"
 	"image/png"
 	"log"
 
@@ -101,9 +102,12 @@ func newSystem() (*system, error) {
 
 	// setup the LED
 	cfgLED := led.Config{
-		XBase:  589.0,
-		YBase:  600.5,
-		Radius: 13.0,
+		Type:   led.Round,
+		X:      589,
+		Y:      600,
+		Radius: 13,
+		On:     color.RGBA{0, 255, 0, 128},
+		Off:    color.RGBA{0, 0, 0, 0},
 	}
 	led, err := led.New(&cfgLED)
 	if err != nil {
