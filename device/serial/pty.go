@@ -9,7 +9,6 @@ Serial Port Pseudo-TTY
 package serial
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -68,12 +67,12 @@ func (p *PTY) Write(c byte) {
 
 // Read returns the next character typed by the user.
 // Non-blocking so it fits an emulator tick loop.
-func (p *PTY) Read() (byte, error) {
+func (p *PTY) Read() (byte, bool) {
 	select {
 	case b := <-p.rxCh:
-		return b, nil
+		return b, true
 	default:
-		return 0, errors.New("empty")
+		return 0, false
 	}
 }
 

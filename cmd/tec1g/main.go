@@ -283,13 +283,22 @@ func (s *system) Update() error {
 			s.audioSampleCycles += cpuCyclesPerAudioSample
 		}
 
-		// sample the serial output
+		// sample the serial tx/rx
 		s.serialSampleCycles -= float32(cycles)
 		for s.serialSampleCycles < 0 {
-			rx, err := s.uart.WriteSample(s.io.serialTx)
-			if err == nil {
+			// sample the tx line *from* the tec-1g
+			rx, ok, err := s.uart.WriteSample(s.io.serialTx)
+			if ok {
 				s.pty.Write(byte(rx))
+			} else if err != nil {
+				log.Printf("uart.WriteSample: %s", err)
 			}
+			// drive the rx line *to* the tec-1g
+			sample, err := s.uart.ReadSample(s.pty)
+			if err != nil {
+				log.Printf("uart.ReadSample: %s", err)
+			}
+			s.io.serialRx = sample
 			s.serialSampleCycles += cpuCyclesPerSerialSample
 		}
 	}

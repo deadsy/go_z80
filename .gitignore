@@ -1,4 +1,6 @@
 *.cfg
+*.hex
+*.lst
 /z80/__pycache__
 /dl
 /ext/z80step

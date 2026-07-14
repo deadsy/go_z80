@@ -74,16 +74,16 @@ type UART struct {
 	parityError bool       // parity error on decode
 }
 
-func NewUART(k *Config) (*UART, error) {
+func NewUART(cfg *Config) (*UART, error) {
 	return &UART{
-		config: k,
+		config: cfg,
 	}, nil
 }
 
 //-----------------------------------------------------------------------------
 
 // WriteSample takes a sample of a serial line and turns it into a serial frame value.
-func (u *UART) WriteSample(level bool) (int, error) {
+func (u *UART) WriteSample(level bool) (int, bool, error) {
 	var rxFrame bool
 	s := &u.decodeState
 
@@ -164,40 +164,43 @@ func (u *UART) WriteSample(level bool) (int, error) {
 	}
 
 	if !rxFrame {
-		return 0, errors.New("no data")
+		// typical case, use the boolean to indicate no data
+		return 0, false, nil
 	}
 	if u.parityError {
-		return 0, errors.New("parity error")
+		return 0, false, errors.New("parity error")
 	}
 	if u.frameError {
-		return 0, errors.New("framing error")
+		return 0, false, errors.New("framing error")
 	}
 
-	return s.shift, nil
+	return s.shift, true, nil
 }
 
 //-----------------------------------------------------------------------------
 
 // ReadSample reads data from a PTY and returns a set of sample values.
 func (u *UART) ReadSample(pty *PTY) (bool, error) {
-	level := false
+	level := true
 	s := &u.encodeState
 
 	switch s.state {
+	case stateWaitForIdle:
+		// nop here - skip to idle
+		s.state = stateIdle
 	case stateIdle:
-		word, err := pty.Read()
-		if err != nil {
-			return true, err
+		// waiting for some data to send
+		if word, ok := pty.Read(); ok {
+			s.shift = int(word)
+			s.parityAcc = u.config.Parity == ParityOdd
+			s.counter = 0
+			s.bitIndex = 0
+			s.stopCount = 0
+			s.state = stateStart
 		}
-		s.shift = int(word)
-		s.parityAcc = u.config.Parity == ParityOdd
-		s.counter = 0
-		s.bitIndex = 0
-		s.stopCount = 0
-		s.state = stateStart
-		level = true
 	case stateStart:
-		level = false // start bit is always space (0)
+		// send a start bit (space)
+		level = false
 		s.counter += 1
 		if s.counter >= u.config.SamplesPerBit {
 			s.counter = 0
@@ -216,7 +219,6 @@ func (u *UART) ReadSample(pty *PTY) (bool, error) {
 			s.parityAcc = s.parityAcc != level
 			s.bitIndex += 1
 			if s.bitIndex >= u.config.DataBits {
-
 				if u.config.Parity == ParityNone {
 					s.state = stateStop
 				} else {
@@ -232,10 +234,11 @@ func (u *UART) ReadSample(pty *PTY) (bool, error) {
 			s.state = stateStop
 		}
 	case stateStop:
-		level = true // stop bit(s) are mark (1)
+		// stop bit(s) are mark (1)
 		s.counter += 1
 		if s.counter >= u.config.SamplesPerBit {
 			s.counter = 0
+			s.stopCount += 1
 			if s.stopCount >= u.config.StopBits {
 				s.state = stateIdle
 			}

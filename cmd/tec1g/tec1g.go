@@ -139,12 +139,12 @@ const speakerMask = uint8(1 << 7)  // speaker/led is bit 7
 
 // simpPort
 const simpKeyboard = byte(1 << 0) // 0 == encoder, 1 == matrix
-//const simpProtect = byte(1 << 1) // 1 == protect memory
-//const simpExpansion = byte(1 << 2)
-//const simpExpand = byte(1 << 3)
-//const simpCart = byte(1 << 4)
-//const simpGimp = byte(1 << 5)
-//const simpKey = byte(1 << 6)
+// const simpProtect = byte(1 << 1) // 1 == protect memory
+// const simpExpansion = byte(1 << 2)
+// const simpExpand = byte(1 << 3)
+// const simpCart = byte(1 << 4)
+// const simpGimp = byte(1 << 5)
+// const simpKey = byte(1 << 6)
 
 type sysIO struct {
 	display  *sixdigit.Display  // 6 digit display
@@ -156,6 +156,7 @@ type sysIO struct {
 	digit    uint8              // latched digit enable
 	speaker  bool               // latched speaker/led enable
 	serialTx bool               // serial tx line
+	serialRx bool               // serial rx line
 }
 
 // Read8 reads a byte from an IO port.
@@ -169,7 +170,7 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 		return io.lcd.ReadCommand()
 	case simpPort:
 		// TODO
-		return simpKeyboard
+		return simpKeyboard | boolToByte(io.serialRx, 1<<7 /*D7*/)
 	case rtcPort:
 		return boolToByte(io.rtc.Read(), 1<<0 /*D0*/)
 	case sdCardPort:
