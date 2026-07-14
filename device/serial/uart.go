@@ -40,7 +40,8 @@ const (
 type state int
 
 const (
-	stateIdle state = iota
+	stateWaitForIdle state = iota
+	stateIdle
 	stateStart
 	stateData
 	stateParity
@@ -90,11 +91,17 @@ func (u *UART) WriteSample(level bool) (int, error) {
 		level = !level
 	}
 
-	//fmt.Printf("state %d sample %t\n", s.state, level)
+	//log.Printf("state %d sample %t\n", s.state, level)
 
 	switch s.state {
+	case stateWaitForIdle:
+		// waiting for the line to be idle (mark)
+		if level {
+			// we have a mark - we are now idle
+			s.state = stateIdle
+		}
 	case stateIdle:
-		// Wait for the falling edge into the start bit (mark -> space).
+		// line is idle, waiting for a start bit (space)
 		if !level {
 			s.state = stateStart
 			s.counter = 0
@@ -114,7 +121,7 @@ func (u *UART) WriteSample(level bool) (int, error) {
 				u.frameError = false
 			} else {
 				// false start, glitch
-				s.state = stateIdle
+				s.state = stateWaitForIdle
 			}
 		}
 	case stateData:
@@ -152,7 +159,7 @@ func (u *UART) WriteSample(level bool) (int, error) {
 			rxFrame = true
 			// Ignore a 2nd stop bit's exact timing
 			// return to idle and resync on the next falling edge.
-			s.state = stateIdle
+			s.state = stateWaitForIdle
 		}
 	}
 
@@ -165,6 +172,7 @@ func (u *UART) WriteSample(level bool) (int, error) {
 	if u.frameError {
 		return 0, errors.New("framing error")
 	}
+
 	return s.shift, nil
 }
 

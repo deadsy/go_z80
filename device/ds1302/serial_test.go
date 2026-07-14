@@ -375,7 +375,7 @@ func Test_SerialCEResetMidTransaction(t *testing.T) {
 
 	// Clock in 2 bits of a command byte, then deassert CE partway through.
 	rtc.Write(true, false, true)
-	rtc.Write(true, true, true)  // bit 0 latched
+	rtc.Write(true, true, true) // bit 0 latched
 	rtc.Write(true, false, false)
 	rtc.Write(true, true, false) // bit 1 latched
 
