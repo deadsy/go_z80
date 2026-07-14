@@ -323,7 +323,7 @@ func Test_SerialBurstRAM(t *testing.T) {
 	for i := 0; i < numRamRegisters; i++ {
 		got := clockByteOut(rtc)
 		if got != pattern[i] {
-			t.Fatalf("case %d: burst read RAM[%d]: expected 0x%02x, got 0x%02x", i, i, pattern[i], got)
+			t.Fatalf("case %d: burst read: expected 0x%02x, got 0x%02x", i, pattern[i], got)
 		}
 	}
 	ceDeassert(rtc)
