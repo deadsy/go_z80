@@ -27,6 +27,7 @@ const configFile = "tec1g.cfg"
 
 type Config struct {
 	RTC ds1302.Config `toml:"rtc"`
+	DIP dipSwitch     `toml:"dip_switch"`
 }
 
 func (cfg *Config) String() string {
@@ -48,8 +49,12 @@ func defaultConfig() *Config {
 		BaseYear:      2000,
 		WeekDayOffset: 6,
 	}
+	dip := dipSwitch{
+		K: true, // matrix keyboard
+	}
 	cfg := &Config{
 		RTC: rtc,
+		DIP: dip,
 	}
 	return cfg
 }

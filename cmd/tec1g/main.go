@@ -17,6 +17,7 @@ import (
 	"log"
 
 	"github.com/deadsy/go_z80/cmd/tec1g/keyboard"
+	"github.com/deadsy/go_z80/cmd/tec1g/keypad"
 	"github.com/deadsy/go_z80/device/ds1302"
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
@@ -160,7 +161,13 @@ func newSystem(cfg *Config) (*system, error) {
 	}
 
 	// setup the keyboard
-	keyboard, err := keyboard.New()
+	keyboard, err := keyboard.New(cfg.DIP.K)
+	if err != nil {
+		return nil, err
+	}
+
+	// setup the keypad
+	keypad, err := keypad.New(!cfg.DIP.K)
 	if err != nil {
 		return nil, err
 	}
@@ -210,9 +217,11 @@ func newSystem(cfg *Config) (*system, error) {
 		ledHalt:    ledHalt,
 		lcd:        lcd,
 		keyboard:   keyboard,
+		keypad:     keypad,
 		rtc:        rtc,
 	}
 	io := newIO(&devices)
+	io.setDIP(cfg.DIP)
 
 	// setup the memory
 	mem, err := newMemory()
@@ -293,7 +302,7 @@ func (s *system) Update() error {
 		for s.audioSampleCycles < 0 {
 			err := s.speaker.WriteSample(s.io.speaker)
 			if err != nil {
-				log.Printf("speaker.WriteSample: %s", err)
+				log.Printf("speaker.WriteSample %s", err)
 				s.speaker.Empty()
 			}
 			s.audioSampleCycles += cpuCyclesPerAudioSample
@@ -307,12 +316,12 @@ func (s *system) Update() error {
 			if ok {
 				s.pty.Write(byte(rx))
 			} else if err != nil {
-				log.Printf("uart.WriteSample: %s", err)
+				log.Printf("uart.WriteSample %s", err)
 			}
 			// drive the rx line *to* the tec-1g
 			sample, err := s.uart.ReadSample(s.pty)
 			if err != nil {
-				log.Printf("uart.ReadSample: %s", err)
+				log.Printf("uart.ReadSample %s", err)
 			}
 			s.io.serialRx = sample
 			s.serialSampleCycles += cpuCyclesPerSerialSample

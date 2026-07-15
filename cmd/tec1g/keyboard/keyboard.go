@@ -77,19 +77,24 @@ func rowToInt(row byte) (int, error) {
 //-----------------------------------------------------------------------------
 
 type Keyboard struct {
+	enable         bool // is the keyboard enabled?
 	keys           []ebiten.Key
 	row            [numRows]byte // row scan values
 	reset1, reset2 bool
 }
 
-func New() (*Keyboard, error) {
+func New(enable bool) (*Keyboard, error) {
 	return &Keyboard{
-		keys: make([]ebiten.Key, 16),
+		enable: enable,
+		keys:   make([]ebiten.Key, 16),
 	}, nil
 }
 
 // return the scan code for a row
 func (k *Keyboard) Scan(row byte) (byte, error) {
+	if !k.enable {
+		return 0xff, nil
+	}
 	n, err := rowToInt(row)
 	if err != nil {
 		return 0xff, err
@@ -100,6 +105,9 @@ func (k *Keyboard) Scan(row byte) (byte, error) {
 
 // return true if the two "reset" keys are pressed.
 func (k *Keyboard) Reset() bool {
+	if !k.enable {
+		return false
+	}
 	return k.reset1 && k.reset2
 }
 
@@ -119,6 +127,9 @@ func (k *Keyboard) set(row, col int) {
 
 // Update the keyboard logic (called from ebiten update)
 func (k *Keyboard) Update() {
+	if !k.enable {
+		return
+	}
 	k.keys = inpututil.AppendPressedKeys(k.keys[:0])
 	k.clear()
 	for _, key := range k.keys {
