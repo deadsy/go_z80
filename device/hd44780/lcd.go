@@ -202,8 +202,10 @@ func New(cfg *Config) (*LCD, error) {
 	return lcd, nil
 }
 
+//-----------------------------------------------------------------------------
+
 func (lcd *LCD) ddramWrite(val byte) {
-	//log.Printf("ddram write [0x%02x] = 0x%02x\n", lcd.ddAddr, val)
+	//log.Printf("ddram write [0x%02x] = 0x%02x", lcd.ddAddr, val)
 
 	lcd.ddram[lcd.ddAddr] = val
 
@@ -235,8 +237,15 @@ func (lcd *LCD) ddramWrite(val byte) {
 
 }
 
+func (lcd *LCD) ddramRead() byte {
+	//log.Printf("ddram read [0x%02x]", lcd.ddAddr)
+	return lcd.ddram[lcd.ddAddr]
+}
+
+//-----------------------------------------------------------------------------
+
 func (lcd *LCD) cgramWrite(val byte) {
-	log.Printf("cgram write\n")
+	log.Printf("cgram write")
 	/*
 	   n = self->mcu.CGRAM_counter / 8;
 	   m = self->mcu.CGRAM_counter % 8;
@@ -245,6 +254,11 @@ func (lcd *LCD) cgramWrite(val byte) {
 
 	   	self->mcu.CGRAM_counter++;
 	*/
+}
+
+func (lcd *LCD) cgramRead() byte {
+	log.Printf("cgram read")
+	return 0
 }
 
 //-----------------------------------------------------------------------------
@@ -277,7 +291,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		lcd.fFlag = cmd&(1<<2) != 0
 
 	} else if cmd&cmdShift != 0 {
-		log.Printf("shift\n")
+		log.Printf("shift")
 
 	} else if cmd&cmdDisplay != 0 {
 		lcd.cursorBlink = (cmd & (1 << 0)) != 0
@@ -288,7 +302,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 	} else if cmd&cmdEntryMode != 0 {
 		lcd.incMode = cmd&(1<<1) != 0
 		if cmd&(1<<0) != 0 {
-			log.Printf("TODO: entry mode shift\n")
+			log.Printf("TODO: entry mode shift")
 		}
 	} else if cmd&cmdHome != 0 {
 		lcd.ddAddr = 0
@@ -306,8 +320,10 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 
 // read data (RS = 1, RW = 1)
 func (lcd *LCD) ReadData() byte {
-	log.Printf("lcd data read\n")
-	return 0
+	if lcd.ramMode == ddramMode {
+		return lcd.ddramRead()
+	}
+	return lcd.cgramRead()
 }
 
 // write data (RS = 1, RW = 0)

@@ -139,6 +139,8 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 		val |= boolToByte(io.serialRx, serialRxMask)
 		val |= boolToByte(!dev.keypad.DataAvailable(), simpKDA)
 		return val
+	case lcdDataPort:
+		return dev.lcd.ReadData()
 	case rtcPort:
 		return boolToByte(dev.rtc.Read(), rtcOutMask)
 	case sdCardPort:
