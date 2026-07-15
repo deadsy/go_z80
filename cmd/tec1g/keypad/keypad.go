@@ -20,6 +20,14 @@ go = enter
 reset = "r"
 function/shift = shift key
 
+The encoder providers a data available line that asserts when a
+key is pressed. It de-asserts when the key is released.
+
+The shift/function key is not provided by the encoder and so does not
+assert data available.
+
+The real 74C923 has a 2 key rollover, that is not emulated here.
+
 */
 //-----------------------------------------------------------------------------
 
@@ -33,30 +41,30 @@ import (
 //-----------------------------------------------------------------------------
 
 const (
-	key0       byte = 0x00
-	key1       byte = 0x01
-	key2       byte = 0x02
-	key3       byte = 0x03
-	key4       byte = 0x04
-	key5       byte = 0x05
-	key6       byte = 0x06
-	key7       byte = 0x07
-	key8       byte = 0x08
-	key9       byte = 0x09
-	keyA       byte = 0x0a
-	keyB       byte = 0x0b
-	keyC       byte = 0x0c
-	keyD       byte = 0x0d
-	keyE       byte = 0x0e
-	keyF       byte = 0x0f
-	keyPlus    byte = 0x10
-	keyMinus   byte = 0x11
-	keyGo      byte = 0x12
-	keyAddress byte = 0x13
+	key0       byte = 0xe0 | 0x00
+	key1       byte = 0xe0 | 0x01
+	key2       byte = 0xe0 | 0x02
+	key3       byte = 0xe0 | 0x03
+	key4       byte = 0xe0 | 0x04
+	key5       byte = 0xe0 | 0x05
+	key6       byte = 0xe0 | 0x06
+	key7       byte = 0xe0 | 0x07
+	key8       byte = 0xe0 | 0x08
+	key9       byte = 0xe0 | 0x09
+	keyA       byte = 0xe0 | 0x0a
+	keyB       byte = 0xe0 | 0x0b
+	keyC       byte = 0xe0 | 0x0c
+	keyD       byte = 0xe0 | 0x0d
+	keyE       byte = 0xe0 | 0x0e
+	keyF       byte = 0xe0 | 0x0f
+	keyPlus    byte = 0xe0 | 0x10
+	keyMinus   byte = 0xe0 | 0x11
+	keyGo      byte = 0xe0 | 0x12
+	keyAddress byte = 0xe0 | 0x13
 	keyNone    byte = 0xff
 )
 
-const shiftMask = byte(1 << 5) // D5
+const shiftMask = byte(1 << 5) // D5, active low
 
 type Keypad struct {
 	enable bool // is the keypad enabled
@@ -67,8 +75,9 @@ type Keypad struct {
 
 func New(enable bool) (*Keypad, error) {
 	return &Keypad{
-		keys: make([]ebiten.Key, 16),
-		code: keyNone,
+		enable: enable,
+		keys:   make([]ebiten.Key, 16),
+		code:   keyNone,
 	}, nil
 }
 
@@ -90,6 +99,18 @@ func (k *Keypad) Scan() byte {
 		return keyNone
 	}
 	return k.code
+}
+
+// Does the keypad have data available?
+func (k *Keypad) DataAvailable() bool {
+	if !k.enable {
+		return false
+	}
+	// is it *only* the shift key?
+	if k.code == keyNone&^shiftMask {
+		return false
+	}
+	return k.code != keyNone
 }
 
 // get the current keypad code
@@ -158,25 +179,18 @@ func (k *Keypad) getCode() (reset bool, code byte) {
 			//log.Printf("unmapped key %s", key)
 		}
 	}
-	return reset, code | shift
+
+	return reset, code &^ shift
 }
 
-// Update the keyboard logic (called from ebiten update).
-// Return true if a keypress is recognized.
-func (k *Keypad) Update() bool {
+// Update the keypad logic (called from ebiten update).
+func (k *Keypad) Update() {
 	if !k.enable {
-		return false
+		return
 	}
 	reset, code := k.getCode()
 	k.reset = reset
-	// is the current key still being pressed?
-	if k.code == code {
-		// no new keypress
-		return false
-	}
-	// set the current key
 	k.code = code
-	return true
 }
 
 //-----------------------------------------------------------------------------

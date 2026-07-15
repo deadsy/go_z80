@@ -62,11 +62,11 @@ const speakerMask = uint8(1 << 7)  // D7, speaker/led
 // simpPort
 const simpConfigK = byte(1 << 0)  // D0, 0 == encoder, 1 == matrix
 const simpConfigP = byte(1 << 1)  // D1, 1 == protect memory
-const simpConfigE = byte(1 << 2)  // D2
+const simpConfigE = byte(1 << 2)  // D2, expansion low/high
 const simpExpand = byte(1 << 3)   // D3
 const simpCart = byte(1 << 4)     // D4
 const simpGimp = byte(1 << 5)     // D5
-const simpKDA = byte(1 << 6)      // D6
+const simpKDA = byte(1 << 6)      // D6, active low
 const serialRxMask = byte(1 << 7) // D7
 
 // rtcPort
@@ -131,11 +131,14 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	adr &= 0xff
 	switch adr {
 	case keypadPort:
-		return 0
+		return dev.keypad.Scan()
 	case lcdCmdPort:
 		return dev.lcd.ReadCommand()
 	case simpPort:
-		return io.kpe | boolToByte(io.serialRx, serialRxMask)
+		val := io.kpe
+		val |= boolToByte(io.serialRx, serialRxMask)
+		val |= boolToByte(!dev.keypad.DataAvailable(), simpKDA)
+		return val
 	case rtcPort:
 		return boolToByte(dev.rtc.Read(), rtcOutMask)
 	case sdCardPort:

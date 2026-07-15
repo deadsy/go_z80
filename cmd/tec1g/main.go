@@ -334,7 +334,7 @@ func (s *system) Update() error {
 	// update the IO devices
 	s.io.Update()
 
-	if s.io.dev.keyboard.Reset() {
+	if s.io.dev.keyboard.Reset() || s.io.dev.keypad.Reset() {
 		s.cpu.Reset()
 	}
 
