@@ -18,6 +18,7 @@ import (
 
 	"github.com/deadsy/go_z80/cmd/tec1g/keyboard"
 	"github.com/deadsy/go_z80/cmd/tec1g/keypad"
+	"github.com/deadsy/go_z80/device/barled"
 	"github.com/deadsy/go_z80/device/ds1302"
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
@@ -210,11 +211,30 @@ func newSystem(cfg *Config) (*system, error) {
 		return nil, err
 	}
 
+	// setup the Bar LED
+	cfgBarLed := barled.Config{
+		N:      10,
+		Type:   led.Rectangle,
+		X:      759.5,
+		Y:      794,
+		XStep:  14.5,
+		YStep:  0,
+		Width:  7.5,
+		Height: 31,
+		On:     color.RGBA{0, 0, 255, 128},
+		Off:    color.RGBA{0, 0, 0, 0},
+	}
+	ledBar, err := barled.New(&cfgBarLed)
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the IO
 	devices := ioDevices{
 		display:    display,
 		ledSpeaker: ledSpeaker,
 		ledHalt:    ledHalt,
+		ledBar:     ledBar,
 		lcd:        lcd,
 		keyboard:   keyboard,
 		keypad:     keypad,
@@ -328,8 +348,9 @@ func (s *system) Update() error {
 		}
 	}
 
-	// halt LED
+	// halt LEDs
 	s.io.dev.ledHalt.Control(s.cpu.IsHalted())
+	s.io.dev.ledBar.Control(9, s.cpu.IsHalted())
 
 	// update the IO devices
 	s.io.Update()

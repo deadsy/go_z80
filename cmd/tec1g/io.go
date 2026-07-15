@@ -13,6 +13,7 @@ import (
 
 	"github.com/deadsy/go_z80/cmd/tec1g/keyboard"
 	"github.com/deadsy/go_z80/cmd/tec1g/keypad"
+	"github.com/deadsy/go_z80/device/barled"
 	"github.com/deadsy/go_z80/device/ds1302"
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
@@ -55,7 +56,7 @@ const keyboardPort = 0xfe // Matrix Keyboard Input
 const systemPort = 0xff   // System Latch
 
 // digitPort
-const digitMask = uint8(0x3f)      // D0..D5 digits
+const digitMask = uint8(0x3f)      // D0..D5, digits
 const serialTxMask = uint8(1 << 6) // D6, serialTx
 const speakerMask = uint8(1 << 7)  // D7, speaker/led
 
@@ -71,9 +72,19 @@ const serialRxMask = byte(1 << 7) // D7
 
 // rtcPort
 const rtcOutMask = byte(1 << 0)    // D0
-const rtcEnableMask = byte(1 << 4) // D4 active high
+const rtcEnableMask = byte(1 << 4) // D4, active high
 const rtcClockMask = byte(1 << 6)  // D6
 const rtcInMask = byte(1 << 7)     // D7
+
+// systemPort
+const systemShadow = byte(1 << 0)  // D0
+const systemProtect = byte(1 << 1) // D1
+const systemExpand = byte(1 << 2)  // D2
+const systemFFD3 = byte(1 << 3)    // D3
+const systemFFD4 = byte(1 << 4)    // D4
+const systemFFD5 = byte(1 << 5)    // D5
+const systemFFD6 = byte(1 << 6)    // D6
+const systemCaps = byte(1 << 7)    // D7
 
 //-----------------------------------------------------------------------------
 
@@ -81,6 +92,7 @@ type ioDevices struct {
 	display    *sixdigit.Display  // 6 digit display
 	ledSpeaker *led.LED           // speaker led
 	ledHalt    *led.LED           // halt led
+	ledBar     *barled.BarLED     // system status bar led
 	lcd        *hd44780.LCD       // LCD
 	keyboard   *keyboard.Keyboard // matrix keyboard
 	keypad     *keypad.Keypad     // 74c923 keypad
@@ -95,6 +107,7 @@ type sysIO struct {
 	serialTx bool  // serial tx line
 	serialRx bool  // serial rx line
 	kpe      byte  // dip switch KPE settings
+	syslatch byte  // system port latch
 }
 
 func newIO(dev *ioDevices) *sysIO {
@@ -168,6 +181,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		io.serialTx = (val & serialTxMask) != 0
 		dev.display.Enable(io.digit, io.segment)
 		dev.ledSpeaker.Control(io.speaker)
+		dev.ledBar.Control(8, io.speaker)
 		return
 	case segmentPort:
 		io.segment = val
@@ -198,7 +212,15 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		// TODO
 		return
 	case systemPort:
-		// TODO
+		dev.ledBar.Control(0, val&systemCaps != 0)
+		dev.ledBar.Control(1, val&systemFFD6 != 0)
+		dev.ledBar.Control(2, val&systemFFD5 != 0)
+		dev.ledBar.Control(3, val&systemFFD4 != 0)
+		dev.ledBar.Control(4, val&systemFFD3 != 0)
+		dev.ledBar.Control(5, val&systemExpand != 0)
+		dev.ledBar.Control(6, val&systemProtect != 0)
+		dev.ledBar.Control(7, val&systemShadow != 0)
+		io.syslatch = val
 		return
 
 	}
@@ -212,6 +234,7 @@ func (io *sysIO) Update() {
 	io.dev.display.Update()
 	io.dev.ledSpeaker.Update()
 	io.dev.ledHalt.Update()
+	io.dev.ledBar.Update()
 	io.dev.lcd.Update()
 	io.dev.keyboard.Update()
 	io.dev.keypad.Update()
@@ -221,6 +244,7 @@ func (io *sysIO) Draw(screen *ebiten.Image) {
 	io.dev.display.Draw(screen)
 	io.dev.ledSpeaker.Draw(screen)
 	io.dev.ledHalt.Draw(screen)
+	io.dev.ledBar.Draw(screen)
 	io.dev.lcd.Draw(screen)
 }
 
