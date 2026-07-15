@@ -87,7 +87,6 @@ type system struct {
 	pty                *serial.PTY      // pseudo tty
 	io                 *sysIO           // system IO
 	mem                *sysMemory       // system memory
-	bus                *Bus             // system bus
 	cpu                *z80.CPU         // z80 cpu
 	background         *ebiten.Image    // background graphic
 	width, height      int              // window dimensions
@@ -98,6 +97,15 @@ type system struct {
 }
 
 func newSystem(cfg *Config) (*system, error) {
+
+	// setup the memory
+	mem, err := newMemory()
+	if err != nil {
+		return nil, err
+	}
+
+	// setup the bus
+	bus := newBus()
 
 	// setup the display
 	const digitSize = float32(70.0)
@@ -239,18 +247,10 @@ func newSystem(cfg *Config) (*system, error) {
 		keyboard:   keyboard,
 		keypad:     keypad,
 		rtc:        rtc,
+		mem:        mem,
 	}
 	io := newIO(&devices)
 	io.setDIP(cfg.DIP)
-
-	// setup the memory
-	mem, err := newMemory()
-	if err != nil {
-		return nil, err
-	}
-
-	// setup the bus
-	bus := newBus()
 
 	// setup the cpu
 	cpu := z80.New(io, mem, bus)
@@ -263,7 +263,6 @@ func newSystem(cfg *Config) (*system, error) {
 		pty:     pty,
 		io:      io,
 		mem:     mem,
-		bus:     bus,
 		cpu:     cpu,
 	}
 
@@ -356,6 +355,7 @@ func (s *system) Update() error {
 	s.io.Update()
 
 	if s.io.dev.keyboard.Reset() || s.io.dev.keypad.Reset() {
+		s.mem.Reset()
 		s.cpu.Reset()
 	}
 

@@ -97,6 +97,7 @@ type ioDevices struct {
 	keyboard   *keyboard.Keyboard // matrix keyboard
 	keypad     *keypad.Keypad     // 74c923 keypad
 	rtc        *ds1302.RTC        // realtime clock
+	mem        *sysMemory         // system memory
 }
 
 type sysIO struct {
@@ -107,7 +108,6 @@ type sysIO struct {
 	serialTx bool  // serial tx line
 	serialRx bool  // serial rx line
 	kpe      byte  // dip switch KPE settings
-	syslatch byte  // system port latch
 }
 
 func newIO(dev *ioDevices) *sysIO {
@@ -218,11 +218,15 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		dev.ledBar.Control(3, val&systemFFD4 != 0)
 		dev.ledBar.Control(4, val&systemFFD3 != 0)
 		dev.ledBar.Control(5, val&systemExpand != 0)
-		dev.ledBar.Control(6, val&systemProtect != 0)
-		dev.ledBar.Control(7, val&systemShadow != 0)
-		io.syslatch = val
+		// protect
+		wp := val&systemProtect != 0
+		dev.ledBar.Control(6, wp)
+		dev.mem.WriteProtect(wp)
+		// shadow
+		shadow := val&systemShadow == 0
+		dev.ledBar.Control(7, shadow)
+		dev.mem.Shadow(shadow)
 		return
-
 	}
 	log.Printf("io.Write8 [%02x] = %02x\n", adr, val)
 }
