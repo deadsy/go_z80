@@ -35,7 +35,7 @@ type BarLED struct {
 }
 
 func New(cfg *Config) (*BarLED, error) {
-	if cfg.N < 2 || cfg.N > 32 {
+	if cfg.N < 1 {
 		return nil, errors.New("bad number of leds")
 	}
 	// build the leds
@@ -51,11 +51,11 @@ func New(cfg *Config) (*BarLED, error) {
 			On:     cfg.On,
 			Off:    cfg.Off,
 		}
-		led, err := led.New(&ledCfg)
+		l, err := led.New(&ledCfg)
 		if err != nil {
 			return nil, err
 		}
-		leds[i] = led
+		leds[i] = l
 	}
 
 	return &BarLED{
@@ -75,15 +75,15 @@ func (bar *BarLED) Control(n int, state bool) {
 
 // Draw the Bar LED (called from ebiten draw function)
 func (bar *BarLED) Draw(screen *ebiten.Image) {
-	for _, led := range bar.leds {
-		led.Draw(screen)
+	for _, l := range bar.leds {
+		l.Draw(screen)
 	}
 }
 
 // Update the Bar LED logic (called from ebiten update)
 func (bar *BarLED) Update() {
-	for _, led := range bar.leds {
-		led.Update()
+	for _, l := range bar.leds {
+		l.Update()
 	}
 }
 

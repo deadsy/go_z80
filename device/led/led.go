@@ -9,6 +9,7 @@ LED Emulation
 package led
 
 import (
+	"errors"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -49,6 +50,15 @@ type LED struct {
 }
 
 func New(cfg *Config) (*LED, error) {
+	if cfg.Type == Round && cfg.Radius <= 0 {
+		return nil, errors.New("bad radius")
+	}
+	if cfg.Type == Rectangle && cfg.Width <= 0 {
+		return nil, errors.New("bad width")
+	}
+	if cfg.Type == Rectangle && cfg.Height <= 0 {
+		return nil, errors.New("bad height")
+	}
 	return &LED{
 		config: cfg,
 	}, nil
