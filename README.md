@@ -33,9 +33,9 @@ Z80 CPU emulation in Golang.
  * works pretty good...
    
 #### TEC1-G
- * hd44780 emulation is incomplete
- * tec1-g diagnostics ROM does not pass
- * no keypad support - matrix keyboard only
+ * diagnostic ROM boots and mostly passes
+ * hd44780 emulation is partial (no cgram support)
+ * no disco light rgb support
 
 #### Jupiter ACE
  * no tape (*.tap) support
