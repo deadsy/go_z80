@@ -90,6 +90,7 @@ type system struct {
 	cpu                *z80.CPU         // z80 cpu
 	background         *ebiten.Image    // background graphic
 	width, height      int              // window dimensions
+	totalCycles        uint64           // total cpu cycles
 	tickCycles         float32          // ebiten tick cpu cycles
 	audioSampleCycles  float32          // audio sample cpu cycles
 	serialSampleCycles float32          // serial sample cpu cycles
@@ -314,6 +315,7 @@ func (s *system) Update() error {
 		if err != nil {
 			return err
 		}
+		s.totalCycles += uint64(cycles)
 		s.tickCycles -= float32(cycles)
 
 		// sample the audio output

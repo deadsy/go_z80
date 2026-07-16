@@ -49,9 +49,7 @@ func defaultConfig() *Config {
 		BaseYear:      2000,
 		WeekDayOffset: 6,
 	}
-	dip := dipSwitch{
-		K: true, // matrix keyboard
-	}
+	dip := dipSwitch{}
 	cfg := &Config{
 		RTC: rtc,
 		DIP: dip,
