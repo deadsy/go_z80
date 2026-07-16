@@ -33,9 +33,13 @@ Z80 CPU emulation in Golang.
  * works pretty good...
    
 #### TEC1-G
- * diagnostic ROM boots and mostly passes
+ * Diagnostic ROM boots and mostly passes
+ * DS1302 RTC support
+ * Keypad (74c923) and matrix keyboard support
+ * Serial port support via pseudo-tty
+ * Sound is supported
  * hd44780 emulation is partial (no cgram support)
- * no disco light rgb support
+ * No Disco RGB support
 
 #### Jupiter ACE
  * no tape (*.tap) support
