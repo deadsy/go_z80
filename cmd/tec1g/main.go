@@ -20,6 +20,7 @@ import (
 	"github.com/deadsy/go_z80/cmd/tec1g/keypad"
 	"github.com/deadsy/go_z80/device/array"
 	"github.com/deadsy/go_z80/device/array88"
+	"github.com/deadsy/go_z80/device/disco"
 	"github.com/deadsy/go_z80/device/ds1302"
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
@@ -259,6 +260,19 @@ func newSystem(cfg *Config) (*system, error) {
 		return nil, err
 	}
 
+	// setup the disco lights
+	cfgLedDisco := disco.Config{
+		X:      537,
+		Y:      852,
+		YGap:   49,
+		Width:  10.5,
+		Height: 26,
+	}
+	ledDisco, err := disco.New(cfgLedDisco)
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the IO
 	devices := ioDevices{
 		display:    display,
@@ -266,14 +280,13 @@ func newSystem(cfg *Config) (*system, error) {
 		ledHalt:    ledHalt,
 		ledBar:     ledBar,
 		ledArray:   ledArray,
+		ledDisco:   ledDisco,
 		lcd:        lcd,
 		keyboard:   keyboard,
 		keypad:     keypad,
 		rtc:        rtc,
-		mem:        mem,
 	}
 	io := newIO(&devices)
-	io.setDIP(cfg.DIP)
 
 	// setup the cpu
 	cpu := z80.New(io, mem, bus)
@@ -288,6 +301,9 @@ func newSystem(cfg *Config) (*system, error) {
 		mem:     mem,
 		cpu:     cpu,
 	}
+
+	io.setSystem(s)
+	io.setDIP(cfg.DIP)
 
 	// build the background image
 	img, err := buildBackgroundImage()
@@ -315,6 +331,10 @@ func (s *system) Exit() {
 	}
 	s.io.dev.rtc.Close()
 	s.pty.Close()
+}
+
+func (s *system) GetCpuCycles() uint64 {
+	return s.totalCycles
 }
 
 func (s *system) Update() error {
@@ -399,6 +419,8 @@ func (s *system) Draw(screen *ebiten.Image) {
 func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return s.width, s.height
 }
+
+//-----------------------------------------------------------------------------
 
 func main() {
 	log.Printf("%s\n", util.GetBuildInfo())
