@@ -346,7 +346,7 @@ t_cgram_read:
          call wr_cmd
          in   a,(LCD_DAT)           ; dummy read: loads output latch, AC→1
          ld   hl,cg_chars
-         inc  hl                    ; skip cg_chars[0] (consumed by dummy read)
+         inc  hl                    ; advance past cg_chars[0]: already returned by the dummy read above
          ld   b,63                  ; verify bytes 1..63
 cgrd_lp:
          in   a,(LCD_DAT)

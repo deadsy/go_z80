@@ -8,7 +8,7 @@ as used in the TEC-1G single-board computer.
 | Port  | Direction | Function                                     |
 |-------|-----------|----------------------------------------------|
 | `$04` | OUT       | Write Command (RS=0, RW=0)                   |
-| `$04` | IN        | Read Command  (RS=0, RW=1) — BF b7 + AC b6..0 |
+| `$04` | IN        | Read Command  (RS=0, RW=1) — busy flag bit 7, address counter bits 6:0 |
 | `$84` | OUT       | Write Data    (RS=1, RW=0)                   |
 | `$84` | IN        | Read Data     (RS=1, RW=1)                   |
 
