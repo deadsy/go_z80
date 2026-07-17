@@ -22,13 +22,18 @@ import (
 
 type pwmChannel struct {
 	state   bool   // current state
+	isSet   bool   // have we been set?
 	datum   uint64 // time datum
 	onTime  uint64 // accumulated on time
-	offTime uint64 // accumulated on time
+	offTime uint64 // accumulated off time
 	duty    byte   // estimated duty cycle
 }
 
 func (ch *pwmChannel) set(state bool, cycles uint64) {
+	if !ch.isSet {
+		ch.datum = cycles
+		ch.isSet = true
+	}
 	delta := cycles - ch.datum
 	if ch.state {
 		// accumulate on time
@@ -41,17 +46,22 @@ func (ch *pwmChannel) set(state bool, cycles uint64) {
 	ch.state = state
 }
 
+const kSmooth = float32(0.3)
+
 func (ch *pwmChannel) update(cycles uint64) {
 	// final accumulation of time
 	ch.set(ch.state, cycles)
+
 	// calculate the duty cycle
 	totalTime := ch.onTime + ch.offTime
+	newDuty := float32(0)
 	if totalTime > 0 {
-		ch.duty = byte(255.0 * float32(ch.onTime) / float32(totalTime))
-	} else {
-		// should never happen...
-		ch.duty = 0
+		newDuty = float32(ch.onTime) / float32(totalTime)
 	}
+	duty := float32(ch.duty) / 255.0
+	duty = duty + kSmooth*(newDuty-duty)
+	ch.duty = byte(255.0*duty + 0.5)
+
 	// reset the accumulation times
 	ch.onTime = 0
 	ch.offTime = 0
@@ -74,9 +84,8 @@ type Config struct {
 }
 
 type RGB struct {
-	cfg         Config
-	channel     [3]pwmChannel
-	updateCount int
+	cfg     Config
+	channel [3]pwmChannel
 }
 
 func New(cfg Config) (*RGB, error) {
@@ -128,16 +137,9 @@ func (rgb *RGB) Draw(screen *ebiten.Image) {
 
 // Update the LED logic (called from ebiten update)
 func (rgb *RGB) Update(cycles uint64) {
-	// note: The PWM period is around 120 Hz, giving
-	// around 2 PWM cycles per update time (60Hz).
-	// We wait 2 update times to get a more stable
-	// duty cycle measurement.
-	rgb.updateCount += 1
-	if rgb.updateCount&1 == 0 {
-		rgb.channel[0].update(cycles)
-		rgb.channel[1].update(cycles)
-		rgb.channel[2].update(cycles)
-	}
+	rgb.channel[0].update(cycles)
+	rgb.channel[1].update(cycles)
+	rgb.channel[2].update(cycles)
 }
 
 //-----------------------------------------------------------------------------
