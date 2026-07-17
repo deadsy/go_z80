@@ -25,9 +25,14 @@ const configFile = "tec1g.cfg"
 
 //-----------------------------------------------------------------------------
 
+type array88Config struct {
+	Enable bool `toml:"enable"` // is the 8x8 led array enabled?
+}
+
 type Config struct {
-	RTC ds1302.Config `toml:"rtc"`
-	DIP dipSwitch     `toml:"dip_switch"`
+	RTC     ds1302.Config `toml:"rtc"`
+	DIP     dipSwitch     `toml:"dip_switch"`
+	Array88 array88Config `toml:"array_8x8"`
 }
 
 func (cfg *Config) String() string {

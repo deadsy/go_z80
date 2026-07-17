@@ -44,7 +44,7 @@ func New(cfg array.Config) (*Array88, error) {
 
 func (array *Array88) control() {
 	for row := 0; row < numRows; row++ {
-		if array.row&(1<<row) != 0 {
+		if array.row&(1<<(numRows-row-1)) != 0 {
 			// some of the leds in this row may be on.
 			for col := 0; col < numCols; col++ {
 				if array.col&(1<<col) != 0 {

@@ -13,7 +13,8 @@ import (
 
 	"github.com/deadsy/go_z80/cmd/tec1g/keyboard"
 	"github.com/deadsy/go_z80/cmd/tec1g/keypad"
-	"github.com/deadsy/go_z80/device/barled"
+	"github.com/deadsy/go_z80/device/array"
+	"github.com/deadsy/go_z80/device/array88"
 	"github.com/deadsy/go_z80/device/ds1302"
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
@@ -92,7 +93,8 @@ type ioDevices struct {
 	display    *sixdigit.Display  // 6 digit display
 	ledSpeaker *led.LED           // speaker led
 	ledHalt    *led.LED           // halt led
-	ledBar     *barled.BarLED     // system status bar led
+	ledBar     *array.Array       // system status bar led
+	ledArray   *array88.Array88   // 8x8 led array
 	lcd        *hd44780.LCD       // LCD
 	keyboard   *keyboard.Keyboard // matrix keyboard
 	keypad     *keypad.Keypad     // 74c923 keypad
@@ -181,7 +183,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		io.serialTx = (val & serialTxMask) != 0
 		dev.display.Enable(io.digit, io.segment)
 		dev.ledSpeaker.Control(io.speaker)
-		dev.ledBar.Control(8, io.speaker)
+		dev.ledBar.Control(0, 8, io.speaker)
 		return
 	case segmentPort:
 		io.segment = val
@@ -191,10 +193,10 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		dev.lcd.WriteCommand(val)
 		return
 	case x88Port:
-		// TODO
+		dev.ledArray.WriteColumn(val)
 		return
 	case y88Port:
-		// TODO
+		dev.ledArray.WriteRow(val)
 		return
 	case glcdPort0, glcdPort1:
 		// TODO
@@ -212,19 +214,19 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		// TODO
 		return
 	case systemPort:
-		dev.ledBar.Control(0, val&systemCaps != 0)
-		dev.ledBar.Control(1, val&systemFFD6 != 0)
-		dev.ledBar.Control(2, val&systemFFD5 != 0)
-		dev.ledBar.Control(3, val&systemFFD4 != 0)
-		dev.ledBar.Control(4, val&systemFFD3 != 0)
-		dev.ledBar.Control(5, val&systemExpand != 0)
+		dev.ledBar.Control(0, 0, val&systemCaps != 0)
+		dev.ledBar.Control(0, 1, val&systemFFD6 != 0)
+		dev.ledBar.Control(0, 2, val&systemFFD5 != 0)
+		dev.ledBar.Control(0, 3, val&systemFFD4 != 0)
+		dev.ledBar.Control(0, 4, val&systemFFD3 != 0)
+		dev.ledBar.Control(0, 5, val&systemExpand != 0)
 		// protect
 		wp := val&systemProtect != 0
-		dev.ledBar.Control(6, wp)
+		dev.ledBar.Control(0, 6, wp)
 		dev.mem.WriteProtect(wp)
 		// shadow
 		shadow := val&systemShadow == 0
-		dev.ledBar.Control(7, shadow)
+		dev.ledBar.Control(0, 7, shadow)
 		dev.mem.Shadow(shadow)
 		return
 	}
@@ -239,6 +241,7 @@ func (io *sysIO) Update() {
 	io.dev.ledSpeaker.Update()
 	io.dev.ledHalt.Update()
 	io.dev.ledBar.Update()
+	io.dev.ledArray.Update()
 	io.dev.lcd.Update()
 	io.dev.keyboard.Update()
 	io.dev.keypad.Update()
@@ -249,6 +252,7 @@ func (io *sysIO) Draw(screen *ebiten.Image) {
 	io.dev.ledSpeaker.Draw(screen)
 	io.dev.ledHalt.Draw(screen)
 	io.dev.ledBar.Draw(screen)
+	io.dev.ledArray.Draw(screen)
 	io.dev.lcd.Draw(screen)
 }
 

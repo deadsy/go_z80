@@ -104,13 +104,17 @@ func (m *sysMemory) Write16(adr uint16, val uint16) {
 }
 
 //-----------------------------------------------------------------------------
+// ports
 
 const keypadPort = 0x00  // keypad scan values
 const digitPort = 0x01   // display digit enable
 const segmentPort = 0x02 // display segment enable
+const x88Port = 0x03     // 8x8 X-axis display latch
+const y88Port = 0x04     // 8x8 Y-axis display latch
 
-const digitMask = uint8(0x3f)   // digits are bits 0..5
-const speakerMask = uint8(0x80) // speaker/led is bit 7
+// digitPort
+const digitMask = byte(0x3f)     // D0..D5, digits
+const speakerMask = byte(1 << 7) // D7, speaker/led
 
 type sysIO struct {
 	display *sixdigit.Display // 6 digit display
@@ -145,6 +149,12 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	case segmentPort:
 		io.segment = val
 		io.display.Enable(io.digit, io.segment)
+		return
+	case x88Port:
+		// TODO
+		return
+	case y88Port:
+		// TODO
 		return
 	}
 	log.Printf("io.Write8 [%02x] = %02x", adr, val)
