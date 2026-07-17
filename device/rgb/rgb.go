@@ -21,12 +21,12 @@ import (
 //-----------------------------------------------------------------------------
 
 type pwmChannel struct {
-	state   bool   // current state
-	isSet   bool   // have we been set?
-	datum   uint64 // time datum
-	onTime  uint64 // accumulated on time
-	offTime uint64 // accumulated off time
-	duty    byte   // estimated duty cycle
+	state   bool    // current state
+	isSet   bool    // have we been set?
+	datum   uint64  // time datum
+	onTime  uint64  // accumulated on time
+	offTime uint64  // accumulated off time
+	duty    float32 // estimated duty cycle
 }
 
 func (ch *pwmChannel) set(state bool, cycles uint64) {
@@ -58,13 +58,15 @@ func (ch *pwmChannel) update(cycles uint64) {
 	if totalTime > 0 {
 		newDuty = float32(ch.onTime) / float32(totalTime)
 	}
-	duty := float32(ch.duty) / 255.0
-	duty = duty + kSmooth*(newDuty-duty)
-	ch.duty = byte(255.0*duty + 0.5)
+	ch.duty = ch.duty + kSmooth*(newDuty-ch.duty)
 
 	// reset the accumulation times
 	ch.onTime = 0
 	ch.offTime = 0
+}
+
+func (ch *pwmChannel) getDuty() byte {
+	return byte(255.0*ch.duty + 0.5)
 }
 
 //-----------------------------------------------------------------------------
@@ -116,9 +118,9 @@ func (rgb *RGB) Control(r, g, b bool, cycles uint64) {
 func (rgb *RGB) Draw(screen *ebiten.Image) {
 
 	// get the color
-	r := rgb.channel[0].duty
-	g := rgb.channel[1].duty
-	b := rgb.channel[2].duty
+	r := rgb.channel[0].getDuty()
+	g := rgb.channel[1].getDuty()
+	b := rgb.channel[2].getDuty()
 	a := byte(200)
 	if r == 0 && g == 0 && b == 0 {
 		// off (transparent)
