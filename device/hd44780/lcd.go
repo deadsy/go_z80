@@ -12,7 +12,6 @@ import (
 	"errors"
 	"image"
 	"image/color"
-	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -39,9 +38,9 @@ const (
 	//cmdDisplayOn          = byte(0x04)
 
 	//cmdShiftCursor  = byte(0x00)
-	//cmdShiftDisplay = byte(0x08)
+	cmdShiftDisplay = byte(0x08)
 	//cmdShiftLeft    = byte(0x00)
-	//cmdShiftRight   = byte(0x04)
+	cmdShiftRight = byte(0x04)
 
 	//cmdFunctionLcd1Line = byte(0x00)
 	//cmdFunctionLcd2Line = byte(0x08)
@@ -71,7 +70,7 @@ func inDead0(x byte) bool { return (x >= 0x28) && (x <= 0x3f) }
 func inDead1(x byte) bool { return (x >= 0x68) && (x <= 0x7f) }
 
 // increment the ddram address (skip dead areas)
-func inc_ddAddr(x byte) byte {
+func inc_ddAdr(x byte) byte {
 	x = (x + 1) & 0x7f
 	if inDead0(x) {
 		return 0x40
@@ -83,7 +82,7 @@ func inc_ddAddr(x byte) byte {
 }
 
 // decrement the ddram address (skip dead areas)
-func dec_ddAddr(x byte) byte {
+func dec_ddAdr(x byte) byte {
 	x = (x - 1) & 0x7f
 	if inDead0(x) {
 		return 0x27
@@ -140,8 +139,10 @@ func buildFontImage(font [fontChars][glyphPixelWidth]byte) *ebiten.Image {
 
 //-----------------------------------------------------------------------------
 
-const cgramMode = true
-const ddramMode = false
+const cgRamMode = true
+const ddRamMode = false
+
+const cgAdrMask = byte(0x3f)
 
 type Config struct {
 	Mode           DisplayMode
@@ -154,22 +155,23 @@ type LCD struct {
 	rows, cols    int              // displays rows and columns
 	font          [2]*ebiten.Image // font atlas images
 	img           *ebiten.Image    // unscaled lcd image
-	rowAddr       []byte           // address of row start in ddram
-	ddram         [128]byte        // display data ram
-	cgram         []byte           // character generator ram
-	cgrom         []byte           // character generator rom
-	ddAddr        byte             // ddram address
-	cgAddr        byte             // cgram address
+	rowAdr        []byte           // address of row start in ddram
+	ddRam         [128]byte        // display data ram
+	cgRam         [64]byte         // character generator ram
+	ddAdr         byte             // ddram address
+	cgAdr         byte             // cgram address
+	cgDirty       bool             // do we need to rebuild the cg glyphs in the font atlas?
 	scrollOffset  int
 	ramMode       bool // which ram are we working with?
+	displayEnable bool // is the display enabled?
 	cursorBlink   bool // is the cursor blinking?
 	cursorEnable  bool // is the cursor enabled?
-	displayEnable bool // is the display enabled?
 	cursorState   bool // current cursor state
 	dlFlag        bool // interface data width (false = 4, true = 8)
 	nFlag         bool // number of display lines (false = 1, true = 2)
 	fFlag         bool // font selection (false = 5x8, true = 5x10)
-	incMode       bool // increment mode
+	shiftMode     bool // shift mode (entry mode set command)
+	incMode       bool // increment mode (entry mode set command)
 
 }
 
@@ -189,12 +191,12 @@ func New(cfg *Config) (*LCD, error) {
 	lcd.img = ebiten.NewImage(width, height)
 
 	// work out the row addresses
-	lcd.rowAddr = make([]byte, lcd.rows)
+	lcd.rowAdr = make([]byte, lcd.rows)
 	if lcd.rows == 4 {
-		lcd.rowAddr[0] = 0
-		lcd.rowAddr[1] = 0x40
-		lcd.rowAddr[2] = 0x14
-		lcd.rowAddr[3] = 0x54
+		lcd.rowAdr[0] = 0
+		lcd.rowAdr[1] = 0x40
+		lcd.rowAdr[2] = 0x14
+		lcd.rowAdr[3] = 0x54
 	} else {
 		return nil, errors.New("TODO, rows != 4")
 	}
@@ -204,13 +206,13 @@ func New(cfg *Config) (*LCD, error) {
 
 //-----------------------------------------------------------------------------
 
-func (lcd *LCD) ddramWrite(val byte) {
-	//log.Printf("ddram write [0x%02x] = 0x%02x", lcd.ddAddr, val)
+func (lcd *LCD) ddRamWrite(val byte) {
+	//log.Printf("ddRamWrite [0x%02x] = 0x%02x", lcd.ddAddr, val)
 
-	lcd.ddram[lcd.ddAddr] = val
+	lcd.ddRam[lcd.ddAdr] = val
 
 	if lcd.incMode {
-		lcd.ddAddr = inc_ddAddr(lcd.ddAddr)
+		lcd.ddAdr = inc_ddAdr(lcd.ddAdr)
 
 		/*
 
@@ -222,7 +224,7 @@ func (lcd *LCD) ddramWrite(val byte) {
 		*/
 
 	} else {
-		lcd.ddAddr = dec_ddAddr(lcd.ddAddr)
+		lcd.ddAdr = dec_ddAdr(lcd.ddAdr)
 
 		/*
 
@@ -237,28 +239,43 @@ func (lcd *LCD) ddramWrite(val byte) {
 
 }
 
-func (lcd *LCD) ddramRead() byte {
-	//log.Printf("ddram read [0x%02x]", lcd.ddAddr)
-	return lcd.ddram[lcd.ddAddr]
+func (lcd *LCD) ddRamRead() byte {
+	//log.Printf("ddRamRead [0x%02x]", lcd.ddAdr)
+	val := lcd.ddRam[lcd.ddAdr]
+	// auto increment/decrement the address
+	if lcd.incMode {
+		lcd.ddAdr = inc_ddAdr(lcd.ddAdr)
+	} else {
+		lcd.ddAdr = dec_ddAdr(lcd.ddAdr)
+	}
+	return val
 }
 
 //-----------------------------------------------------------------------------
 
-func (lcd *LCD) cgramWrite(val byte) {
-	log.Printf("cgram write")
-	/*
-	   n = self->mcu.CGRAM_counter / 8;
-	   m = self->mcu.CGRAM_counter % 8;
-	   self->mcu.CGROM[n][m] = instruction & 0xFF;
-	   if (self->mcu.CGRAM_counter < 64)
-
-	   	self->mcu.CGRAM_counter++;
-	*/
+func (lcd *LCD) cgRamWrite(val byte) {
+	//log.Printf("cgRamWrite [0x%02x] = 0x%02x", lcd.cgAdr, val)
+	if lcd.cgRam[lcd.cgAdr] != val {
+		lcd.cgRam[lcd.cgAdr] = val
+		// set the dirty flag, we need to rebuild the font atlas
+		lcd.cgDirty = true
+	}
+	if lcd.incMode {
+		lcd.cgAdr = (lcd.cgAdr + 1) & cgAdrMask
+	} else {
+		lcd.cgAdr = (lcd.cgAdr - 1) & cgAdrMask
+	}
 }
 
-func (lcd *LCD) cgramRead() byte {
-	log.Printf("cgram read")
-	return 0
+func (lcd *LCD) cgRamRead() byte {
+	//log.Printf("cgRamRead [0x%02x]", lcd.cgAdr)
+	val := lcd.cgRam[lcd.cgAdr]
+	if lcd.incMode {
+		lcd.cgAdr = (lcd.cgAdr + 1) & cgAdrMask
+	} else {
+		lcd.cgAdr = (lcd.cgAdr - 1) & cgAdrMask
+	}
+	return val
 }
 
 //-----------------------------------------------------------------------------
@@ -266,24 +283,24 @@ func (lcd *LCD) cgramRead() byte {
 // read command (RS = 0, RW = 1)
 func (lcd *LCD) ReadCommand() byte {
 	// Note: the busy flag is == 0
-	if lcd.ramMode == ddramMode {
-		return byte(lcd.ddAddr)
+	if lcd.ramMode == ddRamMode {
+		return byte(lcd.ddAdr)
 	}
-	return byte(lcd.cgAddr)
+	return byte(lcd.cgAdr)
 }
 
 // write command (RS = 0, RW = 0)
 func (lcd *LCD) WriteCommand(cmd byte) {
 	if cmd&cmdSetDramAddr != 0 {
-		// ddram address is 7 bits
-		lcd.ddAddr = cmd & 0x7f
-		lcd.ramMode = ddramMode
+		// ddRam address is 7 bits
+		lcd.ddAdr = cmd & 0x7f
+		lcd.ramMode = ddRamMode
 		//log.Printf("ddAddr = 0x%02x\n", lcd.ddAddr)
 
 	} else if cmd&cmdSetCgramAddr != 0 {
 		// cgram address is 6 bits
-		lcd.cgAddr = cmd & 0x3f
-		lcd.ramMode = cgramMode
+		lcd.cgAdr = cmd & cgAdrMask
+		lcd.ramMode = cgRamMode
 
 	} else if cmd&cmdFunction != 0 {
 		lcd.dlFlag = cmd&(1<<4) != 0
@@ -291,7 +308,21 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		lcd.fFlag = cmd&(1<<2) != 0
 
 	} else if cmd&cmdShift != 0 {
-		log.Printf("shift")
+		if cmd&cmdShiftDisplay != 0 {
+			// shift display
+			if cmd&cmdShiftRight != 0 {
+				lcd.scrollOffset -= 1
+			} else {
+				lcd.scrollOffset += 1
+			}
+		} else {
+			// shift cursor
+			if cmd&cmdShiftRight != 0 {
+				lcd.ddAdr = inc_ddAdr(lcd.ddAdr)
+			} else {
+				lcd.ddAdr = dec_ddAdr(lcd.ddAdr)
+			}
+		}
 
 	} else if cmd&cmdDisplay != 0 {
 		lcd.cursorBlink = (cmd & (1 << 0)) != 0
@@ -300,38 +331,37 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		lcd.cursorState = false
 
 	} else if cmd&cmdEntryMode != 0 {
+		lcd.shiftMode = cmd&(1<<0) != 0
 		lcd.incMode = cmd&(1<<1) != 0
-		if cmd&(1<<0) != 0 {
-			log.Printf("TODO: entry mode shift")
-		}
+
 	} else if cmd&cmdHome != 0 {
-		lcd.ddAddr = 0
+		lcd.ddAdr = 0
 		lcd.scrollOffset = 0
 
 	} else if cmd&cmdClear != 0 {
-		lcd.ddAddr = 0
+		lcd.ddAdr = 0
 		lcd.scrollOffset = 0
 		lcd.incMode = true
-		for i := 0; i < len(lcd.ddram); i++ {
-			lcd.ddram[i] = 0x20 // space
+		for i := 0; i < len(lcd.ddRam); i++ {
+			lcd.ddRam[i] = 0x20 // space
 		}
 	}
 }
 
 // read data (RS = 1, RW = 1)
 func (lcd *LCD) ReadData() byte {
-	if lcd.ramMode == ddramMode {
-		return lcd.ddramRead()
+	if lcd.ramMode == ddRamMode {
+		return lcd.ddRamRead()
 	}
-	return lcd.cgramRead()
+	return lcd.cgRamRead()
 }
 
 // write data (RS = 1, RW = 0)
 func (lcd *LCD) WriteData(val byte) {
-	if lcd.ramMode == ddramMode {
-		lcd.ddramWrite(val)
+	if lcd.ramMode == ddRamMode {
+		lcd.ddRamWrite(val)
 	} else {
-		lcd.cgramWrite(val)
+		lcd.cgRamWrite(val)
 	}
 }
 
@@ -359,7 +389,7 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 	for row := 0; row < lcd.rows; row++ {
 		for col := 0; col < lcd.cols; col++ {
 			// get the character
-			code := lcd.ddram[lcd.rowAddr[row]+byte(col)]
+			code := lcd.ddRam[lcd.rowAdr[row]+byte(col)]
 			glyph := lcd.getGlyph(0, code)
 			// render the glyph to the lcd image
 			op := &ebiten.DrawImageOptions{}

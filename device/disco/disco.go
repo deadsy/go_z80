@@ -24,7 +24,6 @@ type Config struct {
 }
 
 type Disco struct {
-	cfg Config
 	led [2]*rgb.RGB
 }
 
@@ -55,7 +54,6 @@ func New(cfg Config) (*Disco, error) {
 	}
 
 	return &Disco{
-		cfg: cfg,
 		led: [2]*rgb.RGB{led0, led1},
 	}, nil
 }

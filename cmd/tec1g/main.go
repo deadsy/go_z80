@@ -97,6 +97,7 @@ type system struct {
 	audioSampleCycles  float32          // audio sample cpu cycles
 	serialSampleCycles float32          // serial sample cpu cycles
 	soundStarted       bool             // has the sound been started?
+	haltLogged         bool             // have we logged a cpu halt?
 }
 
 func newSystem(cfg *Config) (*system, error) {
@@ -391,14 +392,20 @@ func (s *system) Update() error {
 		}
 	}
 
-	// halt LEDs
-	s.io.dev.ledHalt.Control(s.cpu.IsHalted())
-	s.io.dev.ledBar.Control(0, 9, s.cpu.IsHalted())
+	// cpu halted?
+	halted := s.cpu.IsHalted()
+	s.io.dev.ledHalt.Control(halted)
+	s.io.dev.ledBar.Control(0, 9, halted)
+	if halted && !s.haltLogged {
+		log.Printf("cpu halted at pc=0x%04x", s.cpu.PC)
+		s.haltLogged = true
+	}
 
 	// update the IO devices
 	s.io.Update()
 
 	if s.io.dev.keyboard.Reset() || s.io.dev.keypad.Reset() {
+		s.haltLogged = false
 		s.mem.Reset()
 		s.cpu.Reset()
 	}

@@ -42,11 +42,20 @@ BF_MASK    equ  $80
 BF_RETRIES equ  $ff
 
 ;=============================================================================
+
+TEST_PORT equ $08
+
+test_entry MACRO arg1
+    ld a,arg1
+    out (TEST_PORT),a
+    ENDM
+
+;=============================================================================
 ; ENTRY POINT
 ;=============================================================================
-         org  $0800
+         org  $4000
 
-         ld   sp,$0fd0
+         ld   sp,$6fd0
 
 ;=============================================================================
 ; POWER-ON INITIALISATION  (HD44780U datasheet §Initializing by Instruction)
@@ -77,7 +86,8 @@ BF_RETRIES equ  $ff
 ; TEST 1: Function Set — 8-bit bus, 2-line, 5×8 font
 ; Datasheet: DL=1, N=1, F=0 → $38
 ;=============================================================================
-t_func_8b2l:
+test_entry 1
+;t_func_8b2l:
          ld   a,CMD_FUNCTION|$18    ; $38
          call wr_cmd
 
@@ -85,7 +95,8 @@ t_func_8b2l:
 ; TEST 2: Display On/Off Control — display off
 ; Datasheet: D=0, C=0, B=0 → $08
 ;=============================================================================
-t_disp_off:
+test_entry 2
+;t_disp_off:
          ld   a,CMD_DISPLAY|$00     ; $08
          call wr_cmd
 
@@ -94,7 +105,8 @@ t_disp_off:
 ; Fills entire DDRAM with $20 (space), sets AC=0, sets I/D=1 (increment).
 ; Real execution time ~1.52 ms.
 ;=============================================================================
-t_clear:
+test_entry 3
+;t_clear:
          ld   a,CMD_CLEAR           ; $01
          call wr_cmd
          call delay_2ms             ; extra guard for emulators that ignore BF
@@ -105,7 +117,8 @@ t_clear:
 ; Real execution time ~1.52 ms.
 ; Verify: ReadCommand AC bits[6:0] = 0 after settling.
 ;=============================================================================
-t_home:
+test_entry 4
+;t_home:
          ; Write sentinel away from position 0 so Home is observable
          ld   a,CMD_SET_DDRAM|$06   ; position 6 on row 0
          call wr_cmd
@@ -126,7 +139,8 @@ home_ok:
 ; TEST 5: Entry Mode Set — increment, no display shift  (I/D=1, S=0)
 ; Datasheet: $06
 ;=============================================================================
-t_entry_inc:
+test_entry 5
+;t_entry_inc:
          ld   a,CMD_ENTRY|$02       ; $06
          call wr_cmd
 
@@ -134,7 +148,8 @@ t_entry_inc:
 ; TEST 6: Display On/Off Control — display on, cursor on, blink on
 ; Datasheet: D=1, C=1, B=1 → $0F
 ;=============================================================================
-t_disp_on:
+test_entry 6
+;t_disp_on:
          ld   a,CMD_DISPLAY|$07     ; $0F
          call wr_cmd
 
@@ -145,7 +160,8 @@ t_disp_on:
 ; Row addresses for a 20×4 display: $00, $40, $14, $54
 ;=============================================================================
 ; --- Row 0 ($00) ---
-t_ddram_r0:
+test_entry 7
+;t_ddram_r0:
          ld   a,CMD_SET_DDRAM|ROW0  ; $80
          call wr_cmd
          in   a,(LCD_CMD)
@@ -158,7 +174,7 @@ ddram_r0_ok:
          call print_str
 
 ; --- Row 1 ($40) ---
-t_ddram_r1:
+;t_ddram_r1:
          ld   a,CMD_SET_DDRAM|ROW1  ; $c0
          call wr_cmd
          in   a,(LCD_CMD)
@@ -171,7 +187,7 @@ ddram_r1_ok:
          call print_str
 
 ; --- Row 2 ($14) ---
-t_ddram_r2:
+;t_ddram_r2:
          ld   a,CMD_SET_DDRAM|ROW2  ; $94
          call wr_cmd
          in   a,(LCD_CMD)
@@ -184,7 +200,7 @@ ddram_r2_ok:
          call print_str
 
 ; --- Row 3 ($54) ---
-t_ddram_r3:
+;t_ddram_r3:
          ld   a,CMD_SET_DDRAM|ROW3  ; $d4
          call wr_cmd
          in   a,(LCD_CMD)
@@ -214,7 +230,8 @@ ddram_r3_ok:
 ; Expected (current emulator — conformance gap):
 ;   both reads  → 'R' (AC never incremented), cp 'o' FAILS
 ;=============================================================================
-t_read_data:
+test_entry 8
+;t_read_data:
          ld   a,CMD_SET_DDRAM|ROW0  ; set AC = 0
          call wr_cmd
          in   a,(LCD_DAT)           ; dummy read: loads output latch, AC→1 (real HW)
@@ -229,7 +246,8 @@ rdata_ok:
 ; Write three bytes starting at $0A; with decrement the address walks
 ; $0A → $09 → $08 → $07 (AC after three writes = $07).
 ;=============================================================================
-t_entry_dec:
+test_entry 9
+;t_entry_dec:
          ld   a,CMD_ENTRY|$00       ; $04  I/D=0, S=0
          call wr_cmd
          ld   a,CMD_SET_DDRAM|$0a   ; start at $0A
@@ -255,7 +273,8 @@ entry_dec_ok:
 ; Datasheet: when S=1 the display shifts on each Write Data.
 ; The current emulator logs "TODO: entry mode shift" — conformance gap.
 ;=============================================================================
-t_entry_shift:
+test_entry 10
+;t_entry_shift:
          ld   a,CMD_ENTRY|$03       ; $07  I/D=1, S=1
          call wr_cmd
          ld   a,CMD_SET_DDRAM|ROW0
@@ -276,11 +295,13 @@ t_entry_shift:
 ; The current emulator only logs "shift" without updating AC or scroll —
 ; conformance gap for all four variants.
 ;=============================================================================
+test_entry 11
+
          ld   a,CMD_SET_DDRAM|$05   ; place cursor at position $05
          call wr_cmd
 
 ; (i) Cursor shift left: AC should decrease from $05 to $04
-t_shift_cl:
+;t_shift_cl:
          ld   a,CMD_SHIFT|$00       ; $10
          call wr_cmd
          in   a,(LCD_CMD)
@@ -291,7 +312,7 @@ t_shift_cl:
 shift_cl_ok:
 
 ; (ii) Cursor shift right: AC should return to $05
-t_shift_cr:
+;t_shift_cr:
          ld   a,CMD_SHIFT|$04       ; $14
          call wr_cmd
          in   a,(LCD_CMD)
@@ -302,12 +323,12 @@ t_shift_cr:
 shift_cr_ok:
 
 ; (iii) Display shift left — AC should remain $05 (cursor position unchanged)
-t_shift_dl:
+;t_shift_dl:
          ld   a,CMD_SHIFT|$08       ; $18
          call wr_cmd
 
 ; (iv) Display shift right
-t_shift_dr:
+;t_shift_dr:
          ld   a,CMD_SHIFT|$0c       ; $1C
          call wr_cmd
 
@@ -316,7 +337,9 @@ t_shift_dr:
 ; Custom character n uses CGRAM addresses n*8 .. n*8+7.
 ; Only bits[4:0] of each byte are significant (5 pixels wide).
 ;=============================================================================
-t_cgram_write:
+
+test_entry 12
+;t_cgram_write:
          ld   a,CMD_SET_CGRAM|$00   ; CGRAM address 0 (glyph 0, row 0)
          call wr_cmd
          ld   hl,cg_chars
@@ -341,7 +364,9 @@ cgwr_lp:
 ; in the loop; only bytes 1..63 are compared.  On the current emulator all
 ; reads return 0 so the first comparison fails at cg_chars[1].
 ;=============================================================================
-t_cgram_read:
+
+test_entry 13
+;t_cgram_read:
          ld   a,CMD_SET_CGRAM|$00   ; back to CGRAM start
          call wr_cmd
          in   a,(LCD_DAT)           ; dummy read: loads output latch, AC→1
@@ -365,21 +390,25 @@ cgrd_ok:
 ;
 ; Note: 4-bit mode (DL=0) would break Z80 I/O — not tested here.
 ;=============================================================================
-t_func_1l_5x8:
+
+test_entry 14
+;t_func_1l_5x8:
          ld   a,CMD_FUNCTION|$10    ; $30  1-line, 5×8
          call wr_cmd
 
-t_func_1l_5x10:
+;t_func_1l_5x10:
          ld   a,CMD_FUNCTION|$14    ; $34  1-line, 5×10
          call wr_cmd
 
-t_func_restore:
+;t_func_restore:
          ld   a,CMD_FUNCTION|$18    ; $38  2-line, 5×8 (restore)
          call wr_cmd
 
 ;=============================================================================
 ; TEST 15: Display On/Off Control — all eight D/C/B permutations
 ;=============================================================================
+
+test_entry 15
          ld   a,CMD_DISPLAY|$00     ; $08  D=0 C=0 B=0 — all off
          call wr_cmd
          ld   a,CMD_DISPLAY|$01     ; $09  B only
@@ -401,7 +430,9 @@ t_func_restore:
 ; TEST 16: Clear Display then verify DDRAM contains $20 (space)
 ; After Clear, DDRAM[0] should be $20.  Uses dummy-read idiom.
 ;=============================================================================
-t_clear_verify:
+
+test_entry 16
+;t_clear_verify:
          ld   a,CMD_CLEAR
          call wr_cmd
          call delay_2ms
@@ -417,7 +448,9 @@ clrv_ok:
 ;=============================================================================
 ; TEST 17: Read Busy Flag — BF (bit 7) must be 0 in settled state
 ;=============================================================================
-t_read_bf:
+
+test_entry 17
+;t_read_bf:
          call delay_2ms             ; ensure any lingering command is done
          in   a,(LCD_CMD)
          and  BF_MASK
@@ -429,7 +462,8 @@ rbf_ok:
 ;=============================================================================
 ; ALL TESTS PASSED
 ;=============================================================================
-tests_done:
+test_entry 18
+;tests_done:
          halt
 
 ;=============================================================================
