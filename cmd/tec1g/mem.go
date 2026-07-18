@@ -146,11 +146,14 @@ func (m *sysMemory) Write8(adr uint16, val uint8) {
 }
 
 func (m *sysMemory) Read16(adr uint16) uint16 {
-	return m.memmap[chunkSelect(adr)].Read16(adr)
+	l := uint16(m.memmap[chunkSelect(adr)].Read8(adr))
+	h := uint16(m.memmap[chunkSelect(adr+1)].Read8(adr + 1))
+	return (h << 8) | l
 }
 
 func (m *sysMemory) Write16(adr uint16, val uint16) {
-	m.memmap[chunkSelect(adr)].Write16(adr, val)
+	m.memmap[chunkSelect(adr)].Write8(adr, uint8(val))
+	m.memmap[chunkSelect(adr+1)].Write8(adr+1, uint8(val>>8))
 }
 
 //-----------------------------------------------------------------------------

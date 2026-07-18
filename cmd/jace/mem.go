@@ -22,11 +22,8 @@ package main
 
 import (
 	"fmt"
-	"log"
 
-	"github.com/deadsy/go_z80/cmd/jace/keyboard"
 	"github.com/deadsy/go_z80/memory"
-	"github.com/deadsy/go_z80/z80"
 )
 
 //-----------------------------------------------------------------------------
@@ -41,7 +38,7 @@ const charChunk = 5 // character memory
 func chunkSelect(adr uint16) int { return int(adr >> chunkBits) }
 
 type sysMemory struct {
-	memmap    [numChunks]z80.Memory
+	memmap    [numChunks]*memory.Memory
 	charDirty bool // has the character memory been written?
 }
 
@@ -65,7 +62,7 @@ func newMemory() (*sysMemory, error) {
 	empty := memory.New(11).Empty() // 2 KiB
 
 	return &sysMemory{
-		memmap: [numChunks]z80.Memory{
+		memmap: [numChunks]*memory.Memory{
 			rom,   // 0x0000 - 0x07ff
 			rom,   // 0x0800 - 0x0fff
 			rom,   // 0x1000 - 0x17ff
@@ -102,6 +99,16 @@ func newMemory() (*sysMemory, error) {
 	}, nil
 }
 
+func (m *sysMemory) IsDirty() bool {
+	return m.charDirty
+}
+
+func (m *sysMemory) Clean() {
+	m.charDirty = false
+}
+
+//-----------------------------------------------------------------------------
+
 func (m *sysMemory) Read8(adr uint16) uint8 {
 	return m.memmap[chunkSelect(adr)].Read8(adr)
 }
@@ -116,78 +123,14 @@ func (m *sysMemory) Write8(adr uint16, val uint8) {
 }
 
 func (m *sysMemory) Read16(adr uint16) uint16 {
-	return m.memmap[chunkSelect(adr)].Read16(adr)
+	l := uint16(m.memmap[chunkSelect(adr)].Read8(adr))
+	h := uint16(m.memmap[chunkSelect(adr+1)].Read8(adr + 1))
+	return (h << 8) | l
 }
 
 func (m *sysMemory) Write16(adr uint16, val uint16) {
-	m.memmap[chunkSelect(adr)].Write16(adr, val)
-}
-
-func (m *sysMemory) IsDirty() bool {
-	return m.charDirty
-}
-
-func (m *sysMemory) Clean() {
-	m.charDirty = false
-}
-
-//-----------------------------------------------------------------------------
-
-const keyboardPort = 0xfe // Matrix Keyboard Input
-
-// System IO
-type sysIO struct {
-	keyboard *keyboard.Keyboard // matrix keyboard
-	speaker  bool               // latched speaker bit
-}
-
-// Read8 reads a byte from an IO port.
-func (io *sysIO) Read8(adr uint16) uint8 {
-	row := uint8(adr >> 8)
-	adr &= 0xff
-	switch adr {
-	case keyboardPort:
-		// a read on 0xfe drives the speaker output low
-		io.speaker = false
-		code, err := io.keyboard.Scan(row)
-		if err != nil {
-			log.Printf("keyboard scan error: %s\n", err)
-		}
-		return code
-	}
-	log.Printf("io.Read8 unknown port %02x\n", adr)
-	return 0
-}
-
-// Write8 writes a byte to an IO port.
-func (io *sysIO) Write8(adr uint16, val uint8) {
-	adr &= 0xff
-	switch adr {
-	case keyboardPort:
-		// a write on 0xfe drives the speaker output high
-		io.speaker = true
-		return
-	}
-	log.Printf("io.Write8 [%02x] = %02x\n", adr, val)
-}
-
-func newIO(keyboard *keyboard.Keyboard) *sysIO {
-	return &sysIO{
-		keyboard: keyboard,
-	}
-}
-
-//-----------------------------------------------------------------------------
-
-type Bus struct {
-}
-
-func newBus() *Bus {
-	return &Bus{}
-}
-
-func (bus *Bus) ReadIV() uint8 {
-	return 0xff
+	m.memmap[chunkSelect(adr)].Write8(adr, uint8(val))
+	m.memmap[chunkSelect(adr+1)].Write8(adr+1, uint8(val>>8))
 }
 
 //-----------------------------------------------------------------------------
