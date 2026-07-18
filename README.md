@@ -47,3 +47,6 @@ Z80 CPU emulation in Golang.
  * no tape (*.tap) support
  * it's still a jupiter ace
 
+## Dependencies
+
+ * apt-get install libxrandr-dev libglx-dev libgl-dev libxcursor-dev libxinerama-dev libxi-dev libasound2-dev pkg-config libxxf86vm-dev
