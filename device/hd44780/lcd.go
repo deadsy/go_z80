@@ -121,9 +121,9 @@ const glyphHeight = (glyphPixelHeight * (dotSize + dotGap)) - dotGap
 
 func buildFontImage(font [fontChars][glyphPixelWidth]byte) *ebiten.Image {
 	img := ebiten.NewImage(numGlyphs*glyphWidth, glyphHeight)
-	for i := cgramSize; i < numGlyphs; i++ {
+	for i := cgramGlyphs; i < numGlyphs; i++ {
 		for j := 0; j < glyphPixelWidth; j++ {
-			pixelData := font[i-cgramSize][j]
+			pixelData := font[i-cgramGlyphs][j]
 			for k := 0; k < glyphPixelHeight; k++ {
 				pixel := (pixelData & (1 << (7 - k))) != 0
 				if pixel {
@@ -137,11 +137,31 @@ func buildFontImage(font [fontChars][glyphPixelWidth]byte) *ebiten.Image {
 	return img
 }
 
+func buildCgRamImage(cgram [cgRamSize]byte) *ebiten.Image {
+	img := ebiten.NewImage(cgramGlyphs*glyphWidth, glyphHeight)
+	for i := 0; i < cgramGlyphs; i++ {
+		for j := 0; j < glyphPixelHeight; j++ {
+			pixelData := cgram[((i&7)<<3)+j]
+			for k := 0; k < glyphPixelWidth; k++ {
+				pixel := (pixelData & (1 << (4 - k))) != 0
+				if pixel {
+					x := float32((i * glyphWidth) + (k * (dotSize + dotGap)))
+					y := float32(j * (dotSize + dotGap))
+					vector.FillRect(img, x, y, dotSize, dotSize, color.RGBA{0, 0, 0, 255}, false)
+				}
+			}
+		}
+	}
+	return img
+}
+
 //-----------------------------------------------------------------------------
 
 const cgRamMode = true
 const ddRamMode = false
 
+const ddRamSize = 128
+const cgRamSize = 64
 const cgAdrMask = byte(0x3f)
 
 type Config struct {
@@ -154,10 +174,11 @@ type LCD struct {
 	config        *Config          // lcd configuration
 	rows, cols    int              // displays rows and columns
 	font          [2]*ebiten.Image // font atlas images
+	cgFont        *ebiten.Image    // character generator font atlas image
 	img           *ebiten.Image    // unscaled lcd image
 	rowAdr        []byte           // address of row start in ddram
-	ddRam         [128]byte        // display data ram
-	cgRam         [64]byte         // character generator ram
+	ddRam         [ddRamSize]byte  // display data ram
+	cgRam         [cgRamSize]byte  // character generator ram
 	ddAdr         byte             // ddram address
 	cgAdr         byte             // cgram address
 	cgDirty       bool             // do we need to rebuild the cg glyphs in the font atlas?
@@ -378,6 +399,10 @@ const pitchY = glyphHeight + yGap
 func (lcd *LCD) getGlyph(set int, code byte) *ebiten.Image {
 	x := int(code) * glyphWidth
 	r := image.Rect(x, 0, x+glyphWidth, glyphHeight)
+	if code < 16 && lcd.cgFont != nil {
+		// return the cgram glyph
+		return lcd.cgFont.SubImage(r).(*ebiten.Image)
+	}
 	return lcd.font[set].SubImage(r).(*ebiten.Image)
 }
 
@@ -409,6 +434,10 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 
 // Update the display logic (called from ebiten update)
 func (lcd *LCD) Update() {
+	if lcd.cgDirty {
+		lcd.cgFont = buildCgRamImage(lcd.cgRam)
+		lcd.cgDirty = false
+	}
 }
 
 //-----------------------------------------------------------------------------

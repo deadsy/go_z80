@@ -14,8 +14,12 @@ const glyphPixelWidth = 5
 const glyphPixelHeight = 8
 
 const numGlyphs = 256
-const cgramSize = 16
-const fontChars = numGlyphs - cgramSize
+
+// note: cgram has 8 glyphs from 0..7, but they repeat as 8..15
+// rather than special case anything, we just treat it as 16.
+const cgramGlyphs = 16
+
+const fontChars = numGlyphs - cgramGlyphs
 
 //-----------------------------------------------------------------------------
 
