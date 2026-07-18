@@ -202,6 +202,7 @@ func (s *system) Update() error {
 
 	// start the sound (once)
 	if !s.soundStarted && s.sound.IsReady() && s.speaker.Samples() >= 800 {
+		s.speaker.Empty()
 		log.Printf("starting sound\n")
 		err := s.sound.Start()
 		if err != nil {
