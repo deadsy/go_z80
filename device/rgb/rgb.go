@@ -22,7 +22,6 @@ import (
 
 type pwmChannel struct {
 	state   bool    // current state
-	isSet   bool    // have we been set?
 	datum   uint64  // time datum
 	onTime  uint64  // accumulated on time
 	offTime uint64  // accumulated off time
@@ -30,9 +29,8 @@ type pwmChannel struct {
 }
 
 func (ch *pwmChannel) set(state bool, cycles uint64) {
-	if !ch.isSet {
+	if ch.datum == 0 {
 		ch.datum = cycles
-		ch.isSet = true
 	}
 	delta := cycles - ch.datum
 	if ch.state {
