@@ -36,6 +36,9 @@ const dotGap = 1
 const glyphWidth = (glyphPixelWidth * (dotSize + dotGap)) - dotGap
 const glyphHeight = (glyphPixelHeight * (dotSize + dotGap)) - dotGap
 
+// cursor blinking
+const cursorBlinkPeriod = 24 // 1/60 second units
+
 //-----------------------------------------------------------------------------
 
 const (
@@ -124,7 +127,7 @@ const (
 	Mode8x1  DisplayMode = ((8 << 8) | 1)
 	Mode8x2  DisplayMode = ((8 << 8) | 2)
 	Mode12x2 DisplayMode = ((12 << 8) | 2)
-	Mode16x1 DisplayMode = ((16 << 8) | 1)
+	Mode16x1 DisplayMode = ((16 << 8) | 1) // type1 only, type2 handling is TODO
 	Mode16x4 DisplayMode = ((16 << 8) | 4)
 	Mode20x1 DisplayMode = ((20 << 8) | 1)
 	Mode24x2 DisplayMode = ((24 << 8) | 2)
@@ -133,7 +136,7 @@ const (
 
 //-----------------------------------------------------------------------------
 
-// build an image from row column pixel data
+// build a font image from row column pixel data
 func buildFontImage(font [fontGlyphs][glyphPixelWidth]byte) *ebiten.Image {
 	img := ebiten.NewImage(fontGlyphs*glyphWidth, glyphHeight)
 	for i := 0; i < fontGlyphs; i++ {
@@ -240,13 +243,18 @@ func New(cfg *Config) (*LCD, error) {
 
 	// work out the row addresses
 	lcd.rowAdr = make([]byte, lcd.rows)
-	if lcd.rows == 4 {
+	if lcd.rows == 1 {
+		lcd.rowAdr[0] = 0
+	} else if lcd.rows == 2 {
+		lcd.rowAdr[0] = 0
+		lcd.rowAdr[1] = 0x40
+	} else if lcd.rows == 4 {
 		lcd.rowAdr[0] = 0
 		lcd.rowAdr[1] = 0x40
 		lcd.rowAdr[2] = 0x14
 		lcd.rowAdr[3] = 0x54
 	} else {
-		return nil, errors.New("TODO, rows != 4")
+		return nil, errors.New("rows != 1,2,4")
 	}
 
 	return lcd, nil
@@ -422,14 +430,14 @@ func (lcd *LCD) getCursor(state bool) *ebiten.Image {
 //-----------------------------------------------------------------------------
 
 // given a display address, work out the row and column.
-func (lcd *LCD) getRowCol(adr byte) (int, int) {
+func (lcd *LCD) getRowCol(adr byte) (int, int, bool) {
 	for row := 0; row < lcd.rows; row++ {
 		start := lcd.rowAdr[row]
 		if adr >= start && adr < start+byte(lcd.cols) {
-			return row, int(adr - start)
+			return row, int(adr - start), true
 		}
 	}
-	return 0, 0
+	return 0, 0, false
 }
 
 //-----------------------------------------------------------------------------
@@ -461,12 +469,14 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 
 	// draw the cursor
 	if lcd.cursorEnable {
-		cursor := lcd.getCursor(lcd.cursorBlink && lcd.cursorState)
-		row, col := lcd.getRowCol(lcd.ddAdr)
-		// render the cursor to the lcd image
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
-		lcd.img.DrawImage(cursor, op)
+		row, col, ok := lcd.getRowCol(lcd.ddAdr)
+		if ok {
+			// render the cursor to the lcd image
+			cursor := lcd.getCursor(lcd.cursorBlink && lcd.cursorState)
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
+			lcd.img.DrawImage(cursor, op)
+		}
 	}
 
 	// render the lcd image to the screen (with scaling)
@@ -481,13 +491,14 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 // Update the display logic (called from ebiten update)
 func (lcd *LCD) Update() {
 
-	// 24 * 1/60 sec = 400 msec
-	if lcd.cursorCount == 24 {
+	// update the cursor state
+	if lcd.cursorCount == cursorBlinkPeriod {
 		lcd.cursorState = !lcd.cursorState
 		lcd.cursorCount = 0
 	}
 	lcd.cursorCount += 1
 
+	// rebuild the cgram font if it has been changed
 	if lcd.cgDirty {
 		lcd.cgFont = buildImage(lcd.cgRam[:])
 		lcd.cgDirty = false
