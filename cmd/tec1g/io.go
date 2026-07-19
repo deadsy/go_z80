@@ -170,13 +170,9 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 		// TODO
 		return 0
 	case keyboardPort:
-		code, err := dev.keyboard.Scan(row)
-		if err != nil {
-			log.Printf("keyboard scan error: %s\n", err)
-		}
-		return code
+		return dev.keyboard.Scan(row)
 	}
-	log.Printf("io.Read8 unknown port %02x\n", adr)
+	log.Printf("io.Read8 unknown port %02x", adr)
 	return 0
 }
 

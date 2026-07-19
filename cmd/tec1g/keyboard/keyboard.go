@@ -29,6 +29,7 @@ package keyboard
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -91,16 +92,17 @@ func New(enable bool) (*Keyboard, error) {
 }
 
 // return the scan code for a row
-func (k *Keyboard) Scan(row byte) (byte, error) {
+func (k *Keyboard) Scan(row byte) byte {
 	if !k.enable {
-		return 0xff, nil
+		return 0xff
 	}
 	n, err := rowToInt(row)
 	if err != nil {
-		return 0xff, err
+		log.Printf("rowToInt: %s", err)
+		return 0xff
 	}
 	// return the scan code (inverted)
-	return ^k.row[n], nil
+	return ^k.row[n]
 }
 
 // return true if the two "reset" keys are pressed.
