@@ -10,22 +10,9 @@ package hd44780
 
 //-----------------------------------------------------------------------------
 
-const glyphPixelWidth = 5
-const glyphPixelHeight = 8
-
-const numGlyphs = 256
-
-// note: cgram has 8 glyphs from 0..7, but they repeat as 8..15
-// rather than special case anything, we just treat it as 16.
-const cgramGlyphs = 16
-
-const fontChars = numGlyphs - cgramGlyphs
-
-//-----------------------------------------------------------------------------
-
 // A00 (Japanese) character set.
 // skip first 16 characters reserved for CGRAM
-var fontA00 = [fontChars][glyphPixelWidth]byte{
+var fontA00 = [fontGlyphs][glyphPixelWidth]byte{
 	{0x00, 0x00, 0x00, 0x00, 0x00}, //  16 -
 	{0x00, 0x00, 0x00, 0x00, 0x00}, //  17 -
 	{0x00, 0x00, 0x00, 0x00, 0x00}, //  18 -
@@ -270,7 +257,7 @@ var fontA00 = [fontChars][glyphPixelWidth]byte{
 
 // A02 (European) character set.
 // skip first 16 characters reserved for CGRAM
-var fontA02 = [fontChars][glyphPixelWidth]byte{
+var fontA02 = [fontGlyphs][glyphPixelWidth]byte{
 	{0x00, 0x7f, 0x3e, 0x1c, 0x08}, //  16 -
 	{0x08, 0x1c, 0x3e, 0x7f, 0x00}, //  17 -
 	{0x30, 0x50, 0x00, 0x30, 0x50}, //  18 -
@@ -511,6 +498,14 @@ var fontA02 = [fontChars][glyphPixelWidth]byte{
 	{0x18, 0x05, 0x45, 0x85, 0x1e}, // 253 - ý
 	{0x00, 0x41, 0x7f, 0x15, 0x08}, // 254 - þ
 	{0x18, 0x45, 0x05, 0x45, 0x1e}, // 255 - ÿ
+}
+
+//-----------------------------------------------------------------------------
+// cursor image data (in row order, cgram style)
+
+var cursorData = []byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f, // underline
+	0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, // all-on
 }
 
 //-----------------------------------------------------------------------------

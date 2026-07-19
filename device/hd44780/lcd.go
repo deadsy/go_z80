@@ -19,6 +19,25 @@ import (
 
 //-----------------------------------------------------------------------------
 
+// note: cgram has 8 glyphs from 0..7, but they repeat as 8..15
+// rather than special case anything, we just treat it as 16.
+const cgramGlyphs = 16
+
+// from 16..255 we have the chosen font
+const fontGlyphs = 240
+
+// displaying 5x8 glyphs
+const glyphPixelWidth = 5
+const glyphPixelHeight = 8
+
+// how the pixels are drawn
+const dotSize = 10
+const dotGap = 1
+const glyphWidth = (glyphPixelWidth * (dotSize + dotGap)) - dotGap
+const glyphHeight = (glyphPixelHeight * (dotSize + dotGap)) - dotGap
+
+//-----------------------------------------------------------------------------
+
 const (
 	cmdClear        = byte(0x01)
 	cmdHome         = byte(0x02)
@@ -114,18 +133,14 @@ const (
 
 //-----------------------------------------------------------------------------
 
-const dotSize = 10
-const dotGap = 1
-const glyphWidth = (glyphPixelWidth * (dotSize + dotGap)) - dotGap
-const glyphHeight = (glyphPixelHeight * (dotSize + dotGap)) - dotGap
-
-func buildFontImage(font [fontChars][glyphPixelWidth]byte) *ebiten.Image {
-	img := ebiten.NewImage(numGlyphs*glyphWidth, glyphHeight)
-	for i := cgramGlyphs; i < numGlyphs; i++ {
+// build an image from row column pixel data
+func buildFontImage(font [fontGlyphs][glyphPixelWidth]byte) *ebiten.Image {
+	img := ebiten.NewImage(fontGlyphs*glyphWidth, glyphHeight)
+	for i := 0; i < fontGlyphs; i++ {
 		for j := 0; j < glyphPixelWidth; j++ {
-			pixelData := font[i-cgramGlyphs][j]
+			pixelData := font[i][j]
 			for k := 0; k < glyphPixelHeight; k++ {
-				pixel := (pixelData & (1 << (7 - k))) != 0
+				pixel := (pixelData & (1 << (glyphPixelHeight - 1 - k))) != 0
 				if pixel {
 					x := float32((i * glyphWidth) + (j * (dotSize + dotGap)))
 					y := float32(k * (dotSize + dotGap))
@@ -137,13 +152,15 @@ func buildFontImage(font [fontChars][glyphPixelWidth]byte) *ebiten.Image {
 	return img
 }
 
-func buildCgRamImage(cgram [cgRamSize]byte) *ebiten.Image {
-	img := ebiten.NewImage(cgramGlyphs*glyphWidth, glyphHeight)
-	for i := 0; i < cgramGlyphs; i++ {
+// build an image from row ordered pixel data (cgram style)
+func buildImage(buf []byte) *ebiten.Image {
+	nGlyphs := len(buf) >> 3 // 8 bytes per glyph
+	img := ebiten.NewImage(nGlyphs*glyphWidth, glyphHeight)
+	for i := 0; i < nGlyphs; i++ {
 		for j := 0; j < glyphPixelHeight; j++ {
-			pixelData := cgram[((i&7)<<3)+j]
+			pixelData := buf[(i<<3)+j]
 			for k := 0; k < glyphPixelWidth; k++ {
-				pixel := (pixelData & (1 << (4 - k))) != 0
+				pixel := (pixelData & (1 << (glyphPixelWidth - 1 - k))) != 0
 				if pixel {
 					x := float32((i * glyphWidth) + (k * (dotSize + dotGap)))
 					y := float32(j * (dotSize + dotGap))
@@ -162,7 +179,7 @@ const ddRamMode = false
 
 const ddRamSize = 128
 const cgRamSize = 64
-const cgAdrMask = byte(0x3f)
+const cgAdrMask = byte(cgRamSize - 1)
 
 type Config struct {
 	Mode           DisplayMode
@@ -171,29 +188,30 @@ type Config struct {
 }
 
 type LCD struct {
-	config        *Config          // lcd configuration
-	rows, cols    int              // displays rows and columns
-	font          [2]*ebiten.Image // font atlas images
+	config        *Config // lcd configuration
+	rows, cols    int     // displays rows and columns
+	scrollOffset  int
+	ramMode       bool             // which ram are we working with?
+	displayEnable bool             // is the display enabled?
+	dlFlag        bool             // interface data width (false = 4, true = 8)
+	nFlag         bool             // number of display lines (false = 1, true = 2)
+	fFlag         bool             // font selection (false = 5x8, true = 5x10)
+	shiftMode     bool             // shift mode (entry mode set command)
+	incMode       bool             // increment mode (entry mode set command)
+	font          [2]*ebiten.Image // rom font atlas images
 	cgFont        *ebiten.Image    // character generator font atlas image
-	img           *ebiten.Image    // unscaled lcd image
-	rowAdr        []byte           // address of row start in ddram
-	ddRam         [ddRamSize]byte  // display data ram
 	cgRam         [cgRamSize]byte  // character generator ram
-	ddAdr         byte             // ddram address
 	cgAdr         byte             // cgram address
 	cgDirty       bool             // do we need to rebuild the cg glyphs in the font atlas?
-	scrollOffset  int
-	ramMode       bool // which ram are we working with?
-	displayEnable bool // is the display enabled?
-	cursorBlink   bool // is the cursor blinking?
-	cursorEnable  bool // is the cursor enabled?
-	cursorState   bool // current cursor state
-	dlFlag        bool // interface data width (false = 4, true = 8)
-	nFlag         bool // number of display lines (false = 1, true = 2)
-	fFlag         bool // font selection (false = 5x8, true = 5x10)
-	shiftMode     bool // shift mode (entry mode set command)
-	incMode       bool // increment mode (entry mode set command)
-
+	cursorFont    *ebiten.Image    // cursor font atlas
+	cursorCount   int              // cursor flash counter
+	cursorBlink   bool             // is the cursor blinking?
+	cursorEnable  bool             // is the cursor enabled?
+	cursorState   bool             // current cursor state
+	rowAdr        []byte           // address of row start in ddram
+	ddRam         [ddRamSize]byte  // display data ram
+	ddAdr         byte             // ddram address
+	img           *ebiten.Image    // unscaled lcd image
 }
 
 func New(cfg *Config) (*LCD, error) {
@@ -205,6 +223,15 @@ func New(cfg *Config) (*LCD, error) {
 	// pre-load font images
 	lcd.font[0] = buildFontImage(fontA00)
 	lcd.font[1] = buildFontImage(fontA02)
+
+	// build an initial cgram font
+	for i := range lcd.cgRam {
+		lcd.cgRam[i] = 0x1f
+	}
+	lcd.cgFont = buildImage(lcd.cgRam[:])
+
+	// build the cursor font
+	lcd.cursorFont = buildImage(cursorData)
 
 	// build an unscaled lcd image
 	width := lcd.cols*glyphWidth + (lcd.cols-1)*xGap
@@ -229,35 +256,12 @@ func New(cfg *Config) (*LCD, error) {
 
 func (lcd *LCD) ddRamWrite(val byte) {
 	//log.Printf("ddRamWrite [0x%02x] = 0x%02x", lcd.ddAddr, val)
-
 	lcd.ddRam[lcd.ddAdr] = val
-
 	if lcd.incMode {
 		lcd.ddAdr = inc_ddAdr(lcd.ddAdr)
-
-		/*
-
-		   if (self->mcu.LCD_EntryMode & 0x01) {
-		       if (self->mcu.DDRAM_display < 24)
-		           self->mcu.DDRAM_display++;
-		   }
-
-		*/
-
 	} else {
 		lcd.ddAdr = dec_ddAdr(lcd.ddAdr)
-
-		/*
-
-		   if (self->mcu.LCD_EntryMode & 0x01) {
-		       if (self->mcu.DDRAM_display > 0)
-		           self->mcu.DDRAM_display--;
-		   }
-
-		*/
-
 	}
-
 }
 
 func (lcd *LCD) ddRamRead() byte {
@@ -316,7 +320,6 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		// ddRam address is 7 bits
 		lcd.ddAdr = cmd & 0x7f
 		lcd.ramMode = ddRamMode
-		//log.Printf("ddAddr = 0x%02x\n", lcd.ddAddr)
 
 	} else if cmd&cmdSetCgramAddr != 0 {
 		// cgram address is 6 bits
@@ -388,6 +391,49 @@ func (lcd *LCD) WriteData(val byte) {
 
 //-----------------------------------------------------------------------------
 
+// return the glyph for a given code
+func (lcd *LCD) getGlyph(set int, code byte) *ebiten.Image {
+	var img *ebiten.Image
+	x := 0
+	if code < cgramGlyphs {
+		// glyph is in cgram, 8..15 map onto 0..7
+		code &= 7
+		x = int(code) * glyphWidth
+		img = lcd.cgFont
+	} else {
+		// glyph is in the chosen ROM font
+		x = int(code-cgramGlyphs) * glyphWidth
+		img = lcd.font[set]
+	}
+	r := image.Rect(x, 0, x+glyphWidth, glyphHeight)
+	return img.SubImage(r).(*ebiten.Image)
+}
+
+// return the image for the cursor
+func (lcd *LCD) getCursor(state bool) *ebiten.Image {
+	x := 0
+	if state {
+		x = glyphWidth
+	}
+	r := image.Rect(x, 0, x+glyphWidth, glyphHeight)
+	return lcd.cursorFont.SubImage(r).(*ebiten.Image)
+}
+
+//-----------------------------------------------------------------------------
+
+// given a display address, work out the row and column.
+func (lcd *LCD) getRowCol(adr byte) (int, int) {
+	for row := 0; row < lcd.rows; row++ {
+		start := lcd.rowAdr[row]
+		if adr >= start && adr < start+byte(lcd.cols) {
+			return row, int(adr - start)
+		}
+	}
+	return 0, 0
+}
+
+//-----------------------------------------------------------------------------
+
 // intercharacter gaps
 const xGap = dotSize + dotGap
 const yGap = dotSize + dotGap
@@ -395,16 +441,6 @@ const yGap = dotSize + dotGap
 // character to character pitch
 const pitchX = glyphWidth + xGap
 const pitchY = glyphHeight + yGap
-
-func (lcd *LCD) getGlyph(set int, code byte) *ebiten.Image {
-	x := int(code) * glyphWidth
-	r := image.Rect(x, 0, x+glyphWidth, glyphHeight)
-	if code < 16 && lcd.cgFont != nil {
-		// return the cgram glyph
-		return lcd.cgFont.SubImage(r).(*ebiten.Image)
-	}
-	return lcd.font[set].SubImage(r).(*ebiten.Image)
-}
 
 // Draw the display (called from ebiten draw function)
 func (lcd *LCD) Draw(screen *ebiten.Image) {
@@ -423,6 +459,16 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 		}
 	}
 
+	// draw the cursor
+	if lcd.cursorEnable {
+		cursor := lcd.getCursor(lcd.cursorBlink && lcd.cursorState)
+		row, col := lcd.getRowCol(lcd.ddAdr)
+		// render the cursor to the lcd image
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
+		lcd.img.DrawImage(cursor, op)
+	}
+
 	// render the lcd image to the screen (with scaling)
 	cfg := lcd.config
 	op := &ebiten.DrawImageOptions{}
@@ -434,8 +480,16 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 
 // Update the display logic (called from ebiten update)
 func (lcd *LCD) Update() {
+
+	// 24 * 1/60 sec = 400 msec
+	if lcd.cursorCount == 24 {
+		lcd.cursorState = !lcd.cursorState
+		lcd.cursorCount = 0
+	}
+	lcd.cursorCount += 1
+
 	if lcd.cgDirty {
-		lcd.cgFont = buildCgRamImage(lcd.cgRam)
+		lcd.cgFont = buildImage(lcd.cgRam[:])
 		lcd.cgDirty = false
 	}
 }
