@@ -232,20 +232,21 @@ const cgRamSize = 64
 type Config struct {
 	Rows, Cols     int     // rows and columns for the display
 	Type2          bool    // is this a single row, type2 lcd?
+	Font           int     // font selector
 	XBase, YBase   float64 // xy position
 	XScale, YScale float64 // xy scale
 }
 
 type LCD struct {
-	cfg *Config // lcd configuration
+	cfg Config // lcd configuration
 
 	toRowCol map[byte][2]int // map a ddRam address to a (row,col) tuple
 
 	// images
-	font       [2]*ebiten.Image // rom font atlas images
-	cgFont     *ebiten.Image    // character generator font atlas image
-	img        *ebiten.Image    // unscaled lcd image
-	cursorFont *ebiten.Image    // cursor font atlas
+	font       *ebiten.Image // font atlas
+	cgFont     *ebiten.Image // character generator glyph atlas
+	cursorFont *ebiten.Image // cursor glyph atlas
+	img        *ebiten.Image // unscaled lcd image
 
 	// character generator ram
 	cgRam   [cgRamSize]byte // character generator ram
@@ -273,7 +274,7 @@ type LCD struct {
 	incMode       bool // increment mode (entry mode set command)
 }
 
-func New(cfg *Config) (*LCD, error) {
+func New(cfg Config) (*LCD, error) {
 	// check the display mode
 	if !isValid(cfg.Rows, cfg.Cols, cfg.Type2) {
 		return nil, errors.New("unsupported display mode")
@@ -291,9 +292,15 @@ func New(cfg *Config) (*LCD, error) {
 		}
 	}
 
-	// pre-load font images
-	lcd.font[0] = buildFontImage(fontA00)
-	lcd.font[1] = buildFontImage(fontA02)
+	// load a font atlas
+	switch cfg.Font {
+	case 0:
+		lcd.font = buildFontImage(fontA00)
+	case 1:
+		lcd.font = buildFontImage(fontA02)
+	default:
+		return nil, errors.New("invalid font selector")
+	}
 
 	// build an initial cgRam font
 	lcd.cgFont = buildImage(lcd.cgRam[:])
@@ -456,7 +463,7 @@ func (lcd *LCD) WriteData(val byte) {
 //-----------------------------------------------------------------------------
 
 // return the glyph for a given code
-func (lcd *LCD) getGlyph(set int, code byte) *ebiten.Image {
+func (lcd *LCD) getGlyph(code byte) *ebiten.Image {
 	var img *ebiten.Image
 	x := 0
 	if code < cgramGlyphs {
@@ -467,7 +474,7 @@ func (lcd *LCD) getGlyph(set int, code byte) *ebiten.Image {
 	} else {
 		// glyph is in the chosen ROM font
 		x = int(code-cgramGlyphs) * glyphWidth
-		img = lcd.font[set]
+		img = lcd.font
 	}
 	r := image.Rect(x, 0, x+glyphWidth, glyphHeight)
 	return img.SubImage(r).(*ebiten.Image)
@@ -495,31 +502,35 @@ const pitchY = glyphHeight + yGap
 
 // Draw the display (called from ebiten draw function)
 func (lcd *LCD) Draw(screen *ebiten.Image) {
-	cfg := lcd.cfg
 
-	// create an unscaled lcd image
+	cfg := &lcd.cfg
+
+	// clear the lcd image
 	lcd.img.Clear()
-	for row := 0; row < cfg.Rows; row++ {
-		for col := 0; col < cfg.Cols; col++ {
-			// get the character
-			code := lcd.ddRam[lcd.rowColToAdr(row, col)]
-			glyph := lcd.getGlyph(0, code)
-			// render the glyph to the lcd image
-			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
-			lcd.img.DrawImage(glyph, op)
-		}
-	}
 
-	// draw the cursor
-	if lcd.cursorEnable {
-		row, col, ok := lcd.adrToRowCol(lcd.ddAdr)
-		if ok {
-			// render the cursor to the lcd image
-			cursor := lcd.getCursor(lcd.cursorBlink && lcd.cursorState)
-			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
-			lcd.img.DrawImage(cursor, op)
+	if lcd.displayEnable {
+		// draw the glyphs
+		for row := 0; row < cfg.Rows; row++ {
+			for col := 0; col < cfg.Cols; col++ {
+				// get the character
+				code := lcd.ddRam[lcd.rowColToAdr(row, col)]
+				glyph := lcd.getGlyph(code)
+				// render the glyph to the lcd image
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
+				lcd.img.DrawImage(glyph, op)
+			}
+		}
+		// draw the cursor
+		if lcd.cursorEnable {
+			row, col, ok := lcd.adrToRowCol(lcd.ddAdr)
+			if ok {
+				// render the cursor to the lcd image
+				cursor := lcd.getCursor(lcd.cursorBlink && lcd.cursorState)
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
+				lcd.img.DrawImage(cursor, op)
+			}
 		}
 	}
 

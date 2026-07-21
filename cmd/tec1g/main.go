@@ -169,7 +169,7 @@ func newSystem(cfg *Config) (*system, error) {
 		XScale: 0.34,
 		YScale: 0.34,
 	}
-	lcd, err := hd44780.New(&cfgLCD)
+	lcd, err := hd44780.New(cfgLCD)
 	if err != nil {
 		return nil, err
 	}

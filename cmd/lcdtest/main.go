@@ -48,7 +48,7 @@ func newSystem() (*system, error) {
 		XScale: 0.37,
 		YScale: 0.37,
 	}
-	dev0, err := hd44780.New(&cfgLCD)
+	dev0, err := hd44780.New(cfgLCD)
 	if err != nil {
 		return nil, err
 	}
