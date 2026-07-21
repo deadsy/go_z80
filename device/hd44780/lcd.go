@@ -116,23 +116,69 @@ func dec_ddAdr(x byte) byte {
 }
 
 //-----------------------------------------------------------------------------
-// display modes
+/*
 
-type DisplayMode uint16
+Display Modes
 
-const (
-	Mode16x2 DisplayMode = ((16 << 8) | 2)
-	Mode20x2 DisplayMode = ((20 << 8) | 2)
-	Mode20x4 DisplayMode = ((20 << 8) | 4)
-	Mode8x1  DisplayMode = ((8 << 8) | 1)
-	Mode8x2  DisplayMode = ((8 << 8) | 2)
-	Mode12x2 DisplayMode = ((12 << 8) | 2)
-	Mode16x1 DisplayMode = ((16 << 8) | 1) // type1 only, type2 handling is TODO
-	Mode16x4 DisplayMode = ((16 << 8) | 4)
-	Mode20x1 DisplayMode = ((20 << 8) | 1)
-	Mode24x2 DisplayMode = ((24 << 8) | 2)
-	Mode40x2 DisplayMode = ((40 << 8) | 2)
-)
+The hd44780 has two 40 byte "rows" of internal display data ram.
+How these map onto the physical lcd row and column is a function
+of the actual display being used. This code handles that mapping.
+
+*/
+
+// return true if this is a supported display mode
+func isValid(row, col int, type2 bool) bool {
+	switch row {
+	case 1:
+		if type2 {
+			switch col {
+			case 16, 20, 24, 32, 40:
+				return true
+			}
+		} else {
+			switch col {
+			case 8:
+				return true
+			}
+		}
+	case 2:
+		switch col {
+		case 8, 16, 20, 24, 40:
+			return true
+		}
+	case 4:
+		switch col {
+		case 16, 20:
+			return true
+		}
+	}
+	return false
+}
+
+// convert a row and column to a display data address
+func (lcd *LCD) rowColToAdr(row, col int) byte {
+	switch lcd.cfg.Rows {
+	case 1:
+		half := lcd.cfg.Cols / 2
+		if lcd.cfg.Type2 && col >= half {
+			// a type2 lcd splits it's single row of columms
+			// over the two "rows" of the display data ram.
+			return 0x40 + byte(col-half)
+		}
+		return 0x00 + byte(col)
+	case 2:
+		return []byte{0, 0x40}[row] + byte(col)
+	case 4:
+		return []byte{0, 0x40, 0x14, 0x54}[row] + byte(col)
+	}
+	return 0xff
+}
+
+// map a display data ram address to a row and column.
+func (lcd *LCD) adrToRowCol(adr byte) (int, int, bool) {
+	x, ok := lcd.toRowCol[adr]
+	return x[0], x[1], ok
+}
 
 //-----------------------------------------------------------------------------
 
@@ -182,80 +228,88 @@ const ddRamMode = false
 
 const ddRamSize = 128
 const cgRamSize = 64
-const cgAdrMask = byte(cgRamSize - 1)
 
 type Config struct {
-	Mode           DisplayMode
+	Rows, Cols     int     // rows and columns for the display
+	Type2          bool    // is this a single row, type2 lcd?
 	XBase, YBase   float64 // xy position
 	XScale, YScale float64 // xy scale
 }
 
 type LCD struct {
-	config        *Config // lcd configuration
-	rows, cols    int     // displays rows and columns
+	cfg *Config // lcd configuration
+
+	toRowCol map[byte][2]int // map a ddRam address to a (row,col) tuple
+
+	// images
+	font       [2]*ebiten.Image // rom font atlas images
+	cgFont     *ebiten.Image    // character generator font atlas image
+	img        *ebiten.Image    // unscaled lcd image
+	cursorFont *ebiten.Image    // cursor font atlas
+
+	// character generator ram
+	cgRam   [cgRamSize]byte // character generator ram
+	cgAdr   byte            // cgram address
+	cgDirty bool            // do we need to rebuild the cg glyphs in the font atlas?
+
+	// display data ram
+	ddRam [ddRamSize]byte // display data ram
+	ddAdr byte            // ddram address
+
+	// cursor state
+	cursorCount  int  // cursor flash counter
+	cursorBlink  bool // is the cursor blinking?
+	cursorEnable bool // is the cursor enabled?
+	cursorState  bool // current cursor state
+
+	// other variables...
+	displayEnable bool // is the display enabled?
 	scrollOffset  int
-	ramMode       bool             // which ram are we working with?
-	displayEnable bool             // is the display enabled?
-	dlFlag        bool             // interface data width (false = 4, true = 8)
-	nFlag         bool             // number of display lines (false = 1, true = 2)
-	fFlag         bool             // font selection (false = 5x8, true = 5x10)
-	shiftMode     bool             // shift mode (entry mode set command)
-	incMode       bool             // increment mode (entry mode set command)
-	font          [2]*ebiten.Image // rom font atlas images
-	cgFont        *ebiten.Image    // character generator font atlas image
-	cgRam         [cgRamSize]byte  // character generator ram
-	cgAdr         byte             // cgram address
-	cgDirty       bool             // do we need to rebuild the cg glyphs in the font atlas?
-	cursorFont    *ebiten.Image    // cursor font atlas
-	cursorCount   int              // cursor flash counter
-	cursorBlink   bool             // is the cursor blinking?
-	cursorEnable  bool             // is the cursor enabled?
-	cursorState   bool             // current cursor state
-	rowAdr        []byte           // address of row start in ddram
-	ddRam         [ddRamSize]byte  // display data ram
-	ddAdr         byte             // ddram address
-	img           *ebiten.Image    // unscaled lcd image
+	ramMode       bool // which ram are we working with (cgRam/ddRam)?
+	dlFlag        bool // interface data width (false = 4, true = 8)
+	nFlag         bool // number of display lines (false = 1, true = 2)
+	fFlag         bool // font selection (false = 5x8, true = 5x10)
+	shiftMode     bool // shift mode (entry mode set command)
+	incMode       bool // increment mode (entry mode set command)
 }
 
 func New(cfg *Config) (*LCD, error) {
-	lcd := &LCD{
-		config: cfg,
-		rows:   int(cfg.Mode & 0xff),
-		cols:   int(cfg.Mode >> 8),
+	// check the display mode
+	if !isValid(cfg.Rows, cfg.Cols, cfg.Type2) {
+		return nil, errors.New("unsupported display mode")
 	}
+	lcd := &LCD{
+		cfg:      cfg,
+		toRowCol: make(map[byte][2]int),
+	}
+
+	// work out the data display address to (row,col) map
+	for row := 0; row < cfg.Rows; row++ {
+		for col := 0; col < cfg.Cols; col++ {
+			adr := lcd.rowColToAdr(row, col)
+			lcd.toRowCol[adr] = [2]int{row, col}
+		}
+	}
+
 	// pre-load font images
 	lcd.font[0] = buildFontImage(fontA00)
 	lcd.font[1] = buildFontImage(fontA02)
 
-	// build an initial cgram font
-	for i := range lcd.cgRam {
-		lcd.cgRam[i] = 0x1f
-	}
+	// build an initial cgRam font
 	lcd.cgFont = buildImage(lcd.cgRam[:])
+
+	// clear the ddRam
+	for i := range lcd.ddRam {
+		lcd.ddRam[i] = 0x20
+	}
 
 	// build the cursor font
 	lcd.cursorFont = buildImage(cursorData)
 
 	// build an unscaled lcd image
-	width := lcd.cols*glyphWidth + (lcd.cols-1)*xGap
-	height := lcd.rows*glyphHeight + (lcd.rows-1)*yGap
+	width := cfg.Cols*glyphWidth + (cfg.Cols-1)*xGap
+	height := cfg.Rows*glyphHeight + (cfg.Rows-1)*yGap
 	lcd.img = ebiten.NewImage(width, height)
-
-	// work out the row addresses
-	lcd.rowAdr = make([]byte, lcd.rows)
-	if lcd.rows == 1 {
-		lcd.rowAdr[0] = 0
-	} else if lcd.rows == 2 {
-		lcd.rowAdr[0] = 0
-		lcd.rowAdr[1] = 0x40
-	} else if lcd.rows == 4 {
-		lcd.rowAdr[0] = 0
-		lcd.rowAdr[1] = 0x40
-		lcd.rowAdr[2] = 0x14
-		lcd.rowAdr[3] = 0x54
-	} else {
-		return nil, errors.New("rows != 1,2,4")
-	}
 
 	return lcd, nil
 }
@@ -285,6 +339,8 @@ func (lcd *LCD) ddRamRead() byte {
 }
 
 //-----------------------------------------------------------------------------
+
+const cgAdrMask = byte(cgRamSize - 1)
 
 func (lcd *LCD) cgRamWrite(val byte) {
 	//log.Printf("cgRamWrite [0x%02x] = 0x%02x", lcd.cgAdr, val)
@@ -429,19 +485,6 @@ func (lcd *LCD) getCursor(state bool) *ebiten.Image {
 
 //-----------------------------------------------------------------------------
 
-// given a display address, work out the row and column.
-func (lcd *LCD) getRowCol(adr byte) (int, int, bool) {
-	for row := 0; row < lcd.rows; row++ {
-		start := lcd.rowAdr[row]
-		if adr >= start && adr < start+byte(lcd.cols) {
-			return row, int(adr - start), true
-		}
-	}
-	return 0, 0, false
-}
-
-//-----------------------------------------------------------------------------
-
 // intercharacter gaps
 const xGap = dotSize + dotGap
 const yGap = dotSize + dotGap
@@ -452,13 +495,14 @@ const pitchY = glyphHeight + yGap
 
 // Draw the display (called from ebiten draw function)
 func (lcd *LCD) Draw(screen *ebiten.Image) {
+	cfg := lcd.cfg
 
 	// create an unscaled lcd image
 	lcd.img.Clear()
-	for row := 0; row < lcd.rows; row++ {
-		for col := 0; col < lcd.cols; col++ {
+	for row := 0; row < cfg.Rows; row++ {
+		for col := 0; col < cfg.Cols; col++ {
 			// get the character
-			code := lcd.ddRam[lcd.rowAdr[row]+byte(col)]
+			code := lcd.ddRam[lcd.rowColToAdr(row, col)]
 			glyph := lcd.getGlyph(0, code)
 			// render the glyph to the lcd image
 			op := &ebiten.DrawImageOptions{}
@@ -469,7 +513,7 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 
 	// draw the cursor
 	if lcd.cursorEnable {
-		row, col, ok := lcd.getRowCol(lcd.ddAdr)
+		row, col, ok := lcd.adrToRowCol(lcd.ddAdr)
 		if ok {
 			// render the cursor to the lcd image
 			cursor := lcd.getCursor(lcd.cursorBlink && lcd.cursorState)
@@ -480,7 +524,6 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 	}
 
 	// render the lcd image to the screen (with scaling)
-	cfg := lcd.config
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(cfg.XScale, cfg.YScale)
 	op.GeoM.Translate(cfg.XBase, cfg.YBase)

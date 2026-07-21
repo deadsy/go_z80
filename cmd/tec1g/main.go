@@ -162,7 +162,8 @@ func newSystem(cfg *Config) (*system, error) {
 
 	// setup the LCD
 	cfgLCD := hd44780.Config{
-		Mode:   hd44780.Mode20x4,
+		Rows:   4,
+		Cols:   20,
 		XBase:  233,
 		YBase:  584,
 		XScale: 0.34,
