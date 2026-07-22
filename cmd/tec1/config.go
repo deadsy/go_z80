@@ -28,8 +28,13 @@ type array88Config struct {
 	Enable bool `toml:"enable"` // is the 8x8 led array enabled?
 }
 
+type soundConfig struct {
+	Enable bool `toml:"enable"` // is the sound enabled?
+}
+
 type Config struct {
 	Array88 array88Config `toml:"array_8x8"`
+	Sound   soundConfig   `toml:"sound"`
 }
 
 func (cfg *Config) String() string {
@@ -45,7 +50,9 @@ func (cfg *Config) String() string {
 
 // return a default config
 func defaultConfig() *Config {
-	return &Config{}
+	return &Config{
+		Sound: soundConfig{Enable: true},
+	}
 }
 
 // load the config from a file

@@ -200,6 +200,7 @@ func (d *blocker) reset() {
 //-----------------------------------------------------------------------------
 
 type Config struct {
+	Enable       bool
 	BitAmplitude float32
 	BufferSize   int
 	SampleRate   int
@@ -208,39 +209,48 @@ type Config struct {
 }
 
 type Speaker struct {
-	config *Config         // speaker configuration
+	cfg    Config          // speaker configuration
 	buffer *circularBuffer // circular buffer of sample values
 	lpf    *lowPassFilter  // low pass filter - remove high frequency components
 	block  *blocker        // dc block - give 0 average output
 }
 
-func New(k *Config) (*Speaker, error) {
-	if k.BitAmplitude <= 0 {
+func New(cfg Config) (*Speaker, error) {
+	// are we enabled?
+	if !cfg.Enable {
+		return &Speaker{
+			cfg: cfg,
+		}, nil
+	}
+	if cfg.BitAmplitude <= 0 {
 		return nil, errors.New("bad bit amplitude")
 	}
 	// ensure the buffer size is a multiple of left/right audio samples (4 bytes)
-	if (k.BufferSize <= 0) || (k.BufferSize%4 != 0) {
+	if (cfg.BufferSize <= 0) || (cfg.BufferSize%4 != 0) {
 		return nil, errors.New("invalid buffer size")
 	}
-	if k.SampleRate <= 0 {
+	if cfg.SampleRate <= 0 {
 		return nil, errors.New("invalid sample rate")
 	}
-	if k.HighCutoff <= 0 {
+	if cfg.HighCutoff <= 0 {
 		return nil, errors.New("invalid high cutoff frequency")
 	}
-	if k.LowCutoff <= 0 {
+	if cfg.LowCutoff <= 0 {
 		return nil, errors.New("invalid low cutoff frequency")
 	}
 	return &Speaker{
-		config: k,
-		buffer: newCircularBuffer(k.BufferSize),
-		lpf:    newLowPassFilter(float64(k.SampleRate), float64(k.HighCutoff)),
-		block:  newBlocker(float64(k.SampleRate), float64(k.LowCutoff)),
+		cfg:    cfg,
+		buffer: newCircularBuffer(cfg.BufferSize),
+		lpf:    newLowPassFilter(float64(cfg.SampleRate), float64(cfg.HighCutoff)),
+		block:  newBlocker(float64(cfg.SampleRate), float64(cfg.LowCutoff)),
 	}, nil
 }
 
 // Read samples from the buffer (implements io.Reader)
 func (s *Speaker) Read(b []byte) (n int, err error) {
+	if !s.cfg.Enable {
+		return 0, errors.New("disabled")
+	}
 	// read complete left/right samples (4 bytes) at a time
 	var ofs int
 	for ofs = 0; ofs+4 <= len(b); ofs += 4 {
@@ -256,8 +266,11 @@ func (s *Speaker) Read(b []byte) (n int, err error) {
 
 // write a bit sample to the buffer
 func (s *Speaker) WriteSample(bit bool) error {
+	if !s.cfg.Enable {
+		return nil
+	}
 	// start with a square wave
-	sample := s.config.BitAmplitude
+	sample := s.cfg.BitAmplitude
 	if !bit {
 		sample = -sample
 	}
@@ -273,11 +286,17 @@ func (s *Speaker) WriteSample(bit bool) error {
 
 // return the number of samples in the circular buffer
 func (s *Speaker) Samples() int {
+	if !s.cfg.Enable {
+		return 0
+	}
 	return s.buffer.frames()
 }
 
 // empty the circular buffer of all samples
 func (s *Speaker) Empty() {
+	if !s.cfg.Enable {
+		return
+	}
 	s.buffer.empty()
 }
 

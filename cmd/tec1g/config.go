@@ -29,10 +29,15 @@ type array88Config struct {
 	Enable bool `toml:"enable"` // is the 8x8 led array enabled?
 }
 
+type soundConfig struct {
+	Enable bool `toml:"enable"` // is the sound enabled?
+}
+
 type Config struct {
 	RTC     ds1302.Config `toml:"rtc"`
 	DIP     dipSwitch     `toml:"dip_switch"`
 	Array88 array88Config `toml:"array_8x8"`
+	Sound   soundConfig   `toml:"sound"`
 }
 
 func (cfg *Config) String() string {
@@ -56,8 +61,9 @@ func defaultConfig() *Config {
 	}
 	dip := dipSwitch{}
 	cfg := &Config{
-		RTC: rtc,
-		DIP: dip,
+		RTC:   rtc,
+		DIP:   dip,
+		Sound: soundConfig{Enable: true},
 	}
 	return cfg
 }

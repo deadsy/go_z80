@@ -93,58 +93,58 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 //-----------------------------------------------------------------------------
 
 type system struct {
-	speaker           *speaker.Speaker   // audio speaker
-	sound             *sound.Sound       // ebiten audio
-	keyboard          *keyboard.Keyboard // matrix keyboard
-	video             *video.Video       // video
-	io                *sysIO             // system IO
-	mem               *sysMemory         // system memory
-	bus               *Bus               // system bus
-	cpu               *z80.CPU           // z80 cpu
-	background        *ebiten.Image      // background graphic
-	width, height     int                // window dimensions
-	tickCycles        float32            // ebiten tick cpu cycles
-	audioSampleCycles float32            // audio sample cpu cycles
-	interruptCycles   float32            // periodic interrupt
-	soundStarted      bool               // has the sound been started?
+	cfg               *Config          // configuration
+	speaker           *speaker.Speaker // audio speaker
+	sound             *sound.Sound     // ebiten audio
+	io                *sysIO           // system IO
+	mem               *sysMemory       // system memory
+	cpu               *z80.CPU         // z80 cpu
+	background        *ebiten.Image    // background graphic
+	width, height     int              // window dimensions
+	tickCycles        float32          // ebiten tick cpu cycles
+	audioSampleCycles float32          // audio sample cpu cycles
+	interruptCycles   float32          // periodic interrupt
+	soundStarted      bool             // has the sound been started?
 }
 
-func newSystem() (*system, error) {
+func newSystem(cfg *Config) (*system, error) {
+
+	// setup the memory
+	mem, err := newMemory()
+	if err != nil {
+		return nil, err
+	}
+
+	// setup the bus
+	bus := newBus()
 
 	// setup the speaker
 	cfgSpeaker := speaker.Config{
+		Enable:       cfg.Sound.Enable,
 		BitAmplitude: 0.1,
 		BufferSize:   16384,
 		SampleRate:   audioSampleRate,
 		HighCutoff:   6 * kHz,
 		LowCutoff:    40 * Hz,
 	}
-	speaker, err := speaker.New(&cfgSpeaker)
+	speaker, err := speaker.New(cfgSpeaker)
 	if err != nil {
 		return nil, err
 	}
 
 	// setup the sound
 	cfgSound := sound.Config{
+		Enable:     cfg.Sound.Enable,
 		SampleRate: audioSampleRate,
 		Src:        speaker,
 	}
-	sound, err := sound.New(&cfgSound)
+	sound, err := sound.New(cfgSound)
 	if err != nil {
 		return nil, err
 	}
 
 	// setup the keyboard
 	keyboard, err := keyboard.New()
-	if err != nil {
-		return nil, err
-	}
-
-	// setup the IO
-	io := newIO(keyboard)
-
-	// setup the memory
-	mem, err := newMemory()
 	if err != nil {
 		return nil, err
 	}
@@ -161,23 +161,27 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
-	// setup the bus
-	bus := newBus()
+	// setup the IO
+	devices := ioDevices{
+		keyboard: keyboard,
+		video:    video,
+	}
+	io := newIO(&devices)
 
 	// setup the cpu
 	cpu := z80.New(io, mem, bus)
 
 	s := &system{
+		cfg:             cfg,
 		speaker:         speaker,
 		sound:           sound,
-		keyboard:        keyboard,
-		video:           video,
 		io:              io,
 		mem:             mem,
-		bus:             bus,
 		cpu:             cpu,
 		interruptCycles: cpuCyclesPerInterrupt,
 	}
+
+	io.setSystem(s)
 
 	// build the background image
 	img, err := buildBackgroundImage()
@@ -192,10 +196,6 @@ func newSystem() (*system, error) {
 	s.height = bounds.Dy()
 
 	return s, nil
-}
-
-// exit cleans up system resources
-func (s *system) Exit() {
 }
 
 func (s *system) Update() error {
@@ -240,19 +240,31 @@ func (s *system) Update() error {
 		}
 	}
 
-	if s.mem.IsDirty() {
-		// update the font atlas
-		s.video.Update()
-		s.mem.Clean()
+	// update the IO devices
+	s.io.Update()
+
+	if ebiten.IsWindowBeingClosed() {
+		s.Exit()
 	}
 
-	s.keyboard.Update()
 	return nil
+}
+
+// exit cleans up system resources
+func (s *system) Exit() {
+	log.Printf("system exit")
+	err := s.cfg.saveConfig(s, configFile)
+	if err != nil {
+		log.Printf("unable to save config: %s", err)
+	} else {
+		log.Printf("saved config to %s", configFile)
+	}
 }
 
 func (s *system) Draw(screen *ebiten.Image) {
 	screen.DrawImage(s.background, nil)
-	s.video.Draw(screen)
+	// draw the IO devices
+	s.io.Draw(screen)
 }
 
 func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -263,7 +275,17 @@ func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func main() {
 	log.Printf("%s\n", util.GetBuildInfo())
-	s, err := newSystem()
+
+	// read the config
+	cfg, err := loadConfig(configFile)
+	if err != nil {
+		log.Printf("unable to read %s, using defaults", configFile)
+		cfg = defaultConfig()
+	} else {
+		log.Printf("read config from %s", configFile)
+	}
+
+	s, err := newSystem(cfg)
 	if err != nil {
 		log.Fatalf("error: %s", err)
 	}

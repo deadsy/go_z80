@@ -116,23 +116,25 @@ func newSystem(cfg *Config) (*system, error) {
 
 	// setup the speaker
 	cfgSpeaker := speaker.Config{
+		Enable:       cfg.Sound.Enable,
 		BitAmplitude: 0.1,
 		BufferSize:   16384,
 		SampleRate:   audioSampleRate,
 		HighCutoff:   6 * kHz,
 		LowCutoff:    40 * Hz,
 	}
-	speaker, err := speaker.New(&cfgSpeaker)
+	speaker, err := speaker.New(cfgSpeaker)
 	if err != nil {
 		return nil, err
 	}
 
 	// setup the sound
 	cfgSound := sound.Config{
+		Enable:     cfg.Sound.Enable,
 		SampleRate: audioSampleRate,
 		Src:        speaker,
 	}
-	sound, err := sound.New(&cfgSound)
+	sound, err := sound.New(cfgSound)
 	if err != nil {
 		return nil, err
 	}
