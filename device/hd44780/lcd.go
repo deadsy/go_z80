@@ -36,6 +36,10 @@ const dotGap = 1
 const glyphWidth = (glyphPixelWidth * (dotSize + dotGap)) - dotGap
 const glyphHeight = (glyphPixelHeight * (dotSize + dotGap)) - dotGap
 
+// border around the characters
+const xBorder = 20
+const yBorder = 20
+
 // cursor blinking
 const cursorBlinkPeriod = 24 // 1/60 second units
 
@@ -183,7 +187,7 @@ func (lcd *LCD) adrToRowCol(adr byte) (int, int, bool) {
 //-----------------------------------------------------------------------------
 
 // build a font image from row column pixel data
-func buildFontImage(font [fontGlyphs][glyphPixelWidth]byte) *ebiten.Image {
+func buildFontImage(font [fontGlyphs][glyphPixelWidth]byte, color color.RGBA) *ebiten.Image {
 	img := ebiten.NewImage(fontGlyphs*glyphWidth, glyphHeight)
 	for i := 0; i < fontGlyphs; i++ {
 		for j := 0; j < glyphPixelWidth; j++ {
@@ -193,7 +197,7 @@ func buildFontImage(font [fontGlyphs][glyphPixelWidth]byte) *ebiten.Image {
 				if pixel {
 					x := float32((i * glyphWidth) + (j * (dotSize + dotGap)))
 					y := float32(k * (dotSize + dotGap))
-					vector.FillRect(img, x, y, dotSize, dotSize, color.RGBA{0, 0, 0, 255}, false)
+					vector.FillRect(img, x, y, dotSize, dotSize, color, false)
 				}
 			}
 		}
@@ -202,7 +206,7 @@ func buildFontImage(font [fontGlyphs][glyphPixelWidth]byte) *ebiten.Image {
 }
 
 // build an image from row ordered pixel data (cgram style)
-func buildImage(buf []byte) *ebiten.Image {
+func buildImage(buf []byte, color color.RGBA) *ebiten.Image {
 	nGlyphs := len(buf) >> 3 // 8 bytes per glyph
 	img := ebiten.NewImage(nGlyphs*glyphWidth, glyphHeight)
 	for i := 0; i < nGlyphs; i++ {
@@ -213,7 +217,7 @@ func buildImage(buf []byte) *ebiten.Image {
 				if pixel {
 					x := float32((i * glyphWidth) + (k * (dotSize + dotGap)))
 					y := float32(j * (dotSize + dotGap))
-					vector.FillRect(img, x, y, dotSize, dotSize, color.RGBA{0, 0, 0, 255}, false)
+					vector.FillRect(img, x, y, dotSize, dotSize, color, false)
 				}
 			}
 		}
@@ -230,11 +234,13 @@ const ddRamSize = 128
 const cgRamSize = 64
 
 type Config struct {
-	Rows, Cols     int     // rows and columns for the display
-	Type2          bool    // is this a single row, type2 lcd?
-	Font           int     // font selector
-	XBase, YBase   float64 // xy position
-	XScale, YScale float64 // xy scale
+	Rows, Cols      int     // rows and columns for the display
+	Type2           bool    // is this a single row, type2 lcd?
+	Font            int     // font selector
+	XBase, YBase    float64 // xy position
+	XScale, YScale  float64 // xy scale
+	BackgroundColor color.RGBA
+	CharacterColor  color.RGBA
 }
 
 type LCD struct {
@@ -246,7 +252,7 @@ type LCD struct {
 	font       *ebiten.Image // font atlas
 	cgFont     *ebiten.Image // character generator glyph atlas
 	cursorFont *ebiten.Image // cursor glyph atlas
-	img        *ebiten.Image // unscaled lcd image
+	img        *ebiten.Image // lcd image
 
 	// character generator ram
 	cgRam   [cgRamSize]byte // character generator ram
@@ -295,15 +301,15 @@ func New(cfg Config) (*LCD, error) {
 	// load a font atlas
 	switch cfg.Font {
 	case 0:
-		lcd.font = buildFontImage(fontA00)
+		lcd.font = buildFontImage(fontA00, cfg.CharacterColor)
 	case 1:
-		lcd.font = buildFontImage(fontA02)
+		lcd.font = buildFontImage(fontA02, cfg.CharacterColor)
 	default:
 		return nil, errors.New("invalid font selector")
 	}
 
 	// build an initial cgRam font
-	lcd.cgFont = buildImage(lcd.cgRam[:])
+	lcd.cgFont = buildImage(lcd.cgRam[:], cfg.CharacterColor)
 
 	// clear the ddRam
 	for i := range lcd.ddRam {
@@ -311,11 +317,11 @@ func New(cfg Config) (*LCD, error) {
 	}
 
 	// build the cursor font
-	lcd.cursorFont = buildImage(cursorData)
+	lcd.cursorFont = buildImage(cursorData, cfg.CharacterColor)
 
-	// build an unscaled lcd image
-	width := cfg.Cols*glyphWidth + (cfg.Cols-1)*xGap
-	height := cfg.Rows*glyphHeight + (cfg.Rows-1)*yGap
+	// build an lcd image
+	width := cfg.Cols*glyphWidth + (cfg.Cols-1)*xGap + (2 * xBorder)
+	height := cfg.Rows*glyphHeight + (cfg.Rows-1)*yGap + (2 * yBorder)
 	lcd.img = ebiten.NewImage(width, height)
 
 	return lcd, nil
@@ -507,6 +513,7 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 
 	// clear the lcd image
 	lcd.img.Clear()
+	lcd.img.Fill(lcd.cfg.BackgroundColor)
 
 	if lcd.displayEnable {
 		// draw the glyphs
@@ -517,7 +524,7 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 				glyph := lcd.getGlyph(code)
 				// render the glyph to the lcd image
 				op := &ebiten.DrawImageOptions{}
-				op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
+				op.GeoM.Translate(float64(col*pitchX+xBorder), float64(row*pitchY+yBorder))
 				lcd.img.DrawImage(glyph, op)
 			}
 		}
@@ -528,7 +535,7 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 				// render the cursor to the lcd image
 				cursor := lcd.getCursor(lcd.cursorBlink && lcd.cursorState)
 				op := &ebiten.DrawImageOptions{}
-				op.GeoM.Translate(float64(col*pitchX), float64(row*pitchY))
+				op.GeoM.Translate(float64(col*pitchX+xBorder), float64(row*pitchY+yBorder))
 				lcd.img.DrawImage(cursor, op)
 			}
 		}
@@ -554,7 +561,7 @@ func (lcd *LCD) Update() {
 
 	// rebuild the cgram font if it has been changed
 	if lcd.cgDirty {
-		lcd.cgFont = buildImage(lcd.cgRam[:])
+		lcd.cgFont = buildImage(lcd.cgRam[:], lcd.cfg.CharacterColor)
 		lcd.cgDirty = false
 	}
 }

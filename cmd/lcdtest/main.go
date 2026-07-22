@@ -24,7 +24,7 @@ const backgroundHeight = 1200
 
 func buildBackgroundImage() (*ebiten.Image, error) {
 	img := ebiten.NewImage(backgroundWidth, backgroundHeight)
-	img.Fill(color.RGBA{0x3e, 0x9b, 0x0a, 255})
+	img.Fill(color.RGBA{0xda, 0xe7, 0xe9, 255})
 	return img, nil
 }
 
@@ -41,12 +41,14 @@ func newSystem() (*system, error) {
 
 	// setup the LCD
 	cfgLCD := hd44780.Config{
-		Rows:   4,
-		Cols:   20,
-		XBase:  10,
-		YBase:  10,
-		XScale: 0.37,
-		YScale: 0.37,
+		Rows:            4,
+		Cols:            20,
+		XBase:           10,
+		YBase:           10,
+		XScale:          0.37,
+		YScale:          0.37,
+		BackgroundColor: color.RGBA{0x3e, 0x9b, 0x0a, 255},
+		CharacterColor:  color.RGBA{0, 0, 0, 255},
 	}
 	dev0, err := hd44780.New(cfgLCD)
 	if err != nil {

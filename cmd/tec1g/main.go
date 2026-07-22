@@ -162,12 +162,13 @@ func newSystem(cfg *Config) (*system, error) {
 
 	// setup the LCD
 	cfgLCD := hd44780.Config{
-		Rows:   4,
-		Cols:   20,
-		XBase:  233,
-		YBase:  584,
-		XScale: 0.34,
-		YScale: 0.34,
+		Rows:           4,
+		Cols:           20,
+		XBase:          224,
+		YBase:          577,
+		XScale:         0.34,
+		YScale:         0.34,
+		CharacterColor: color.RGBA{0xda, 0xe7, 0xe9, 255},
 	}
 	lcd, err := hd44780.New(cfgLCD)
 	if err != nil {
