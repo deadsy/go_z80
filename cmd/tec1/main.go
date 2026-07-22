@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 /*
 
-TEC-1 (Z80) Emulator
+TEC-1A Emulator
 
 */
 //-----------------------------------------------------------------------------
@@ -17,6 +17,8 @@ import (
 	"log"
 
 	"github.com/deadsy/go_z80/cmd/tec1/keypad"
+	"github.com/deadsy/go_z80/device/array"
+	"github.com/deadsy/go_z80/device/array88"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
@@ -70,38 +72,36 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 //-----------------------------------------------------------------------------
 
 type system struct {
-	display           *sixdigit.Display // 6 digit display
-	led               *led.LED          // speaker activity LED
-	keypad            *keypad.Keypad    // keypad
-	speaker           *speaker.Speaker  // audio speaker
-	sound             *sound.Sound      // ebiten audio
-	io                *sysIO            // system IO
-	mem               *sysMemory        // system memory
-	bus               *Bus              // system bus
-	cpu               *z80.CPU          // z80 cpu
-	background        *ebiten.Image     // background graphic
-	width, height     int               // window dimensions
-	tickCycles        float32           // ebiten tick cpu cycles
-	audioSampleCycles float32           // audio sample cpu cycles
-	soundStarted      bool              // has the sound been started?
+	cfg               *Config          // configuration
+	speaker           *speaker.Speaker // audio speaker
+	sound             *sound.Sound     // ebiten audio
+	io                *sysIO           // system IO
+	mem               *sysMemory       // system memory
+	cpu               *z80.CPU         // z80 cpu
+	background        *ebiten.Image    // background graphic
+	width, height     int              // window dimensions
+	tickCycles        float32          // ebiten tick cpu cycles
+	audioSampleCycles float32          // audio sample cpu cycles
+	soundStarted      bool             // has the sound been started?
+	haltLogged        bool             // have we logged a cpu halt?
 }
 
-func newSystem() (*system, error) {
+func newSystem(cfg *Config) (*system, error) {
 
 	// setup the display
 	const digitSize = float32(55.0)
 	cfgDisplay := sixdigit.Config{
-		XBase:  362.0,
-		YBase:  665.0,
+		XBase:  362,
+		YBase:  665,
 		XScale: digitSize,
 		YScale: sevseg.XYScale(digitSize),
-		XGap0:  24.0,
-		XGap1:  14.0,
+		XGap0:  24,
+		XGap1:  14,
 	}
 	display := sixdigit.New(&cfgDisplay)
 
 	// setup the LED
-	cfgLED := led.Config{
+	cfgSpeakerLED := led.Config{
 		Type:   led.Round,
 		X:      589,
 		Y:      600,
@@ -109,13 +109,7 @@ func newSystem() (*system, error) {
 		On:     color.RGBA{0, 255, 0, 128},
 		Off:    color.RGBA{0, 0, 0, 0},
 	}
-	led, err := led.New(&cfgLED)
-	if err != nil {
-		return nil, err
-	}
-
-	// setup the keypad
-	keypad, err := keypad.New()
+	ledSpeaker, err := led.New(&cfgSpeakerLED)
 	if err != nil {
 		return nil, err
 	}
@@ -143,8 +137,40 @@ func newSystem() (*system, error) {
 		return nil, err
 	}
 
+	// setup the keypad
+	keypad, err := keypad.New()
+	if err != nil {
+		return nil, err
+	}
+
+	// setup the 8x8 LED display
+	cfgLedArray := array.Config{
+		Enable:     cfg.Array88.Enable,
+		Type:       led.Rectangle,
+		X:          100,
+		Y:          100,
+		XGap:       1,
+		YGap:       1,
+		Width:      20,
+		Height:     20,
+		On:         color.RGBA{0, 0xff, 0, 255},
+		Off:        color.RGBA{0x90, 0x90, 0x90, 255},
+		Background: color.RGBA{0x80, 0x80, 0x80, 255},
+		Border:     10,
+	}
+	ledArray, err := array88.New(cfgLedArray)
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the IO
-	io := newIO(display, led, keypad)
+	devices := ioDevices{
+		display:    display,
+		ledSpeaker: ledSpeaker,
+		ledArray:   ledArray,
+		keypad:     keypad,
+	}
+	io := newIO(&devices)
 
 	// setup the memory
 	mem, err := newMemory()
@@ -159,14 +185,11 @@ func newSystem() (*system, error) {
 	cpu := z80.New(io, mem, bus)
 
 	s := &system{
-		display: display,
-		led:     led,
-		keypad:  keypad,
+		cfg:     cfg,
 		speaker: speaker,
 		sound:   sound,
 		io:      io,
 		mem:     mem,
-		bus:     bus,
 		cpu:     cpu,
 	}
 
@@ -183,6 +206,17 @@ func newSystem() (*system, error) {
 	s.height = bounds.Dy()
 
 	return s, nil
+}
+
+// exit cleans up system resources
+func (s *system) Exit() {
+	log.Printf("system exit")
+	err := s.cfg.saveConfig(s, configFile)
+	if err != nil {
+		log.Printf("unable to save config: %s", err)
+	} else {
+		log.Printf("saved config to %s", configFile)
+	}
 }
 
 func (s *system) Update() error {
@@ -220,8 +254,17 @@ func (s *system) Update() error {
 		}
 	}
 
-	if s.keypad.Update() {
-		if s.keypad.Reset() {
+	// cpu halted?
+	if s.cpu.IsHalted() && !s.haltLogged {
+		log.Printf("cpu halted at pc=0x%04x", s.cpu.PC)
+		s.haltLogged = true
+	}
+
+	// update the IO devices
+	s.io.Update()
+
+	if s.io.dev.keypad.Update() {
+		if s.io.dev.keypad.Reset() {
 			s.cpu.Reset()
 		} else {
 			// key presses are signalled with the NMI
@@ -229,24 +272,38 @@ func (s *system) Update() error {
 		}
 	}
 
-	s.display.Update()
-	s.led.Update()
+	if ebiten.IsWindowBeingClosed() {
+		s.Exit()
+	}
+
 	return nil
 }
 
 func (s *system) Draw(screen *ebiten.Image) {
 	screen.DrawImage(s.background, nil)
-	s.display.Draw(screen)
-	s.led.Draw(screen)
+	// draw the IO devices
+	s.io.Draw(screen)
 }
 
 func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return s.width, s.height
 }
 
+//-----------------------------------------------------------------------------
+
 func main() {
 	log.Printf("%s\n", util.GetBuildInfo())
-	s, err := newSystem()
+
+	// read the config
+	cfg, err := loadConfig(configFile)
+	if err != nil {
+		log.Printf("unable to read %s, using defaults", configFile)
+		cfg = defaultConfig()
+	} else {
+		log.Printf("read config from %s", configFile)
+	}
+
+	s, err := newSystem(cfg)
 	if err != nil {
 		log.Fatalf("error: %s", err)
 	}
