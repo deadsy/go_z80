@@ -8,7 +8,12 @@ Character LCD Routines
 
 package lcd
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/deadsy/go_z80/device/hd44780"
+	"github.com/hajimehoshi/ebiten/v2"
+)
 
 //-----------------------------------------------------------------------------
 
@@ -20,11 +25,11 @@ type HD44780 interface {
 }
 
 type LCD struct {
-	dev        HD44780
+	dev        *hd44780.LCD
 	rows, cols int
 }
 
-func New(dev HD44780, rows, cols int) (*LCD, error) {
+func New(dev *hd44780.LCD, rows, cols int) (*LCD, error) {
 	return &LCD{
 		dev:  dev,
 		rows: rows,
@@ -67,6 +72,17 @@ func (lcd *LCD) String(row, col int, s string) error {
 		lcd.dev.WriteData(s[i])
 	}
 	return nil
+}
+
+//-----------------------------------------------------------------------------
+// ebiten hooks
+
+func (lcd *LCD) Update() {
+	lcd.dev.Update()
+}
+
+func (lcd *LCD) Draw(screen *ebiten.Image) {
+	lcd.dev.Draw(screen)
 }
 
 //-----------------------------------------------------------------------------

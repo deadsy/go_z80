@@ -30,39 +30,73 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 
 //-----------------------------------------------------------------------------
 
-type system struct {
-	dev0          *hd44780.LCD  // lcd device
-	lcd0          *lcd.LCD      // character lcd
-	background    *ebiten.Image // background graphic
-	width, height int           // window dimensions
-}
-
-func newSystem() (*system, error) {
-
-	// setup the LCD
-	cfgLCD := hd44780.Config{
-		Rows:            4,
-		Cols:            20,
-		XBase:           10,
-		YBase:           10,
+func makeLCD(rows, cols int, x, y float64) (*lcd.LCD, error) {
+	// setup the hd44780
+	cfg := hd44780.Config{
+		Rows:            rows,
+		Cols:            cols,
+		Type2:           (rows == 1) && (cols > 8),
+		XBase:           x,
+		YBase:           y,
 		XScale:          0.37,
 		YScale:          0.37,
 		BackgroundColor: color.RGBA{0x3e, 0x9b, 0x0a, 255},
 		CharacterColor:  color.RGBA{0, 0, 0, 255},
 	}
-	dev0, err := hd44780.New(cfgLCD)
+	dev, err := hd44780.New(cfg)
 	if err != nil {
 		return nil, err
 	}
-	lcd0, err := lcd.New(dev0, 4, 20)
-	if err != nil {
-		return nil, err
-	}
+	// return the "cooked" lcd device
+	return lcd.New(dev, rows, cols)
+}
 
-	s := &system{
-		dev0: dev0,
-		lcd0: lcd0,
+//-----------------------------------------------------------------------------
+
+type system struct {
+	lcdSet        [6]*lcd.LCD
+	background    *ebiten.Image // background graphic
+	width, height int           // window dimensions
+}
+
+func newSystem() (*system, error) {
+	s := &system{}
+
+	display, err := makeLCD(1, 8, 10, 10)
+	if err != nil {
+		return nil, err
 	}
+	s.lcdSet[0] = display
+
+	display, err = makeLCD(1, 32, 10, 70)
+	if err != nil {
+		return nil, err
+	}
+	s.lcdSet[1] = display
+
+	display, err = makeLCD(2, 8, 10, 130)
+	if err != nil {
+		return nil, err
+	}
+	s.lcdSet[2] = display
+
+	display, err = makeLCD(2, 40, 10, 226)
+	if err != nil {
+		return nil, err
+	}
+	s.lcdSet[3] = display
+
+	display, err = makeLCD(4, 16, 10, 322)
+	if err != nil {
+		return nil, err
+	}
+	s.lcdSet[4] = display
+
+	display, err = makeLCD(4, 20, 10, 491)
+	if err != nil {
+		return nil, err
+	}
+	s.lcdSet[5] = display
 
 	// build the background image
 	img, err := buildBackgroundImage()
@@ -80,13 +114,18 @@ func newSystem() (*system, error) {
 }
 
 func (s *system) Update() error {
-	s.dev0.Update()
+
+	for _, d := range s.lcdSet {
+		d.Update()
+	}
 	return nil
 }
 
 func (s *system) Draw(screen *ebiten.Image) {
 	screen.DrawImage(s.background, nil)
-	s.dev0.Draw(screen)
+	for _, d := range s.lcdSet {
+		d.Draw(screen)
+	}
 }
 
 func (s *system) Layout(outsideWidth, outsideHeight int) (int, int) {
