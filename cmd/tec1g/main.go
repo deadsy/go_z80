@@ -98,6 +98,7 @@ type system struct {
 	serialSampleCycles float32          // serial sample cpu cycles
 	soundStarted       bool             // has the sound been started?
 	haltLogged         bool             // have we logged a cpu halt?
+	resetState         bool             // rising edge detection for the reset state
 }
 
 func newSystem(cfg *Config) (*system, error) {
@@ -409,7 +410,12 @@ func (s *system) Update() error {
 	// update the IO devices
 	s.io.Update()
 
-	if s.io.dev.keyboard.Reset() || s.io.dev.keypad.Reset() {
+	// Reset on the rising edge of the reset key(s) being pressed.
+	reset := s.io.dev.keyboard.Reset() || s.io.dev.keypad.Reset()
+	resetRising := !s.resetState && reset
+	s.resetState = reset
+	if resetRising {
+		log.Printf("cpu reset")
 		s.haltLogged = false
 		s.mem.Reset()
 		s.cpu.Reset()

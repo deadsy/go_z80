@@ -81,11 +81,7 @@ func New() (*Keypad, error) {
 
 // return true if the reset button is pressed
 func (k *Keypad) Reset() bool {
-	if k.reset {
-		k.reset = false
-		return true
-	}
-	return false
+	return k.reset
 }
 
 // return the san code from the keypad
