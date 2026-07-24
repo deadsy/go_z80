@@ -220,7 +220,7 @@ func (k *Keyboard) Update() {
 			k.set(2, 1)
 		case ebiten.KeySlash: // A10_D2 /
 			k.set(2, 2)
-		case ebiten.KeyDelete: // A9_D0 del
+		case ebiten.KeyBackspace: // A9_D0 del
 			k.set(1, 0)
 		case ebiten.KeyTab: // A9_D1 tab
 			k.set(1, 1)
@@ -254,12 +254,8 @@ func (k *Keyboard) Update() {
 			k.set(0, 6)
 		case ebiten.KeyCapsLock: // A8_D7 caps
 			k.set(0, 7)
-		case ebiten.KeyControl:
-			// null
-		case ebiten.KeyAlt:
-			// null
 		default:
-			fmt.Printf("unmapped key %s\n", key)
+			//fmt.Printf("unmapped key %s\n", key)
 		}
 	}
 }

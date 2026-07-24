@@ -177,14 +177,14 @@ func newSystem(cfg *Config) (*system, error) {
 		return nil, err
 	}
 
-	// setup the keyboard
-	keyboard, err := keyboard.New(cfg.DIP.K)
+	// setup the keypad
+	keypad, err := keypad.New()
 	if err != nil {
 		return nil, err
 	}
 
-	// setup the keypad
-	keypad, err := keypad.New(!cfg.DIP.K)
+	// setup the keyboard
+	keyboard, err := keyboard.New(cfg.DIP.K)
 	if err != nil {
 		return nil, err
 	}

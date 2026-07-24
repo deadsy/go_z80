@@ -137,7 +137,7 @@ type dipSwitch struct {
 
 // set the values on the dip switch
 func (io *sysIO) setDIP(cfg dipSwitch) {
-	log.Printf("keyboard is %s", boolToMsg(cfg.K, "74c923", "matrix"))
+	log.Printf("matrix keyboard is %s", boolToMsg(cfg.K, "disabled", "enabled"))
 	log.Printf("protect is %s", boolToMsg(cfg.P, "off", "on"))
 	log.Printf("expansion is %s", boolToMsg(cfg.E, "low", "high"))
 	io.kpe = boolToByte(cfg.K, simpConfigK) |

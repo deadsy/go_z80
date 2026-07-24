@@ -67,25 +67,20 @@ const (
 const shiftMask = byte(1 << 5) // D5, active low
 
 type Keypad struct {
-	enable bool // is the keypad enabled
-	keys   []ebiten.Key
-	code   byte
-	reset  bool
+	keys  []ebiten.Key
+	code  byte
+	reset bool
 }
 
-func New(enable bool) (*Keypad, error) {
+func New() (*Keypad, error) {
 	return &Keypad{
-		enable: enable,
-		keys:   make([]ebiten.Key, 16),
-		code:   keyNone,
+		keys: make([]ebiten.Key, 16),
+		code: keyNone,
 	}, nil
 }
 
 // return true if the reset button is pressed
 func (k *Keypad) Reset() bool {
-	if !k.enable {
-		return false
-	}
 	if k.reset {
 		k.reset = false
 		return true
@@ -95,17 +90,11 @@ func (k *Keypad) Reset() bool {
 
 // return the san code from the keypad
 func (k *Keypad) Scan() byte {
-	if !k.enable {
-		return keyNone
-	}
 	return k.code
 }
 
 // Does the keypad have data available?
 func (k *Keypad) DataAvailable() bool {
-	if !k.enable {
-		return false
-	}
 	// is it *only* the shift key?
 	if k.code == keyNone&^shiftMask {
 		return false
@@ -125,9 +114,9 @@ func (k *Keypad) getCode() (reset bool, code byte) {
 	// do we have a reset or shift key?
 	for _, key := range k.keys {
 		switch key {
-		case ebiten.KeyShift, ebiten.KeyShiftLeft, ebiten.KeyShiftRight:
+		case ebiten.KeyShift:
 			shift = shiftMask
-		case ebiten.KeyR:
+		case ebiten.KeyDelete:
 			reset = true
 		}
 	}
@@ -185,9 +174,6 @@ func (k *Keypad) getCode() (reset bool, code byte) {
 
 // Update the keypad logic (called from ebiten update).
 func (k *Keypad) Update() {
-	if !k.enable {
-		return
-	}
 	reset, code := k.getCode()
 	k.reset = reset
 	k.code = code
