@@ -29,6 +29,7 @@ import (
 	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/device/sound"
 	"github.com/deadsy/go_z80/device/speaker"
+	"github.com/deadsy/go_z80/device/st7920"
 	"github.com/deadsy/go_z80/util"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -178,6 +179,23 @@ func newSystem(cfg *Config) (*system, error) {
 		return nil, err
 	}
 
+	// setup the graphics LCD
+	cfgGLCD := st7920.Config{
+		Enable:          cfg.GLCD.Enable,
+		XBase:           900,
+		YBase:           100,
+		XScale:          3.5,
+		YScale:          3.5,
+		XBorder:         10,
+		YBorder:         10,
+		BackgroundColor: color.RGBA{0x6b, 0x8e, 0x23, 255},
+		PixelColor:      color.RGBA{0, 0, 0, 255},
+	}
+	glcd, err := st7920.New(cfgGLCD)
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the keypad
 	keypad, err := keypad.New()
 	if err != nil {
@@ -288,6 +306,7 @@ func newSystem(cfg *Config) (*system, error) {
 		ledArray:   ledArray,
 		ledDisco:   ledDisco,
 		lcd:        lcd,
+		glcd:       glcd,
 		keyboard:   keyboard,
 		keypad:     keypad,
 		rtc:        rtc,

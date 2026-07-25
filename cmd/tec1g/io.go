@@ -20,6 +20,7 @@ import (
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/sixdigit"
+	"github.com/deadsy/go_z80/device/st7920"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -98,7 +99,8 @@ type ioDevices struct {
 	ledBar     *array.Array       // system status bar led
 	ledArray   *array88.Array88   // 8x8 led array
 	ledDisco   *disco.Disco       // disco (rgb) leds
-	lcd        *hd44780.LCD       // LCD
+	lcd        *hd44780.LCD       // character LCD
+	glcd       *st7920.LCD        // graphics LCD
 	keyboard   *keyboard.Keyboard // matrix keyboard
 	keypad     *keypad.Keypad     // 74c923 keypad
 	rtc        *ds1302.RTC        // realtime clock
@@ -207,10 +209,10 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		dev.ledArray.WriteRow(val)
 		return
 	case glcdCommandPort:
-		//dev.glcd.WriteCommand(val)
+		dev.glcd.WriteCommand(val)
 		return
 	case glcdDataPort:
-		//dev.glcd.WriteData(val)
+		dev.glcd.WriteData(val)
 		return
 	case lcdDataPort:
 		dev.lcd.WriteData(val)
@@ -255,6 +257,7 @@ func (io *sysIO) Update() {
 	io.dev.ledArray.Update()
 	io.dev.ledDisco.Update(io.sys.GetCpuCycles())
 	io.dev.lcd.Update()
+	io.dev.glcd.Update()
 	io.dev.keyboard.Update()
 	io.dev.keypad.Update()
 }
@@ -267,6 +270,7 @@ func (io *sysIO) Draw(screen *ebiten.Image) {
 	io.dev.ledArray.Draw(screen)
 	io.dev.ledDisco.Draw(screen)
 	io.dev.lcd.Draw(screen)
+	io.dev.glcd.Draw(screen)
 }
 
 //-----------------------------------------------------------------------------

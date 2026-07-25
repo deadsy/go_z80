@@ -33,11 +33,16 @@ type soundConfig struct {
 	Enable bool `toml:"enable"` // is the sound enabled?
 }
 
+type glcdConfig struct {
+	Enable bool `toml:"enable"` // is the graphics lcd enabled?
+}
+
 type Config struct {
 	RTC     ds1302.Config `toml:"rtc"`
 	DIP     dipSwitch     `toml:"dip_switch"`
 	Array88 array88Config `toml:"array_8x8"`
 	Sound   soundConfig   `toml:"sound"`
+	GLCD    glcdConfig    `toml:"graphics_lcd"`
 }
 
 func (cfg *Config) String() string {
@@ -64,6 +69,7 @@ func defaultConfig() *Config {
 		RTC:   rtc,
 		DIP:   dip,
 		Sound: soundConfig{Enable: true},
+		GLCD:  glcdConfig{Enable: false},
 	}
 	return cfg
 }

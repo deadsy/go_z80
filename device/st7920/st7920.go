@@ -66,7 +66,31 @@ const (
 
 //-----------------------------------------------------------------------------
 
+const glyphWidth = 8
+const glyphHeight = 16
+
+// build an atlas image from font data
+func buildImage(buf []byte, c color.RGBA) *ebiten.Image {
+	nGlyphs := len(buf) >> 4 // 16 bytes per glyph
+	img := ebiten.NewImage(nGlyphs*glyphWidth, glyphHeight)
+	for i := 0; i < nGlyphs; i++ {
+		for j := 0; j < glyphHeight; j++ {
+			pixelData := buf[(i<<4)+j]
+			for k := 0; k < glyphWidth; k++ {
+				pixel := (pixelData & (1 << k)) != 0
+				if pixel {
+					img.Set((i*glyphWidth)+k, j, c)
+				}
+			}
+		}
+	}
+	return img
+}
+
+//-----------------------------------------------------------------------------
+
 type Config struct {
+	Enable           bool    // is the lcd enabled?
 	XBase, YBase     float64 // xy position
 	XScale, YScale   float64 // xy scale
 	XBorder, YBorder int     // border around graphics field
@@ -103,62 +127,31 @@ type LCD struct {
 
 func New(cfg Config) (*LCD, error) {
 	lcd := &LCD{cfg: cfg}
+	if !cfg.Enable {
+		return lcd, nil
+	}
+
+	// load the 8x16 font atlas
+	lcd.font = buildImage(font8x16, cfg.PixelColor)
 
 	// build an lcd image
 	width := (2 * cfg.XBorder) + pixelWidth
 	height := (2 * cfg.YBorder) + pixelHeight
 	lcd.img = ebiten.NewImage(width, height)
 
-	lcd.reset()
-
 	return lcd, nil
-}
-
-//-----------------------------------------------------------------------------
-
-func (lcd *LCD) reset() {
-
-	// init enums
-	lcd.lastCommand = ctNone
-	lcd.dataTarget = dtNone
-
-	// init serial byte decoding
-	lcd.syncByteType = sbtNone
-	lcd.dataNibbleIdx = 0
-	lcd.dataByte = 0
-
-	// Init variables set by commands
-	lcd.enableVerticalScroll = false
-	lcd.extendedMode = false
-	lcd.graphicMode = false
-	lcd.addressX = 0
-	lcd.addressY = 0
-
-	// Init rams
-	for i := 0; i < 64; i++ {
-		for j := 0; j < 2; j++ {
-			lcd.cgRam[i][j] = 0
-		}
-	}
-	for i := 0; i < 4; i++ {
-		for j := 0; j < 32; j++ {
-			lcd.ddRam[i][j] = 0
-		}
-	}
-	for i := 0; i < 64; i++ {
-		for j := 0; j < 16; j++ {
-			lcd.gdRam[i][j] = 0
-		}
-	}
 }
 
 //-----------------------------------------------------------------------------
 
 // write command register
 func (lcd *LCD) WriteCommand(cmd byte) {
+	if !lcd.cfg.Enable {
+		return
+	}
 	log.Printf("st7920.WriteCommand 0x%02x", cmd)
 	// Check highest byte set
-	if (cmd & 0b10000000) > 0 { // Set DDRAM/Grapic RAM address
+	if (cmd & 0b10000000) > 0 { // Set DDRAM/Graphic RAM address
 		// Check for extended mode
 		if lcd.extendedMode {
 			// Check if graphic mode is enabled
@@ -285,6 +278,9 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 
 // read command register
 func (lcd *LCD) ReadCommand() byte {
+	if !lcd.cfg.Enable {
+		return 0
+	}
 	log.Printf("st7920.ReadCommand")
 	// TODO
 	return 0
@@ -297,8 +293,10 @@ func showByte(x, y byte) {
 
 // write data register
 func (lcd *LCD) WriteData(val byte) {
+	if !lcd.cfg.Enable {
+		return
+	}
 	log.Printf("st7920.WriteData 0x%02x", val)
-
 	// Check for data target
 	if lcd.dataTarget == dtCGRAM {
 		// Write data to CGRAM
@@ -379,6 +377,9 @@ func (lcd *LCD) WriteData(val byte) {
 
 // read data register
 func (lcd *LCD) ReadData() byte {
+	if !lcd.cfg.Enable {
+		return 0
+	}
 	log.Printf("st7920.ReadData")
 	// TODO
 	return 0
@@ -414,6 +415,9 @@ func (lcd *LCD) parseSyncByte(data byte) bool {
 }
 
 func (lcd *LCD) SerialData(data byte) {
+	if !lcd.cfg.Enable {
+		return
+	}
 	// Check if byte is not a sync byte
 	if lcd.parseSyncByte(data) {
 		// Reconstruct byte
@@ -443,6 +447,10 @@ func (lcd *LCD) SerialData(data byte) {
 
 // Draw the display (called from ebiten draw function)
 func (lcd *LCD) Draw(screen *ebiten.Image) {
+	if !lcd.cfg.Enable {
+		return
+	}
+
 	cfg := &lcd.cfg
 
 	// clear the lcd image
@@ -459,6 +467,9 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 
 // Update the display logic (called from ebiten update)
 func (lcd *LCD) Update() {
+	if !lcd.cfg.Enable {
+		return
+	}
 }
 
 //-----------------------------------------------------------------------------
