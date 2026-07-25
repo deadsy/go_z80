@@ -42,20 +42,20 @@ func boolToMsg(x bool, lo, hi string) string {
 //-----------------------------------------------------------------------------
 // ports
 
-const keypadPort = 0x00   // keypad scan values
-const digitPort = 0x01    // display digit enable
-const segmentPort = 0x02  // display segment enable
-const simpPort = 0x03     // General SIMP Input
-const lcdCmdPort = 0x04   // LCD Display command
-const x88Port = 0x05      // 8x8 X-axis display latch
-const y88Port = 0x06      // 8x8 Y-axis display latch
-const glcdPort0 = 0x07    // GLCD port
-const lcdDataPort = 0x84  // LCD Display data
-const glcdPort1 = 0x87    // GLCD port
-const rtcPort = 0xfc      // GPIO Real Time Clock
-const sdCardPort = 0xfd   // GPIO SD Card
-const keyboardPort = 0xfe // Matrix Keyboard Input
-const systemPort = 0xff   // System Latch
+const keypadPort = 0x00      // keypad scan values
+const digitPort = 0x01       // display digit enable
+const segmentPort = 0x02     // display segment enable
+const simpPort = 0x03        // General SIMP Input
+const lcdCmdPort = 0x04      // LCD Display command
+const x88Port = 0x05         // 8x8 X-axis display latch
+const y88Port = 0x06         // 8x8 Y-axis display latch
+const glcdCommandPort = 0x07 // GLCD command port
+const lcdDataPort = 0x84     // LCD Display data
+const glcdDataPort = 0x87    // GLCD data port
+const rtcPort = 0xfc         // GPIO Real Time Clock
+const sdCardPort = 0xfd      // GPIO SD Card
+const keyboardPort = 0xfe    // Matrix Keyboard Input
+const systemPort = 0xff      // System Latch
 
 // digitPort
 const digitMask = uint8(0x3f)      // D0..D5, digits
@@ -206,8 +206,11 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	case y88Port:
 		dev.ledArray.WriteRow(val)
 		return
-	case glcdPort0, glcdPort1:
-		// TODO
+	case glcdCommandPort:
+		//dev.glcd.WriteCommand(val)
+		return
+	case glcdDataPort:
+		//dev.glcd.WriteData(val)
 		return
 	case lcdDataPort:
 		dev.lcd.WriteData(val)

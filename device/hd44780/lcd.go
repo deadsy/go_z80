@@ -508,12 +508,11 @@ const pitchY = glyphHeight + yGap
 
 // Draw the display (called from ebiten draw function)
 func (lcd *LCD) Draw(screen *ebiten.Image) {
-
 	cfg := &lcd.cfg
 
 	// clear the lcd image
 	lcd.img.Clear()
-	lcd.img.Fill(lcd.cfg.BackgroundColor)
+	lcd.img.Fill(cfg.BackgroundColor)
 
 	if lcd.displayEnable {
 		// draw the glyphs
