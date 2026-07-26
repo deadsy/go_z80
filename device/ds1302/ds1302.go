@@ -10,8 +10,10 @@ package ds1302
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -136,10 +138,7 @@ type RTC struct {
 
 }
 
-func New(cfg *Config) (*RTC, error) {
-	if cfg == nil {
-		return nil, errors.New("no configuration")
-	}
+func New(cfg Config) (*RTC, error) {
 	rtc := &RTC{
 		enable:        cfg.Enable,
 		baseYear:      cfg.BaseYear,
@@ -192,6 +191,20 @@ func (rtc *RTC) GetConfig() Config {
 		TimeOffset:    rtc.timeOffset,
 		RAM:           ram,
 	}
+}
+
+// Compare the RTC ram with the original configuration.
+// Emit a log message if it has changed.
+func (rtc *RTC) RamCompare(ram []byte) {
+	if slices.Equal(rtc.ram[:], ram) {
+		// no changes
+		return
+	}
+	var bytes []string
+	for _, n := range rtc.ram {
+		bytes = append(bytes, fmt.Sprintf("%d", n))
+	}
+	log.Printf("ds1302: ram = [%s]", strings.Join(bytes, ","))
 }
 
 func (rtc *RTC) Close() {

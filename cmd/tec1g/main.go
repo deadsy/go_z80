@@ -209,7 +209,7 @@ func newSystem(cfg *Config) (*system, error) {
 	}
 
 	// setup the RTC
-	rtc, err := ds1302.New(&cfg.RTC)
+	rtc, err := ds1302.New(cfg.RTC)
 	if err != nil {
 		return nil, err
 	}
@@ -348,12 +348,8 @@ func newSystem(cfg *Config) (*system, error) {
 // exit cleans up system resources
 func (s *system) Exit() {
 	log.Printf("system exit")
-	err := s.cfg.saveConfig(s, configFile)
-	if err != nil {
-		log.Printf("unable to save config: %s", err)
-	} else {
-		log.Printf("saved config to %s", configFile)
-	}
+	// rtc ram compare
+	s.io.dev.rtc.RamCompare(s.cfg.RTC.RAM)
 	s.io.dev.rtc.Close()
 	s.pty.Close()
 }
@@ -467,6 +463,13 @@ func main() {
 	if err != nil {
 		log.Printf("unable to read %s, using defaults", configFile)
 		cfg = defaultConfig()
+		// save the config file
+		err := cfg.saveConfig(configFile)
+		if err != nil {
+			log.Printf("unable to save config: %s", err)
+		} else {
+			log.Printf("saved config to %s", configFile)
+		}
 	} else {
 		log.Printf("read config from %s", configFile)
 	}

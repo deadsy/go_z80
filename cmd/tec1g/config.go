@@ -63,6 +63,7 @@ func defaultConfig() *Config {
 		Enable:        true,
 		BaseYear:      2000,
 		WeekDayOffset: 6,
+		RAM:           make([]byte, 31),
 	}
 	dip := dipSwitch{}
 	cfg := &Config{
@@ -89,9 +90,7 @@ func loadConfig(path string) (*Config, error) {
 }
 
 // save the config to a file
-func (cfg *Config) saveConfig(sys *system, path string) error {
-	// rtc may have changed
-	cfg.RTC = sys.io.dev.rtc.GetConfig()
+func (cfg *Config) saveConfig(path string) error {
 	return os.WriteFile(path, []byte(cfg.String()), 0664)
 }
 
