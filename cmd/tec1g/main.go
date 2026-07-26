@@ -186,8 +186,8 @@ func newSystem(cfg *Config) (*system, error) {
 		YBase:           100,
 		XScale:          3.5,
 		YScale:          3.5,
-		XBorder:         10,
-		YBorder:         10,
+		XBorder:         2,
+		YBorder:         2,
 		BackgroundColor: color.RGBA{0x6b, 0x8e, 0x23, 255},
 		PixelColor:      color.RGBA{0, 0, 0, 255},
 	}
