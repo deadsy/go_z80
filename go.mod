@@ -7,6 +7,7 @@ require (
 	github.com/creack/pty v1.1.7
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	golang.org/x/image v0.31.0
+	golang.org/x/term v0.45.0
 )
 
 require (
@@ -16,5 +17,5 @@ require (
 	github.com/ebitengine/purego v0.9.0 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 )

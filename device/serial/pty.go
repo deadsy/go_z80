@@ -13,6 +13,7 @@ import (
 	"os"
 
 	"github.com/creack/pty"
+	"golang.org/x/term"
 )
 
 //-----------------------------------------------------------------------------
@@ -30,6 +31,17 @@ func NewPTY() (*PTY, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Put the SLAVE into raw mode: no ICANON, no IXON/IXOFF, no echo,
+	// no CR/LF translation. The only flow control left is the kernel
+	// buffer blocking the writer, which readLoop back-pressures.
+	_, err = term.MakeRaw(int(tty.Fd()))
+	if err != nil {
+		master.Close()
+		tty.Close()
+		return nil, err
+	}
+
 	p := &PTY{
 		master: master,
 		tty:    tty,
