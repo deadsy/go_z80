@@ -217,7 +217,7 @@ func (cpu *CPU) subFlags(res int, val uint8) {
 //-----------------------------------------------------------------------------
 
 func (cpu *CPU) inc_r() {
-	cpu.R = (cpu.R + 1) & 0x7F
+	cpu.R = (cpu.R & 0x80) | (cpu.R+1)&0x7F
 }
 
 // A prefix code hase been repeated. NOP and re-run the current prefix
