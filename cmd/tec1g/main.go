@@ -114,7 +114,7 @@ func getExternalRom(path string) ([]byte, error) {
 }
 
 // return a rom memory device to use
-func buildRom(cfg romConfig) (*memory.Memory, error) {
+func getRom(cfg romConfig) (*memory.Memory, error) {
 	var data []byte
 	var err error
 	if len(cfg.Image) == 0 {
@@ -163,7 +163,8 @@ type system struct {
 
 func newSystem(cfg *Config) (*system, error) {
 
-	rom, err := buildRom(cfg.ROM)
+	// get the rom image
+	rom, err := getRom(cfg.ROM)
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +174,21 @@ func newSystem(cfg *Config) (*system, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// load hex files into ram
+	mem.Shadow(false)
+	for _, path := range cfg.RAM.Load {
+		if len(path) == 0 {
+			continue
+		}
+		err := util.LoadIntelHex(mem, path)
+		if err != nil {
+			log.Printf("can't load %s: %s", path, err)
+		} else {
+			log.Printf("loaded %s", path)
+		}
+	}
+	mem.Shadow(true)
 
 	// setup the bus
 	bus := newBus()
