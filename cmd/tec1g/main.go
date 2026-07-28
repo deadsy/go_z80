@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"image/color"
 	"image/png"
+	"io/ioutil"
 	"log"
 
 	"github.com/deadsy/go_z80/cmd/tec1g/keyboard"
@@ -30,6 +31,7 @@ import (
 	"github.com/deadsy/go_z80/device/sound"
 	"github.com/deadsy/go_z80/device/speaker"
 	"github.com/deadsy/go_z80/device/st7920"
+	"github.com/deadsy/go_z80/memory"
 	"github.com/deadsy/go_z80/util"
 	"github.com/deadsy/go_z80/z80"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -37,7 +39,7 @@ import (
 
 //-----------------------------------------------------------------------------
 
-//go:embed assets/mon3_2025BC_16.bin assets/tec1g.png assets/DIAG-1G_CH24-11.bin
+//go:embed assets/mon3_2025BC_16.bin assets/tec1g.png
 var assets embed.FS
 
 //-----------------------------------------------------------------------------
@@ -81,6 +83,63 @@ func buildBackgroundImage() (*ebiten.Image, error) {
 }
 
 //-----------------------------------------------------------------------------
+// ROM Image
+
+const romBits = 14
+const romSize = (1 << romBits) // 16 KiB
+
+const embeddedRom = "assets/mon3_2025BC_16.bin"
+
+// get the embedded rom image
+func getEmbeddedRom() ([]byte, error) {
+	data, err := assets.ReadFile(embeddedRom)
+	if err != nil {
+		return nil, fmt.Errorf("can't read rom image, %w", err)
+	}
+	log.Printf("rom image %s", embeddedRom)
+	return data, nil
+}
+
+// get a rom image from a file
+func getExternalRom(path string) ([]byte, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("can't read rom image, %w", err)
+	}
+	if len(data) > romSize {
+		return nil, fmt.Errorf("rom image %s is too large", path)
+	}
+	log.Printf("rom image %s", path)
+	return data, nil
+}
+
+// return a rom memory device to use
+func buildRom(cfg romConfig) (*memory.Memory, error) {
+	var data []byte
+	var err error
+	if len(cfg.Image) == 0 {
+		data, err = getEmbeddedRom()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		data, err = getExternalRom(cfg.Image)
+		if err != nil {
+			log.Printf("%s", err)
+			data, err = getEmbeddedRom()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	rom := memory.New(romBits).ROM()
+	if err := rom.Load(0, data); err != nil {
+		return nil, fmt.Errorf("failed to load rom, %w", err)
+	}
+	return rom, nil
+}
+
+//-----------------------------------------------------------------------------
 
 type system struct {
 	cfg                *Config          // configuration
@@ -104,8 +163,13 @@ type system struct {
 
 func newSystem(cfg *Config) (*system, error) {
 
+	rom, err := buildRom(cfg.ROM)
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the memory
-	mem, err := newMemory()
+	mem, err := newMemory(rom)
 	if err != nil {
 		return nil, err
 	}
@@ -476,13 +540,13 @@ func main() {
 
 	s, err := newSystem(cfg)
 	if err != nil {
-		log.Fatalf("error: %s", err)
+		log.Fatalf("%s", err)
 	}
 
 	ebiten.SetWindowSize(s.width, s.height)
 	ebiten.SetWindowTitle("TEC-1G")
 	if err := ebiten.RunGame(s); err != nil {
-		log.Fatalf("error: %s", err)
+		log.Fatalf("%s", err)
 	}
 }
 

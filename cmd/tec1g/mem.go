@@ -23,8 +23,6 @@ shadow = 1 (off) -> ram is mapped to 0-0x7ff
 package main
 
 import (
-	"fmt"
-
 	"github.com/deadsy/go_z80/memory"
 )
 
@@ -44,17 +42,7 @@ type sysMemory struct {
 	rom        *memory.Memory
 }
 
-func newMemory() (*sysMemory, error) {
-	// ROM
-	rom := memory.New(14).ROM() // 16 KiB
-	data, err := assets.ReadFile("assets/mon3_2025BC_16.bin")
-	//data, err := assets.ReadFile("assets/DIAG-1G_CH24-11.bin")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read embedded ROM: %w", err)
-	}
-	if err := rom.Load(0, data); err != nil {
-		return nil, fmt.Errorf("failed to load ROM: %w", err)
-	}
+func newMemory(rom *memory.Memory) (*sysMemory, error) {
 
 	// RAM
 	// Note: There's actually a single 32 KiB device but we break it into

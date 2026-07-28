@@ -37,12 +37,22 @@ type glcdConfig struct {
 	Enable bool `toml:"enable"` // is the graphics lcd enabled?
 }
 
+type romConfig struct {
+	Image string `toml:"image"` // rom image file
+}
+
+type ramConfig struct {
+	Load []string `toml:"load"` // ram load file(s)
+}
+
 type Config struct {
 	RTC     ds1302.Config `toml:"rtc"`
 	DIP     dipSwitch     `toml:"dip_switch"`
 	Array88 array88Config `toml:"array_8x8"`
 	Sound   soundConfig   `toml:"sound"`
 	GLCD    glcdConfig    `toml:"graphics_lcd"`
+	ROM     romConfig     `toml:"rom"`
+	RAM     ramConfig     `toml:"ram"`
 }
 
 func (cfg *Config) String() string {
@@ -71,6 +81,7 @@ func defaultConfig() *Config {
 		DIP:   dip,
 		Sound: soundConfig{Enable: true},
 		GLCD:  glcdConfig{Enable: false},
+		RAM:   ramConfig{Load: []string{""}},
 	}
 	return cfg
 }
