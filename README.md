@@ -29,10 +29,11 @@ Z80 CPU emulation in Golang.
  * z80 emulation for undocumented flags (XY) is incomplete.
  * zexdoc passes (good), zexall does not pass (undocumented flag support)
    
-#### TEC1-A
+#### TEC-1A
  * works pretty good...
+ * 8x8 LED Array can be enabled
    
-#### TEC1-G
+#### TEC-1G
  * Diagnostic ROM passes
  * DS1302 RTC supported
  * Keypad (74c923) supported
@@ -41,12 +42,18 @@ Z80 CPU emulation in Golang.
  * Sound is supported
  * LCD (HD44780) emulation is partial (no display scrolling)
  * Disco RGBs are supported
- * Graphics LCD is not supported
+ * Graphics LCD (ST7920) emulation is partial (graphics are ok)
+ * 8x8 LED Array can be enabled
 
 #### Jupiter ACE
  * no tape (*.tap) support
  * it's still a jupiter ace
 
-## Dependencies
+## Linux Dependencies
+ * Debian: apt-get install libxrandr-dev libglx-dev libgl-dev libxcursor-dev libxinerama-dev libxi-dev libasound2-dev pkg-config libxxf86vm-dev
 
- * apt-get install libxrandr-dev libglx-dev libgl-dev libxcursor-dev libxinerama-dev libxi-dev libasound2-dev pkg-config libxxf86vm-dev
+## Platforms
+ * Linux - Works. (main development environment)
+ * MacOS - Works.
+ * Windows - Unknown. It should compile and run. I haven't tried it.
+ * WASM - Sound startup is problematic.
