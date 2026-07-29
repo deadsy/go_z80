@@ -3,6 +3,10 @@
 
 HD44780 LCD Driver Emulation
 
+See also:
+
+https://github.com/visrealm/vrEmuLcd
+
 */
 //-----------------------------------------------------------------------------
 
@@ -329,8 +333,15 @@ func New(cfg Config) (*LCD, error) {
 
 //-----------------------------------------------------------------------------
 
+func valToChar(val byte) byte {
+	if val >= 0x20 && val <= 0x7e {
+		return val
+	}
+	return 0x20
+}
+
 func (lcd *LCD) ddRamWrite(val byte) {
-	//log.Printf("ddRamWrite [0x%02x] = 0x%02x", lcd.ddAddr, val)
+	//log.Printf("ddRamWrite [0x%02x] = 0x%02x %c", lcd.ddAdr, val, valToChar(val))
 	lcd.ddRam[lcd.ddAdr] = val
 	if lcd.incMode {
 		lcd.ddAdr = inc_ddAdr(lcd.ddAdr)
@@ -384,6 +395,7 @@ func (lcd *LCD) cgRamRead() byte {
 
 // read command (RS = 0, RW = 1)
 func (lcd *LCD) ReadCommand() byte {
+	//log.Printf("hd44780.ReadCommand")
 	// Note: the busy flag is == 0
 	if lcd.ramMode == ddRamMode {
 		return byte(lcd.ddAdr)
@@ -393,20 +405,24 @@ func (lcd *LCD) ReadCommand() byte {
 
 // write command (RS = 0, RW = 0)
 func (lcd *LCD) WriteCommand(cmd byte) {
+
 	if cmd&cmdSetDramAddr != 0 {
 		// ddRam address is 7 bits
 		lcd.ddAdr = cmd & 0x7f
 		lcd.ramMode = ddRamMode
+		//log.Printf("WriteCommand %02x cmdSetDramAddr %02x", cmd, lcd.ddAdr)
 
 	} else if cmd&cmdSetCgramAddr != 0 {
 		// cgram address is 6 bits
 		lcd.cgAdr = cmd & cgAdrMask
 		lcd.ramMode = cgRamMode
+		//log.Printf("WriteCommand %02x cmdSetCgramAddr %02x", cmd, lcd.cgAdr)
 
 	} else if cmd&cmdFunction != 0 {
 		lcd.dlFlag = cmd&(1<<4) != 0
 		lcd.nFlag = cmd&(1<<3) != 0
 		lcd.fFlag = cmd&(1<<2) != 0
+		//log.Printf("WriteCommand %02x dlFlag %t nFlag %t fFlag %t", cmd, lcd.dlFlag, lcd.nFlag, lcd.fFlag)
 
 	} else if cmd&cmdShift != 0 {
 		if cmd&cmdShiftDisplay != 0 {
@@ -416,6 +432,8 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 			} else {
 				lcd.scrollOffset += 1
 			}
+			//log.Printf("WriteCommand %02x scrollOffset %d", cmd, lcd.scrollOffset)
+
 		} else {
 			// shift cursor
 			if cmd&cmdShiftRight != 0 {
@@ -423,6 +441,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 			} else {
 				lcd.ddAdr = dec_ddAdr(lcd.ddAdr)
 			}
+			//log.Printf("WriteCommand %02x ddAdr %02x", cmd, lcd.ddAdr)
 		}
 
 	} else if cmd&cmdDisplay != 0 {
@@ -430,22 +449,28 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		lcd.cursorEnable = (cmd & (1 << 1)) != 0
 		lcd.displayEnable = (cmd & (1 << 2)) != 0
 		lcd.cursorState = false
+		//log.Printf("WriteCommand %02x cursorBlink %t cursorEnable %t displayEnable %t", cmd, lcd.cursorBlink, lcd.cursorEnable, lcd.displayEnable)
 
 	} else if cmd&cmdEntryMode != 0 {
 		lcd.shiftMode = cmd&(1<<0) != 0
 		lcd.incMode = cmd&(1<<1) != 0
+		//log.Printf("WriteCommand %02x shiftMode %t incMode %t", cmd, lcd.shiftMode, lcd.incMode)
 
 	} else if cmd&cmdHome != 0 {
 		lcd.ddAdr = 0
 		lcd.scrollOffset = 0
+		lcd.ramMode = ddRamMode
+		//log.Printf("WriteCommand %02x home", cmd)
 
 	} else if cmd&cmdClear != 0 {
 		lcd.ddAdr = 0
 		lcd.scrollOffset = 0
 		lcd.incMode = true
+		lcd.ramMode = ddRamMode
 		for i := 0; i < len(lcd.ddRam); i++ {
 			lcd.ddRam[i] = 0x20 // space
 		}
+		//log.Printf("WriteCommand %02x clear", cmd)
 	}
 }
 

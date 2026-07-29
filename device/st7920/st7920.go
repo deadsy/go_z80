@@ -219,7 +219,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		}
 	} else if (cmd & 0x40) != 0 { // Set CGRAM/IRAM/SCROLL address
 
-		log.Printf("set cgram address")
+		//log.Printf("set cgram address")
 
 		// Check for extended mode
 		if lcd.extendedMode {
@@ -241,18 +241,18 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 	} else if (cmd & 0x20) != 0 { // (Extended) Function set
 		// Check for extended instruction set
 		lcd.extendedMode = cmd&0x04 != 0
-		log.Printf("st7920: extended mode %t", lcd.extendedMode)
+		//log.Printf("st7920: extended mode %t", lcd.extendedMode)
 		// Check for graphic mode flag
 		if lcd.extendedMode {
 			// Get graphic mode flag
 			lcd.graphicMode = cmd&0x02 != 0
-			log.Printf("st7920: graphic mode %t", lcd.graphicMode)
+			//log.Printf("st7920: graphic mode %t", lcd.graphicMode)
 		}
 		// Store command
 		lcd.lastCommand = ctFunctionSet
 	} else if (cmd & 0x10) != 0 { // Cursor/Display control
 
-		log.Printf("cursor/display control")
+		//log.Printf("cursor/display control")
 
 		// TODO
 		// Store command
@@ -261,9 +261,9 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		lcd.displayOn = cmd&0x04 != 0
 		lcd.cursorOn = cmd&0x02 != 0
 		lcd.blinkOn = cmd&0x01 != 0
-		log.Printf("st7920: display on %t", lcd.displayOn)
-		log.Printf("st7920: cursor on %t", lcd.cursorOn)
-		log.Printf("st7920: blink on %t", lcd.blinkOn)
+		//log.Printf("st7920: display on %t", lcd.displayOn)
+		//log.Printf("st7920: cursor on %t", lcd.cursorOn)
+		//log.Printf("st7920: blink on %t", lcd.blinkOn)
 		// Store command
 		lcd.lastCommand = ctDisplayControl
 	} else if (cmd & 0x04) != 0 { // Entry mode / Reverse
@@ -278,7 +278,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		}
 	} else if (cmd & 0x02) != 0 { // Home/Scroll or ram address select
 
-		log.Printf("home, scroll, ram address select")
+		//log.Printf("home, scroll, ram address select")
 
 		// Check for extended mode
 		if lcd.extendedMode {
@@ -298,11 +298,11 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 	} else if (cmd & 0x01) != 0 { // Clear/Stand by
 		// Check for extended mode
 		if lcd.extendedMode {
-			log.Printf("st7920: standby")
+			//log.Printf("st7920: standby")
 			// Store command
 			lcd.lastCommand = ctStandBy
 		} else {
-			log.Printf("st7920: clear")
+			//log.Printf("st7920: clear")
 			// Clear DDRAM
 			for y := 0; y < 4; y++ {
 				for x := 0; x < 32; x++ {

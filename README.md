@@ -21,7 +21,6 @@ Z80 CPU emulation in Golang.
  * Jupiter ACE ROMs, https://jupiter-ace.co.uk/roms.html
  * TEC-1 ROMs, https://github.com/tec1group/Software/tree/master/monitors
  * TEC-1G Details, https://github.com/MarkJelic/TEC-1G
- * HD44780 Emulation, https://github.com/visrealm/vrEmuLcd
 
 ### Issues
 
