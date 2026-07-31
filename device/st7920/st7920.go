@@ -122,8 +122,7 @@ type LCD struct {
 	cfg Config // lcd configuration
 
 	// images
-	font *ebiten.Image // font atlas
-	img  *ebiten.Image // lcd image
+	img *ebiten.Image // lcd image
 
 	lastCommand lcdCommandType
 	dataTarget  lcdDataTarget
@@ -142,12 +141,12 @@ type LCD struct {
 
 	reverseMode byte
 
-	addressX byte // column index 0..31 (bytes)
-	addressY byte // row counter 0..63
+	addressX int // column index
+	addressY int // row counter
 
-	cgRam [64][2]byte  // character generator ram
-	ddRam [4][32]byte  // display data ram
-	gdRam [64][32]byte // graphics data ram (256x64)
+	cgRam [64][2]byte  // character generator ram (4 glyphs, 16x16 bitmap)
+	ddRam [4][32]byte  // display data ram (4 lines, 16 x 16-bit character codes)
+	gdRam [64][32]byte // graphics data ram (64 x 256)
 }
 
 func New(cfg Config) (*LCD, error) {
@@ -155,9 +154,6 @@ func New(cfg Config) (*LCD, error) {
 	if !cfg.Enable {
 		return lcd, nil
 	}
-
-	// load the 8x16 font atlas
-	lcd.font = buildImage(font8x16, cfg.PixelColor)
 
 	// build an lcd image
 	width := (2 * cfg.XBorder) + displayWidth
@@ -184,14 +180,14 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 				// Check if current byte is for Y
 				if lcd.lastCommand != ctGdramAddress {
 					// First byte is Y
-					lcd.addressY = cmd & 0x3f // only 6 bits used 0..63
+					lcd.addressY = int(cmd & 0x3f) // only 6 bits used 0..63
 					// Store command
 					lcd.lastCommand = ctGdramAddress
 				} else {
 					// Second byte is X
 					// The cmd value is a 0..15 index of a 16-bit word in the horizontal gdram buffer (256 bits wide)
 					// We adjust it so we have a 0..30 index into a byte buffer.
-					lcd.addressX = (cmd & 0x0f) << 1 // 0..30
+					lcd.addressX = int(cmd&0x0f) << 1 // 0..30
 					//log.Printf("st7920: gdRam address (%d,%d)", lcd.addressX, lcd.addressY)
 					// Clear command
 					lcd.lastCommand = ctNone
@@ -201,17 +197,9 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 			}
 		} else {
 			// Set DDRAM address
-			lcd.addressX = (cmd & 0b111) * 2 // Lower 3 bytes, organized in 16-bit blocks
-			switch (cmd >> 3) & 0b11 {       // Upper 2 bytes, 16 bit high font
-			case 0:
-				lcd.addressY = 0
-			case 1:
-				lcd.addressY = 32
-			case 2:
-				lcd.addressY = 16
-			case 3:
-				lcd.addressY = 48
-			}
+			lcd.addressX = int(cmd&7) << 1 // Lower 3 bits, organized in 16-bit blocks
+			lcd.addressY = int(cmd>>3) & 3 // Upper 2 bits
+			//log.Printf("st7920.WriteCommand %02x addressX %d addressY %d", cmd, lcd.addressX, lcd.addressY)
 			// Store command
 			lcd.lastCommand = ctDdramAddress
 			// Set data target
@@ -231,7 +219,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 				// X address is used for byte indexing
 				lcd.addressX = 0
 				// Y address is character index
-				lcd.addressY = cmd & 0b111111
+				lcd.addressY = int(cmd & 0x3f)
 				// Write target is CGRAM
 				lcd.dataTarget = dtCGRAM
 			}
@@ -251,9 +239,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 		// Store command
 		lcd.lastCommand = ctFunctionSet
 	} else if (cmd & 0x10) != 0 { // Cursor/Display control
-
 		//log.Printf("cursor/display control")
-
 		// TODO
 		// Store command
 		lcd.lastCommand = ctCursorControl
@@ -269,6 +255,7 @@ func (lcd *LCD) WriteCommand(cmd byte) {
 	} else if (cmd & 0x04) != 0 { // Entry mode / Reverse
 		if lcd.extendedMode {
 			lcd.reverseMode = cmd & 0x03
+			//log.Printf("st7920: reverse mode %d", lcd.reverseMode)
 			// Store command
 			lcd.lastCommand = ctReverse
 		} else {
@@ -332,6 +319,13 @@ func (lcd *LCD) ReadCommand() byte {
 
 //-----------------------------------------------------------------------------
 
+func valToChar(val byte) byte {
+	if val >= 0x20 && val <= 0x7e {
+		return val
+	}
+	return 0x20
+}
+
 // write data register
 func (lcd *LCD) WriteData(val byte) {
 	if !lcd.cfg.Enable {
@@ -343,7 +337,6 @@ func (lcd *LCD) WriteData(val byte) {
 	if lcd.dataTarget == dtCGRAM {
 		// Write data to CGRAM
 		lcd.cgRam[lcd.addressY][lcd.addressX] = bits.Reverse8(val)
-
 		// Increase address
 		if lcd.addressX == 0 {
 			lcd.addressX = 1
@@ -360,52 +353,15 @@ func (lcd *LCD) WriteData(val byte) {
 		// increment x address
 		lcd.addressX = (lcd.addressX + 1) & 0x1f
 	} else if lcd.dataTarget == dtDDRAM {
-		// Get current byte
-		tmp := lcd.ddRam[lcd.addressY/16][lcd.addressX]
-
+		//log.Printf("st7920.WriteData 0x%02x (%c) to %s[%d,%d]", val, valToChar(val), lcd.dataTarget, lcd.addressX, lcd.addressY)
 		// Update DDRAM
-		lcd.ddRam[lcd.addressY/16][lcd.addressX] = val
-
-		// Check if chargen char was requested
-		if ((lcd.addressX & 1) > 0) && (lcd.ddRam[lcd.addressY/16][lcd.addressX&0b1110] == 0) {
-			// Draw char
-			for y := lcd.addressY; y < lcd.addressY+16; y++ {
-				//showByte(lcd.addressX-1, y)
-				//showByte(lcd.addressX, y)
-			}
-		} else if (val > 0) && (val <= 0x7F) { // Check for halfsize font
-			// Draw char
-			for y := lcd.addressY; y < lcd.addressY+16; y++ {
-				//showByte(lcd.addressX, y)
-			}
-
-			// Check if chargen char has been overwritten
-			if (tmp == 0) && ((lcd.addressX & 0b1) == 0) {
-				// Clear second char of DDRAM
-				x := lcd.addressX + 1
-				lcd.ddRam[lcd.addressY/16][x] = 0x20
-				// Update display
-				for y := lcd.addressY; y < lcd.addressY+16; y++ {
-					//showByte(x, y)
-				}
-			}
-		}
-
+		lcd.ddRam[lcd.addressY][lcd.addressX] = val
 		// Update cursor
 		if lcd.addressX < 15 {
 			lcd.addressX += 1
 		} else {
 			lcd.addressX = 0
-			switch lcd.addressY {
-			case 0:
-				lcd.addressY = 32
-			case 16:
-				lcd.addressY = 48
-			case 32:
-				lcd.addressY = 16
-			case 48:
-				lcd.addressY = 0
-			}
+			lcd.addressY += 1
 		}
 	}
 }
@@ -480,6 +436,8 @@ func (lcd *LCD) SerialData(data byte) {
 
 //-----------------------------------------------------------------------------
 
+const displayWidthBytes = displayWidth >> 3
+
 // Draw the display (called from ebiten draw function)
 func (lcd *LCD) Draw(screen *ebiten.Image) {
 	if !lcd.cfg.Enable {
@@ -493,7 +451,39 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 	lcd.img.Fill(cfg.BackgroundColor)
 
 	if lcd.displayOn {
-		// render gdram
+
+		bitmap := make([]byte, (displayWidth*displayHeight)>>3)
+
+		// render ddram to the bitmap
+		yPosn := 0
+		for _, row := range [4]int{0, 2, 1, 3} {
+			x := 0
+			xPosn := 0
+			for xPosn < displayWidth {
+				code := uint16(lcd.ddRam[row][x])
+				x += 1
+				if code >= 0x01 && code <= 0x7f {
+					// 8x16 glyph
+					fontIndex := int(code-1) * glyphHeight
+					bitmapIndex := ((yPosn * displayWidth) + xPosn) >> 3
+					for i := 0; i < glyphHeight; i++ {
+						bitmap[bitmapIndex] = font8x16[fontIndex]
+						bitmapIndex += displayWidthBytes
+						fontIndex += 1
+					}
+					xPosn += glyphWidth
+				} else {
+					// 16 x 16 glyph
+					code = (code << 8) | uint16(lcd.ddRam[row][x])
+					x += 1
+					// TODO
+					xPosn += glyphWidth << 1
+				}
+			}
+			yPosn += glyphHeight
+		}
+
+		// render gdram to bitmap
 		for i := 0; i < displayWidth>>3; i++ {
 			for j := 0; j < displayHeight; j++ {
 				var pixelData byte
@@ -504,6 +494,15 @@ func (lcd *LCD) Draw(screen *ebiten.Image) {
 					// top half of display
 					pixelData = lcd.gdRam[j][i]
 				}
+				bitmapIndex := (j * displayWidthBytes) + i
+				bitmap[bitmapIndex] ^= pixelData
+			}
+		}
+
+		// convert the bitmap to an image
+		for i := 0; i < displayWidth>>3; i++ {
+			for j := 0; j < displayHeight; j++ {
+				pixelData := bitmap[(j*displayWidthBytes)+i]
 				for k := 0; k < glyphWidth; k++ {
 					pixel := (pixelData & (1 << k)) != 0
 					if pixel {
