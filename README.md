@@ -39,10 +39,10 @@ Z80 CPU emulation in Golang.
  * Matrix keyboard supported
  * Serial port supported (using pseudo-tty)
  * Sound is supported
- * LCD (HD44780) emulation is partial (no display scrolling)
+ * LCD (HD44780) emulation is partial (no hardware display scrolling)
  * Disco RGBs are supported
- * Graphics LCD (ST7920) emulation is partial (graphics are ok)
- * 8x8 LED Array can be enabled
+ * Graphics LCD (ST7920) emulation is partial (graphics and characters are ok)
+ * 8x8 LED Array is supported
 
 #### Jupiter ACE
  * no tape (*.tap) support

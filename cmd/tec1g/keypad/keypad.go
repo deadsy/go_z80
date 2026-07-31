@@ -40,31 +40,31 @@ import (
 
 //-----------------------------------------------------------------------------
 
+const shiftMask = byte(1 << 5) // D5, active low
+
 const (
-	key0       byte = 0xe0 | 0x00
-	key1       byte = 0xe0 | 0x01
-	key2       byte = 0xe0 | 0x02
-	key3       byte = 0xe0 | 0x03
-	key4       byte = 0xe0 | 0x04
-	key5       byte = 0xe0 | 0x05
-	key6       byte = 0xe0 | 0x06
-	key7       byte = 0xe0 | 0x07
-	key8       byte = 0xe0 | 0x08
-	key9       byte = 0xe0 | 0x09
-	keyA       byte = 0xe0 | 0x0a
-	keyB       byte = 0xe0 | 0x0b
-	keyC       byte = 0xe0 | 0x0c
-	keyD       byte = 0xe0 | 0x0d
-	keyE       byte = 0xe0 | 0x0e
-	keyF       byte = 0xe0 | 0x0f
-	keyPlus    byte = 0xe0 | 0x10
-	keyMinus   byte = 0xe0 | 0x11
-	keyGo      byte = 0xe0 | 0x12
-	keyAddress byte = 0xe0 | 0x13
+	key0       byte = shiftMask | 0x00
+	key1       byte = shiftMask | 0x01
+	key2       byte = shiftMask | 0x02
+	key3       byte = shiftMask | 0x03
+	key4       byte = shiftMask | 0x04
+	key5       byte = shiftMask | 0x05
+	key6       byte = shiftMask | 0x06
+	key7       byte = shiftMask | 0x07
+	key8       byte = shiftMask | 0x08
+	key9       byte = shiftMask | 0x09
+	keyA       byte = shiftMask | 0x0a
+	keyB       byte = shiftMask | 0x0b
+	keyC       byte = shiftMask | 0x0c
+	keyD       byte = shiftMask | 0x0d
+	keyE       byte = shiftMask | 0x0e
+	keyF       byte = shiftMask | 0x0f
+	keyPlus    byte = shiftMask | 0x10
+	keyMinus   byte = shiftMask | 0x11
+	keyGo      byte = shiftMask | 0x12
+	keyAddress byte = shiftMask | 0x13
 	keyNone    byte = 0xff
 )
-
-const shiftMask = byte(1 << 5) // D5, active low
 
 type Keypad struct {
 	keys  []ebiten.Key
