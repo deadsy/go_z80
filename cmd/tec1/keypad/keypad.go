@@ -139,7 +139,7 @@ func (k *Keypad) Update() bool {
 			return k.set(key, keyGo)
 		case ebiten.KeyEscape: // address
 			return k.set(key, keyAddress)
-		case ebiten.KeyR:
+		case ebiten.KeyDelete:
 			k.reset = true
 			return k.set(key, keyNone)
 		default:

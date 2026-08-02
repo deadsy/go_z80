@@ -3,8 +3,8 @@
 
 8x8 LED Array Emulation
 
-Implements the TEC-1 8x8 LED Array
-This wraps a generic 2D LED array and adds some write row/col byte control functions.
+Implements the TEC-1A/G 8x8 LED Array
+This wraps a generic 2D tricolor-LED array and adds some write y/x byte control functions.
 
 */
 //-----------------------------------------------------------------------------
@@ -24,8 +24,8 @@ const numCols = 8
 //-----------------------------------------------------------------------------
 
 type Array88 struct {
-	leds     *array.Array
-	row, col byte // latched row/col values
+	leds          *array.Array
+	y, xr, xg, xb byte // latched values
 }
 
 func New(cfg array.Config) (*Array88, error) {
@@ -44,33 +44,44 @@ func New(cfg array.Config) (*Array88, error) {
 
 func (array *Array88) control() {
 	for row := 0; row < numRows; row++ {
-		if array.row&(1<<(numRows-row-1)) != 0 {
+		if array.y&(1<<(numRows-row-1)) != 0 {
 			// some of the leds in this row may be on.
 			for col := 0; col < numCols; col++ {
-				if array.col&(1<<col) != 0 {
-					array.leds.Control(row, col, true)
-				} else {
-					array.leds.Control(row, col, false)
-				}
+				r := array.xr&(1<<col) != 0
+				g := array.xg&(1<<col) != 0
+				b := array.xb&(1<<col) != 0
+				array.leds.Control(row, col, r, g, b)
 			}
 		} else {
 			// all the leds in this row are off
 			for col := 0; col < numCols; col++ {
-				array.leds.Control(row, col, false)
+				array.leds.Control(row, col, false, false, false)
 			}
 		}
 	}
 }
 
-// WriteColumn controls the column latch
-func (array *Array88) WriteColumn(val byte) {
-	array.col = val
+// WriteY controls the y latch
+func (array *Array88) WriteY(val byte) {
+	array.y = val
 	array.control()
 }
 
-// WriteRow controls the row latch
-func (array *Array88) WriteRow(val byte) {
-	array.row = val
+// WriteRedX controls the X-Red latch
+func (array *Array88) WriteRedX(val byte) {
+	array.xr = val
+	array.control()
+}
+
+// WriteGreenX controls the X-Green latch
+func (array *Array88) WriteGreenX(val byte) {
+	array.xg = val
+	array.control()
+}
+
+// WriteBlueX controls the X-Blue latch
+func (array *Array88) WriteBlueX(val byte) {
+	array.xb = val
 	array.control()
 }
 

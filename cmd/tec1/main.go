@@ -20,6 +20,7 @@ import (
 	"github.com/deadsy/go_z80/device/array"
 	"github.com/deadsy/go_z80/device/array88"
 	"github.com/deadsy/go_z80/device/led"
+	"github.com/deadsy/go_z80/device/led3"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/device/sound"
@@ -147,16 +148,20 @@ func newSystem(cfg *Config) (*system, error) {
 
 	// setup the 8x8 LED display
 	cfgLedArray := array.Config{
-		Enable:     cfg.Array88.Enable,
-		Type:       led.Rectangle,
-		X:          100,
-		Y:          100,
-		XGap:       1,
-		YGap:       1,
-		Width:      20,
-		Height:     20,
-		On:         color.RGBA{0, 0xff, 0, 255},
-		Off:        color.RGBA{0x90, 0x90, 0x90, 255},
+		Enable: cfg.Array88.Enable,
+		Type:   led3.Rectangle,
+		X:      100,
+		Y:      100,
+		XGap:   1,
+		YGap:   1,
+		Width:  20,
+		Height: 20,
+		Colors: [4]color.RGBA{
+			color.RGBA{0, 0xff, 0, 255},       // on
+			color.RGBA{0, 0, 0, 0},          // unused
+			color.RGBA{0, 0, 0, 0},          // unused
+			color.RGBA{0x90, 0x90, 0x90, 255}, // off
+		},
 		Background: color.RGBA{0x80, 0x80, 0x80, 255},
 		Border:     10,
 	}

@@ -48,11 +48,13 @@ const digitPort = 0x01       // display digit enable
 const segmentPort = 0x02     // display segment enable
 const simpPort = 0x03        // General SIMP Input
 const lcdCmdPort = 0x04      // LCD Display command
-const x88Port = 0x05         // 8x8 X-axis display latch
-const y88Port = 0x06         // 8x8 Y-axis display latch
+const y88Port = 0x05         // Standard 8x8 Row (Y) select
+const xr88Port = 0x06        // RGB 8x8 (Red) column (X) select
 const glcdCommandPort = 0x07 // GLCD command port
 const lcdDataPort = 0x84     // LCD Display data
 const glcdDataPort = 0x87    // GLCD data port
+const xg88Port = 0xf8        // RGB 8x8 (Green) column (X) select
+const xb88Port = 0xf9        // RGB 8x8 (Blue) column (X) select
 const rtcPort = 0xfc         // GPIO Real Time Clock
 const sdCardPort = 0xfd      // GPIO SD Card
 const keyboardPort = 0xfe    // Matrix Keyboard Input
@@ -191,7 +193,7 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		io.serialTx = val&serialTxMask != 0
 		dev.display.Enable(io.digit, io.segment)
 		dev.ledSpeaker.Control(io.speaker)
-		dev.ledBar.Control(0, 8, io.speaker)
+		dev.ledBar.Control(0, 8, io.speaker, false, false)
 		dev.ledDisco.Control(io.discoEnable, io.segment, cycles)
 		return
 	case segmentPort:
@@ -202,11 +204,17 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 	case lcdCmdPort:
 		dev.lcd.WriteCommand(val)
 		return
-	case x88Port:
-		dev.ledArray.WriteColumn(val)
+	case xr88Port:
+		dev.ledArray.WriteRedX(val)
+		return
+	case xg88Port:
+		dev.ledArray.WriteGreenX(val)
+		return
+	case xb88Port:
+		dev.ledArray.WriteBlueX(val)
 		return
 	case y88Port:
-		dev.ledArray.WriteRow(val)
+		dev.ledArray.WriteY(val)
 		return
 	case glcdCommandPort:
 		dev.glcd.WriteCommand(val)
@@ -227,23 +235,23 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		// TODO
 		return
 	case systemPort:
-		dev.ledBar.Control(0, 0, val&systemCaps != 0)
-		dev.ledBar.Control(0, 1, val&systemFFD6 != 0)
-		dev.ledBar.Control(0, 2, val&systemFFD5 != 0)
-		dev.ledBar.Control(0, 3, val&systemFFD4 != 0)
-		dev.ledBar.Control(0, 4, val&systemFFD3 != 0)
-		dev.ledBar.Control(0, 5, val&systemExpand != 0)
+		dev.ledBar.Control(0, 0, val&systemCaps != 0, false, false)
+		dev.ledBar.Control(0, 1, val&systemFFD6 != 0, false, false)
+		dev.ledBar.Control(0, 2, val&systemFFD5 != 0, false, false)
+		dev.ledBar.Control(0, 3, val&systemFFD4 != 0, false, false)
+		dev.ledBar.Control(0, 4, val&systemFFD3 != 0, false, false)
+		dev.ledBar.Control(0, 5, val&systemExpand != 0, false, false)
 		// protect
 		wp := val&systemProtect != 0
-		dev.ledBar.Control(0, 6, wp)
+		dev.ledBar.Control(0, 6, wp, false, false)
 		io.sys.mem.WriteProtect(wp)
 		// shadow
 		shadow := val&systemShadow == 0
-		dev.ledBar.Control(0, 7, shadow)
+		dev.ledBar.Control(0, 7, shadow, false, false)
 		io.sys.mem.Shadow(shadow)
 		return
 	}
-	log.Printf("io.Write8 [%02x] = %02x\n", adr, val)
+	log.Printf("io.Write8 [%02x] = %02x", adr, val)
 }
 
 //-----------------------------------------------------------------------------

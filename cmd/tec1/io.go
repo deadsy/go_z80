@@ -75,10 +75,10 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		dev.display.Enable(io.digit, io.segment)
 		return
 	case x88Port:
-		dev.ledArray.WriteColumn(val)
+		dev.ledArray.WriteRedX(val)
 		return
 	case y88Port:
-		dev.ledArray.WriteRow(val)
+		dev.ledArray.WriteY(val)
 		return
 	}
 	log.Printf("io.Write8 [%02x] = %02x", adr, val)

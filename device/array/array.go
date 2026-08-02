@@ -3,7 +3,7 @@
 
 LED Array Emulation
 
-Implements a 2-D array of LEDs
+Implements a 2-D array of tri-color LEDs
 
 */
 //-----------------------------------------------------------------------------
@@ -14,29 +14,29 @@ import (
 	"errors"
 	"image/color"
 
-	"github.com/deadsy/go_z80/device/led"
+	"github.com/deadsy/go_z80/device/led3"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
 //-----------------------------------------------------------------------------
 
 type Config struct {
-	Enable        bool       // is the array enabled?
-	Rows, Cols    int        // number of rows and columns
-	Type          led.Type   // led type
-	X, Y          float32    // xy position of display on screen
-	XGap, YGap    float32    // gap distance between LEDs
-	Radius        float32    // radius (round only)
-	Width, Height float32    // width/height size (rectangular only)
-	On, Off       color.RGBA // on/off colors
-	Background    color.RGBA // background color
-	Border        float32    // background border
+	Enable        bool          // is the array enabled?
+	Rows, Cols    int           // number of rows and columns
+	Type          led3.Type     // led type
+	X, Y          float32       // xy position of display on screen
+	XGap, YGap    float32       // gap distance between LEDs
+	Radius        float32       // radius (round only)
+	Width, Height float32       // width/height size (rectangular only)
+	Colors        [4]color.RGBA // r,g,b,off colors
+	Background    color.RGBA    // background color
+	Border        float32       // background border
 }
 
 type Array struct {
 	cfg        Config
 	numCols    int
-	leds       []*led.LED
+	leds       []*led3.LED3
 	background *ebiten.Image
 }
 
@@ -53,7 +53,7 @@ func New(cfg Config) (*Array, error) {
 
 	var xOfs, yOfs, xStep, yStep float32
 	var width, height int
-	if cfg.Type == led.Round {
+	if cfg.Type == led3.Round {
 		if cfg.Radius <= 0 {
 			return nil, errors.New("bad radius")
 		}
@@ -79,20 +79,19 @@ func New(cfg Config) (*Array, error) {
 	}
 
 	// build the leds
-	leds := make([]*led.LED, cfg.Rows*cfg.Cols)
+	leds := make([]*led3.LED3, cfg.Rows*cfg.Cols)
 	for j := 0; j < cfg.Rows; j++ {
 		for i := 0; i < cfg.Cols; i++ {
-			ledCfg := led.Config{
+			ledCfg := led3.Config{
 				Type:   cfg.Type,
 				X:      xOfs + float32(i)*xStep,
 				Y:      yOfs + float32(j)*yStep,
 				Radius: cfg.Radius,
 				Width:  cfg.Width,
 				Height: cfg.Height,
-				On:     cfg.On,
-				Off:    cfg.Off,
+				Colors: cfg.Colors,
 			}
-			l, err := led.New(&ledCfg)
+			l, err := led3.New(ledCfg)
 			if err != nil {
 				return nil, err
 			}
@@ -114,7 +113,7 @@ func New(cfg Config) (*Array, error) {
 //-----------------------------------------------------------------------------
 
 // Control an Array LED
-func (array *Array) Control(row, col int, state bool) {
+func (array *Array) Control(row, col int, r, g, b bool) {
 	if !array.cfg.Enable {
 		return
 	}
@@ -122,7 +121,7 @@ func (array *Array) Control(row, col int, state bool) {
 	if n < 0 || n >= len(array.leds) {
 		return
 	}
-	array.leds[n].Control(state)
+	array.leds[n].Control(r, g, b)
 }
 
 // Draw the Array LEDs (called from ebiten draw function)

@@ -25,6 +25,7 @@ import (
 	"github.com/deadsy/go_z80/device/ds1302"
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
+	"github.com/deadsy/go_z80/device/led3"
 	"github.com/deadsy/go_z80/device/serial"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
@@ -331,13 +332,18 @@ func newSystem(cfg *Config) (*system, error) {
 		Enable: true,
 		Rows:   1,
 		Cols:   10,
-		Type:   led.Rectangle,
+		Type:   led3.Rectangle,
 		X:      759.5,
 		Y:      794,
 		XGap:   7,
 		Width:  7.5,
 		Height: 31,
-		On:     color.RGBA{0, 0, 255, 128},
+		Colors: [4]color.RGBA{
+			color.RGBA{0, 0, 255, 128}, // on
+			color.RGBA{0, 0, 0, 0},     // unused
+			color.RGBA{0, 0, 0, 0},     // unused
+			color.RGBA{0, 0, 0, 0},     // off
+		},
 	}
 	ledBar, err := array.New(cfgBarLed)
 	if err != nil {
@@ -346,16 +352,20 @@ func newSystem(cfg *Config) (*system, error) {
 
 	// setup the 8x8 LED display
 	cfgLedArray := array.Config{
-		Enable:     cfg.Array88.Enable,
-		Type:       led.Rectangle,
-		X:          100,
-		Y:          100,
-		XGap:       1,
-		YGap:       1,
-		Width:      20,
-		Height:     20,
-		On:         color.RGBA{0, 0xff, 0, 255},
-		Off:        color.RGBA{0x90, 0x90, 0x90, 255},
+		Enable: cfg.Array88.Enable,
+		Type:   led3.Rectangle,
+		X:      100,
+		Y:      100,
+		XGap:   1,
+		YGap:   1,
+		Width:  20,
+		Height: 20,
+		Colors: [4]color.RGBA{
+			color.RGBA{0xff, 0, 0, 255},       // red
+			color.RGBA{0, 0xff, 0, 255},       // green
+			color.RGBA{0, 0, 0xff, 255},       // blue
+			color.RGBA{0, 0, 0, 255}, // off
+		},
 		Background: color.RGBA{0x80, 0x80, 0x80, 255},
 		Border:     10,
 	}
@@ -496,7 +506,7 @@ func (s *system) Update() error {
 	// cpu halted?
 	halted := s.cpu.IsHalted()
 	s.io.dev.ledHalt.Control(halted)
-	s.io.dev.ledBar.Control(0, 9, halted)
+	s.io.dev.ledBar.Control(0, 9, halted, false, false)
 	if halted && !s.haltLogged {
 		log.Printf("cpu halted at pc=0x%04x", s.cpu.PC)
 		s.haltLogged = true
