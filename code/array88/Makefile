@@ -1,12 +1,23 @@
 
+TARGET = out
+
 STACK = 0x7ffe
 CODE = 0x4000
 DATA = 0x6000
 
-.PHONY: all
-all:
-	sdcc -mz80 --no-std-crt0 --code-loc $(CODE) --data-loc $(DATA) --stack-loc $(STACK) main.c
+OBJS = entry.rel \
+	main.rel \
+	array88.rel \
 
+.PHONY: all
+all: $(OBJS)
+	sdcc -mz80 --no-std-crt0 --code-loc $(CODE) --data-loc $(DATA) $(OBJS) -o $(TARGET).ihx
+
+%.rel : %.s
+	sdasz80 -o $<
+
+%.rel : %.c
+	sdcc -mz80 -c $<
 
 .PHONY: clean
 clean:

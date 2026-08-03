@@ -2,6 +2,8 @@
 
 FILES="
 main.c
+array88.c
+array88.h
 "
 
 for f in $FILES; do
