@@ -8,6 +8,7 @@ DATA = 0x6000
 OBJS = entry.rel \
 	main.rel \
 	array88.rel \
+	delay.rel \
 
 .PHONY: all
 all: $(OBJS)

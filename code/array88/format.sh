@@ -4,6 +4,8 @@ FILES="
 main.c
 array88.c
 array88.h
+delay.c
+delay.h
 "
 
 for f in $FILES; do
