@@ -5,7 +5,7 @@ STACK = 0x7ffe
 CODE = 0x4000
 DATA = 0x6000
 
-OBJS = main.rel
+OBJS = entry.rel main.rel
 
 LIBS = tec1.lib
 

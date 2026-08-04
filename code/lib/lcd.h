@@ -20,7 +20,7 @@ void lcd_init(void);
 void lcd_display_ctrl(bool on);
 void lcd_cursor_ctrl(bool on, bool blink);
 void lcd_char(uint8_t row, uint8_t col, char c);
-void lcd_string(uint8_t row, uint8_t col, char *s);
+void lcd_string(uint8_t row, uint8_t col, const char *s);
 
 //-----------------------------------------------------------------------------
 

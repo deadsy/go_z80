@@ -1,9 +1,9 @@
 LIB = tec1
 
-OBJS = entry.rel \
-	array88.rel \
+OBJS = array88.rel \
 	display.rel \
 	lcd.rel \
+	scroll.rel \
 	delay.rel
 
 CFLAGS = -mz80 \

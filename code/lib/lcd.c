@@ -67,16 +67,23 @@ static void wr_data(uint8_t val) {
 
 static const uint8_t row2address[4] = { 0, 0x40, 0x14, 0x54 };
 
-void lcd_cursor_set(uint8_t row, uint8_t col) {
+static void cursor_set(uint8_t row, uint8_t col) {
 	uint8_t addr = (row2address[row & 3] + col) & 0x7f;
 	wr_command(cmdSetDramAddr | addr);
 }
 
 //-----------------------------------------------------------------------------
 
+static inline bool valid_posn(uint8_t row, uint8_t col) {
+	return (row < MAX_ROWS) && (col < MAX_COLS);
+}
+
 // display a string at the row/col location.
-void lcd_string(uint8_t row, uint8_t col, char *s) {
-	lcd_cursor_set(row, col);
+void lcd_string(uint8_t row, uint8_t col, const char *s) {
+	if (!valid_posn(row, col)) {
+		return;
+	}
+	cursor_set(row, col);
 	while ((*s != 0) && (col < MAX_COLS)) {
 		wr_data(*s);
 		s++;
@@ -86,20 +93,29 @@ void lcd_string(uint8_t row, uint8_t col, char *s) {
 
 // display a character at the row/col location.
 void lcd_char(uint8_t row, uint8_t col, char c) {
-	lcd_cursor_set(row, col);
+	if (!valid_posn(row, col)) {
+		return;
+	}
+	cursor_set(row, col);
 	wr_data(c);
 }
 
+//-----------------------------------------------------------------------------
+
+// display control - on/off.
 void lcd_display_ctrl(bool on) {
 	display_state = on;
 	wr_command(cmdDisplay | DISPLAY(display_state & 1) | CURSOR(cursor_state & 1) | BLINK(blink_state & 1));
 }
 
+// cursor control - on/off and blinking.
 void lcd_cursor_ctrl(bool on, bool blink) {
 	cursor_state = on;
 	blink_state = blink;
 	wr_command(cmdDisplay | DISPLAY(display_state & 1) | CURSOR(cursor_state & 1) | BLINK(blink_state & 1));
 }
+
+//-----------------------------------------------------------------------------
 
 // initialise the display
 void lcd_init(void) {

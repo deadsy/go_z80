@@ -3,6 +3,7 @@
 FILES="
 ./array88/main.c
 ./display/main.c
+./lcd_test/main.c
 ./lib/array88.c
 ./lib/array88.h
 ./lib/delay.c
@@ -11,6 +12,8 @@ FILES="
 ./lib/display.h
 ./lib/lcd.c
 ./lib/lcd.h
+./lib/scroll.c
+./lib/scroll.h
 ./lib/hw.h
 "
 
