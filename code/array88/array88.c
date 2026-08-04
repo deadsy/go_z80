@@ -6,6 +6,7 @@ Array88 Driver
 */
 //-----------------------------------------------------------------------------
 
+#include "hw.h"
 #include "array88.h"
 #include "delay.h"
 
@@ -17,13 +18,6 @@ Array88 Driver
 static uint8_t red[NUM_ROWS];
 static uint8_t green[NUM_ROWS];
 static uint8_t blue[NUM_ROWS];
-
-//-----------------------------------------------------------------------------
-
-__sfr __at 0x05 y88Port;	// Standard 8x8 Row (Y) select
-__sfr __at 0x06 xr88Port;	// RGB 8x8 (Red) column (X) select
-__sfr __at 0xf8 xg88Port;	// RGB 8x8 (Green) column (X) select
-__sfr __at 0xf9 xb88Port;	// RGB 8x8 (Blue) column (X) select
 
 //-----------------------------------------------------------------------------
 
