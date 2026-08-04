@@ -3,6 +3,7 @@ LIB = tec1
 OBJS = entry.rel \
 	array88.rel \
 	display.rel \
+	lcd.rel \
 	delay.rel
 
 CFLAGS = -mz80 \

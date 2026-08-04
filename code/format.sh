@@ -9,6 +9,8 @@ FILES="
 ./lib/delay.h
 ./lib/display.c
 ./lib/display.h
+./lib/lcd.c
+./lib/lcd.h
 ./lib/hw.h
 "
 
