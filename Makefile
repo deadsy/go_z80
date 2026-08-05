@@ -5,7 +5,6 @@ all:
 	make -C cmd/tec1g $@
 	make -C cmd/jace $@
 	make -C cmd/lcdtest $@
-	make -C code $@
 
 .PHONY: clean
 clean:
@@ -13,4 +12,3 @@ clean:
 	make -C cmd/tec1g $@
 	make -C cmd/jace $@
 	make -C cmd/lcdtest $@
-	make -C code $@

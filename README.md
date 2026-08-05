@@ -21,6 +21,7 @@ Z80 CPU emulation in Golang.
  * Jupiter ACE ROMs, https://jupiter-ace.co.uk/roms.html
  * TEC-1 ROMs, https://github.com/tec1group/Software/tree/master/monitors
  * TEC-1G Details, https://github.com/MarkJelic/TEC-1G
+ * C-Code Examples, https://github.com/deadsy/tec-1g 
 
 ### Issues
 
@@ -29,8 +30,9 @@ Z80 CPU emulation in Golang.
  * zexdoc passes (good), zexall does not pass (undocumented flag support)
    
 #### TEC-1A
- * works pretty good...
- * 8x8 LED Array can be enabled
+ * Keypad (74c923) supported
+ * Sound is supported
+ * 8x8 Monchrome LED Array is supported
    
 #### TEC-1G
  * Diagnostic ROM passes
@@ -42,7 +44,8 @@ Z80 CPU emulation in Golang.
  * LCD (HD44780) emulation is partial (no hardware display scrolling)
  * Disco RGBs are supported
  * Graphics LCD (ST7920) emulation is partial (graphics and characters are ok)
- * 8x8 LED Array is supported
+ * 8x8 RGB LED Array is supported
+ * Hex file loading through configuration file
 
 #### Jupiter ACE
  * no tape (*.tap) support
@@ -52,7 +55,7 @@ Z80 CPU emulation in Golang.
  * Debian: apt-get install libxrandr-dev libglx-dev libgl-dev libxcursor-dev libxinerama-dev libxi-dev libasound2-dev pkg-config libxxf86vm-dev
 
 ## Platforms
- * Linux - Works. (main development environment)
- * MacOS - Works.
+ * Linux - Works (main development environment)
+ * MacOS - Works
  * Windows - Unknown. It should compile and run. I haven't tried it.
  * WASM - Sound startup is problematic.
