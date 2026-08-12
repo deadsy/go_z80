@@ -170,6 +170,8 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 		return dev.lcd.ReadData()
 	case rtcPort:
 		return boolToByte(dev.rtc.Read(), rtcOutMask)
+	case glcdCommandPort:
+		return dev.glcd.ReadCommand()
 	case sdCardPort:
 		// TODO
 		return 0

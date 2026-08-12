@@ -312,8 +312,8 @@ func (lcd *LCD) ReadCommand() byte {
 	if !lcd.cfg.Enable {
 		return 0
 	}
-	log.Printf("st7920.ReadCommand")
-	// TODO
+	//log.Printf("st7920.ReadCommand")
+	// TODO returning BF = 0, but we need to emulate ac values.
 	return 0
 }
 

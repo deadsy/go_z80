@@ -158,8 +158,8 @@ func newSystem(cfg *Config) (*system, error) {
 		Height: 20,
 		Colors: [4]color.RGBA{
 			color.RGBA{0, 0xff, 0, 255},       // on
-			color.RGBA{0, 0, 0, 0},          // unused
-			color.RGBA{0, 0, 0, 0},          // unused
+			color.RGBA{0, 0, 0, 0},            // unused
+			color.RGBA{0, 0, 0, 0},            // unused
 			color.RGBA{0x90, 0x90, 0x90, 255}, // off
 		},
 		Background: color.RGBA{0x80, 0x80, 0x80, 255},
