@@ -19,6 +19,7 @@ import (
 	"github.com/deadsy/go_z80/device/ds1302"
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
+	"github.com/deadsy/go_z80/device/sdcard"
 	"github.com/deadsy/go_z80/device/sixdigit"
 	"github.com/deadsy/go_z80/device/st7920"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -51,6 +52,7 @@ const lcdCmdPort = 0x04      // LCD Display command
 const y88Port = 0x05         // Standard 8x8 Row (Y) select
 const xr88Port = 0x06        // RGB 8x8 (Red) column (X) select
 const glcdCommandPort = 0x07 // GLCD command port
+const pataStatusPort = 0x27  // PATA status (read)
 const lcdDataPort = 0x84     // LCD Display data
 const glcdDataPort = 0x87    // GLCD data port
 const xg88Port = 0xf8        // RGB 8x8 (Green) column (X) select
@@ -92,6 +94,13 @@ const systemFFD5 = byte(1 << 5)    // D5
 const systemFFD6 = byte(1 << 6)    // D6
 const systemCaps = byte(1 << 7)    // D7
 
+// sdCardPort
+const sdMosiMask = byte(1 << 0)   // D0 mosi (out)
+const sdClockMask = byte(1 << 1)  // D1 clock (out)
+const sdSelectMask = byte(1 << 2) // D2 chip select (out, active low)
+const sdDetectMask = byte(1 << 6) // D6 card detect (in)
+const sdMisoMask = byte(1 << 7)   // D7 miso (in)
+
 //-----------------------------------------------------------------------------
 
 type ioDevices struct {
@@ -106,6 +115,7 @@ type ioDevices struct {
 	keyboard   *keyboard.Keyboard // matrix keyboard
 	keypad     *keypad.Keypad     // 74c923 keypad
 	rtc        *ds1302.RTC        // realtime clock
+	sdio       *sdcard.SDIO       // sdcard interface
 }
 
 type sysIO struct {
@@ -173,10 +183,15 @@ func (io *sysIO) Read8(adr uint16) uint8 {
 	case glcdCommandPort:
 		return dev.glcd.ReadCommand()
 	case sdCardPort:
-		// TODO
-		return 0
+		cd, miso := dev.sdio.Read()
+		val := boolToByte(cd, sdDetectMask)
+		val |= boolToByte(miso, sdMisoMask)
+		return val
 	case keyboardPort:
 		return dev.keyboard.Scan(row)
+	case pataStatusPort:
+		// TODO
+		return 0
 	}
 	log.Printf("io.Read8 unknown port %02x", adr)
 	return 0
@@ -234,7 +249,10 @@ func (io *sysIO) Write8(adr uint16, val uint8) {
 		dev.rtc.Write(ce, clk, in)
 		return
 	case sdCardPort:
-		// TODO
+		mosi := val&sdMosiMask != 0
+		clk := val&sdClockMask != 0
+		sel := val&sdSelectMask == 0 // active low
+		dev.sdio.Write(sel, mosi, clk)
 		return
 	case systemPort:
 		dev.ledBar.Control(0, 0, val&systemCaps != 0, false, false)

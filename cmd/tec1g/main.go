@@ -26,6 +26,7 @@ import (
 	"github.com/deadsy/go_z80/device/hd44780"
 	"github.com/deadsy/go_z80/device/led"
 	"github.com/deadsy/go_z80/device/led3"
+	"github.com/deadsy/go_z80/device/sdcard"
 	"github.com/deadsy/go_z80/device/serial"
 	"github.com/deadsy/go_z80/device/sevseg"
 	"github.com/deadsy/go_z80/device/sixdigit"
@@ -387,6 +388,12 @@ func newSystem(cfg *Config) (*system, error) {
 		return nil, err
 	}
 
+	// setup the sdcard interface
+	sdio, err := sdcard.New()
+	if err != nil {
+		return nil, err
+	}
+
 	// setup the IO
 	devices := ioDevices{
 		display:    display,
@@ -400,6 +407,7 @@ func newSystem(cfg *Config) (*system, error) {
 		keyboard:   keyboard,
 		keypad:     keypad,
 		rtc:        rtc,
+		sdio:       sdio,
 	}
 	io := newIO(&devices)
 
