@@ -43,6 +43,8 @@ const ocr1 = 0xff // 2.8-3.6v
 const ocr2 = 0
 const ocr3 = 0
 
+const blockLength = 512
+
 //-----------------------------------------------------------------------------
 
 const (
@@ -51,8 +53,14 @@ const (
 	stateCRC             // rx the command sequence crc value
 )
 
+type Config struct {
+	Enable bool   `toml:"enable"`    // is the sdcard enabled
+	SDSC   bool   `toml:"sdsc_mode"` // identify as an SDSC device
+	Image  string `toml:"image"`     // path to fat32 file system image
+}
+
 type SDIO struct {
-	enable bool // is the sdcard enabled?
+	cfg Config // sdcard configuration
 
 	// spi state variables
 	clock     bool // clock state
@@ -76,10 +84,10 @@ type SDIO struct {
 	rsp *circularBuffer
 }
 
-func New() (*SDIO, error) {
+func New(cfg Config) (*SDIO, error) {
 	return &SDIO{
-		enable: true,
-		rsp:    newCircularBuffer(1024),
+		cfg: cfg,
+		rsp: newCircularBuffer(1024),
 	}, nil
 }
 
@@ -128,6 +136,12 @@ func (sd *SDIO) wrCommand(cmd int, arg uint32) {
 			sd.wrResponse(0)                     // reserved
 			sd.wrResponse(byte((arg >> 8) & 15)) // voltage accepted
 			sd.wrResponse(byte(arg & 0xff))      // pattern
+
+		case 17: // READ_SINGLE_BLOCK, R1
+			blockAddress := arg
+			log.Printf("blockAddress %08x", blockAddress)
+			sd.wrResponse(rsp1Success)
+
 		case 55: // APP_CMD, R1
 			sd.appCommand = true
 			sd.wrResponse(rsp1Success)
@@ -196,11 +210,11 @@ func (sd *SDIO) wrData(val byte) {
 // read the card detect and miso bits
 func (sd *SDIO) Read() (bool, bool) {
 	//log.Printf("sdio.Read %t", sd.miso)
-	return sd.enable, sd.miso
+	return sd.cfg.Enable, sd.miso
 }
 
 func (sd *SDIO) Write(chipSelect, mosi, clock bool) {
-	if !sd.enable {
+	if !sd.cfg.Enable {
 		// no device present
 		return
 	}

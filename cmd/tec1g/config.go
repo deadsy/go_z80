@@ -17,6 +17,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/deadsy/go_z80/device/ds1302"
+	"github.com/deadsy/go_z80/device/sdcard"
 )
 
 //-----------------------------------------------------------------------------
@@ -51,6 +52,7 @@ type Config struct {
 	Array88 array88Config `toml:"array_8x8"`
 	Sound   soundConfig   `toml:"sound"`
 	GLCD    glcdConfig    `toml:"graphics_lcd"`
+	SDCard  sdcard.Config `toml:"sdcard"`
 	ROM     romConfig     `toml:"rom"`
 	RAM     ramConfig     `toml:"ram"`
 }
@@ -77,11 +79,12 @@ func defaultConfig() *Config {
 	}
 	dip := dipSwitch{}
 	cfg := &Config{
-		RTC:   rtc,
-		DIP:   dip,
-		Sound: soundConfig{Enable: true},
-		GLCD:  glcdConfig{Enable: false},
-		RAM:   ramConfig{Load: []string{""}},
+		RTC:    rtc,
+		DIP:    dip,
+		Sound:  soundConfig{Enable: true},
+		GLCD:   glcdConfig{Enable: false},
+		SDCard: sdcard.Config{Image: ""},
+		RAM:    ramConfig{Load: []string{""}},
 	}
 	return cfg
 }

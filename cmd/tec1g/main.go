@@ -389,7 +389,7 @@ func newSystem(cfg *Config) (*system, error) {
 	}
 
 	// setup the sdcard interface
-	sdio, err := sdcard.New()
+	sdio, err := sdcard.New(cfg.SDCard)
 	if err != nil {
 		return nil, err
 	}
