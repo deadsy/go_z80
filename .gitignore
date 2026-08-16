@@ -4,3 +4,4 @@
 /ext/z80step
 /ext/zexall
 /ext/.stamp*
+/scripts/fat32.img

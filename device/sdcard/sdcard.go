@@ -11,7 +11,9 @@ package sdcard
 //-----------------------------------------------------------------------------
 
 import (
+	"io"
 	"log"
+	"os"
 )
 
 //-----------------------------------------------------------------------------
@@ -38,6 +40,13 @@ const rsp1ParameterError = (1 << 6)     // parameter error
 //-----------------------------------------------------------------------------
 
 const defaultBlockLength = 512
+
+const blockBusy = 0xff           // getting the block data ...
+const blockStart = 0xfe          // starting the block data
+const blockCardLocked = (1 << 3) // error: the card is locked
+const blockCcError = (1 << 2)    // error: internal failure
+const blockEccFail = (1 << 1)    // error: ecc failure on block data
+const blockOutOfRange = (1 << 0) // error: address is out of range
 
 //-----------------------------------------------------------------------------
 
@@ -74,7 +83,7 @@ type SDIO struct {
 	crc        byte   // calculated crc7 value
 	appCommand bool   // is the next command an app command?
 
-	blockLength int // sector block length
+	blockLength uint32 // sector block length
 
 	// response buffer
 	rsp *circularBuffer
@@ -86,6 +95,34 @@ func New(cfg Config) (*SDIO, error) {
 		blockLength: defaultBlockLength,
 		rsp:         newCircularBuffer(1024),
 	}, nil
+}
+
+//-----------------------------------------------------------------------------
+// file system image operations
+
+// read a block in the file system image
+func (sd *SDIO) readBlock(offset int64, buf []byte) error {
+	// Open the file in read-only mode
+	file, err := os.Open(sd.cfg.Image)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	// ReadAt fills the slice completely from the given offset
+	n, err := file.ReadAt(buf, offset)
+	if err != nil {
+		// io.EOF is expected if you try to read exactly up to the end of the file
+		if err == io.EOF && n == len(buf) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// write a block in the file system image
+func (sd *SDIO) writeBlock(offset uint32, buf []byte) error {
+	return nil
 }
 
 //-----------------------------------------------------------------------------
@@ -134,13 +171,47 @@ func (sd *SDIO) wrCommand(cmd int, arg uint32) {
 			sd.wrResponse(byte((arg >> 8) & 15)) // voltage accepted
 			sd.wrResponse(byte(arg & 0xff))      // pattern
 		case 16: // SET_BLOCKLEN, R1 (SDSC only)
-			sd.blockLength = int(arg)
+			sd.blockLength = arg
 			log.Printf("sdcard: cmd16 blockLength %d", sd.blockLength)
 			sd.wrResponse(rsp1Success)
 		case 17: // READ_SINGLE_BLOCK, R1
-			blockAddress := arg
-			log.Printf("sdcard: cmd17 blockAddress %08x", blockAddress)
+			log.Printf("sdcard: cmd17 block address %08x", arg)
 			sd.wrResponse(rsp1Success)
+			sd.wrResponse(blockBusy)
+			// work out the image offset
+			var ofs int64
+			if sd.cfg.SDSC {
+				// SDSC has byte addressing
+				ofs = int64(arg)
+			} else {
+				// SDSC has block addressing
+				ofs = int64(sd.blockLength) * int64(arg)
+			}
+			// get the block
+			buf := make([]byte, sd.blockLength)
+			err := sd.readBlock(ofs, buf)
+			if err != nil {
+				log.Printf("sdcard: %s", err.Error())
+				// Host code *should* handle this error response
+				// The mon3 code does not :-(
+				sd.wrResponse(blockCcError)
+				break
+			}
+			// write out the block and crc
+			sd.wrResponse(blockStart)
+			var crc uint16
+			for _, b := range buf {
+				sd.wrResponse(b)
+				crc = addCRC16(crc, b)
+			}
+			// big endian order
+			sd.wrResponse(byte(crc >> 8))
+			sd.wrResponse(byte(crc))
+		case 24: // WRITE_BLOCK, R1
+			log.Printf("sdcard: cmd24 block address %08x", arg)
+			sd.wrResponse(rsp1Success)
+			// TODO
+
 		case 55: // APP_CMD, R1
 			sd.appCommand = true
 			sd.wrResponse(rsp1Success)
@@ -175,14 +246,14 @@ func (sd *SDIO) wrData(val byte) {
 	switch sd.cmdState {
 	case stateCommand:
 		if cmd, ok := sdCommand(val); ok {
-			sd.crc = crcAdd(0, val)
+			sd.crc = addCRC7(0, val)
 			sd.cmd = cmd
 			sd.arg = 0
 			sd.argBytes = 0
 			sd.cmdState = stateArgument
 		}
 	case stateArgument:
-		sd.crc = crcAdd(sd.crc, val)
+		sd.crc = addCRC7(sd.crc, val)
 		sd.arg = (sd.arg << 8) | uint32(val)
 		sd.argBytes += 1
 		if sd.argBytes == 4 {

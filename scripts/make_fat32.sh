@@ -11,7 +11,7 @@ rm -f $IMAGE
 dd if=/dev/zero of=$IMAGE bs=1M count=$SIZE
 
 # format it as a fat32 file system
-mkfs.vfat -F 32 $IMAGE
+mkfs.vfat -n "TEC-1G" -F 32 $IMAGE
 
 # note: uses mtools
 # sudo apt-get install mtools
