@@ -16,9 +16,9 @@ import (
 
 //-----------------------------------------------------------------------------
 
-func boolToByte(x bool) byte {
+func boolToByte(x bool, val byte) byte {
 	if x {
-		return 1
+		return val
 	}
 	return 0
 }
@@ -37,13 +37,7 @@ const rsp1ParameterError = (1 << 6)     // parameter error
 
 //-----------------------------------------------------------------------------
 
-// OCR
-const ocr0 = 0xc0 // not busy, sdhc
-const ocr1 = 0xff // 2.8-3.6v
-const ocr2 = 0
-const ocr3 = 0
-
-const blockLength = 512
+const defaultBlockLength = 512
 
 //-----------------------------------------------------------------------------
 
@@ -80,14 +74,17 @@ type SDIO struct {
 	crc        byte   // calculated crc7 value
 	appCommand bool   // is the next command an app command?
 
+	blockLength int // sector block length
+
 	// response buffer
 	rsp *circularBuffer
 }
 
 func New(cfg Config) (*SDIO, error) {
 	return &SDIO{
-		cfg: cfg,
-		rsp: newCircularBuffer(1024),
+		cfg:         cfg,
+		blockLength: defaultBlockLength,
+		rsp:         newCircularBuffer(1024),
 	}, nil
 }
 
@@ -136,21 +133,23 @@ func (sd *SDIO) wrCommand(cmd int, arg uint32) {
 			sd.wrResponse(0)                     // reserved
 			sd.wrResponse(byte((arg >> 8) & 15)) // voltage accepted
 			sd.wrResponse(byte(arg & 0xff))      // pattern
-
+		case 16: // SET_BLOCKLEN, R1 (SDSC only)
+			sd.blockLength = int(arg)
+			log.Printf("sdcard: cmd16 blockLength %d", sd.blockLength)
+			sd.wrResponse(rsp1Success)
 		case 17: // READ_SINGLE_BLOCK, R1
 			blockAddress := arg
-			log.Printf("blockAddress %08x", blockAddress)
+			log.Printf("sdcard: cmd17 blockAddress %08x", blockAddress)
 			sd.wrResponse(rsp1Success)
-
 		case 55: // APP_CMD, R1
 			sd.appCommand = true
 			sd.wrResponse(rsp1Success)
 		case 58: // READ_OCR, R3 (5 bytes)
 			sd.wrResponse(rsp1Success)
-			sd.wrResponse(ocr0)
-			sd.wrResponse(ocr1)
-			sd.wrResponse(ocr2)
-			sd.wrResponse(ocr3)
+			sd.wrResponse(0x80 | boolToByte(!sd.cfg.SDSC, 0x40)) // not busy, sdhc/sdsc
+			sd.wrResponse(0xff)                                  // 2.8-3.6v
+			sd.wrResponse(0)
+			sd.wrResponse(0)
 		case 59: // CRC_ON_OFF, R1
 			sd.crcOn = arg&1 != 0
 			sd.wrResponse(rsp1Success)
@@ -237,7 +236,7 @@ func (sd *SDIO) Write(chipSelect, mosi, clock bool) {
 
 	if risingEdge {
 		sd.dataIn <<= 1
-		sd.dataIn |= boolToByte(mosi)
+		sd.dataIn |= boolToByte(mosi, 1)
 		sd.inCount += 1
 		if sd.inCount == 8 {
 			sd.wrData(sd.dataIn)
