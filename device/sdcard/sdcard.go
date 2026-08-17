@@ -50,10 +50,22 @@ const blockOutOfRange = (1 << 0) // error: address is out of range
 
 //-----------------------------------------------------------------------------
 
+// data response tokens
+const dataAccepted = (0xe0 | (2 << 1) | 1)
+const dataCrcError = (0xe0 | (5 << 1) | 1)
+const dataWriteError = (0xe0 | (6 << 1) | 1)
+
+//-----------------------------------------------------------------------------
+
+type rxState int
+
 const (
-	stateCommand  = iota // rx a command
-	stateArgument        // rx the command argument
-	stateCRC             // rx the command sequence crc value
+	stateCommand         rxState = iota // rx a command
+	stateCommandArgument                // rx the command argument
+	stateCommandCRC                     // rx the command sequence crc value
+	stateBlockStart                     // rx a block state
+	stateBlockData                      // rx the block data
+	stateBlockCRC                       // rx a block CRC
 )
 
 type Config struct {
@@ -74,16 +86,21 @@ type SDIO struct {
 	outActive bool // are we actively outputting a bit?
 	miso      bool // miso output bit
 
-	// command state variables
-	cmdState   int    // current command state
-	cmd        int    // current command
-	arg        uint32 // command argument
-	argBytes   int    // argument bytes rx-ed
-	crcOn      bool   // are we checking the crc?
-	crc        byte   // calculated crc7 value
-	appCommand bool   // is the next command an app command?
+	// rx state variables
+	rxState    rxState // current receive state
+	cmd        int     // current command
+	arg        uint32  // command argument
+	rxBytes    int     // bytes rx-ed
+	crcOn      bool    // are we checking CRCs?
+	cmdCRC     byte    // command CRC7 value
+	blockCRC   uint16  // block CRC16 value
+	appCommand bool    // is the next command an app command?
 
-	blockLength uint32 // sector block length
+	// rx-ed block state
+	blockLength int    // block length
+	blockBuffer []byte // rx-ed block buffer
+	rxCRC       uint16 // rx-ed CRC for block
+	wrOffset    int64  // write offset for rx-ed block
 
 	// response buffer
 	rsp *circularBuffer
@@ -93,6 +110,7 @@ func New(cfg Config) (*SDIO, error) {
 	return &SDIO{
 		cfg:         cfg,
 		blockLength: defaultBlockLength,
+		blockBuffer: make([]byte, defaultBlockLength),
 		rsp:         newCircularBuffer(1024),
 	}, nil
 }
@@ -102,6 +120,7 @@ func New(cfg Config) (*SDIO, error) {
 
 // read a block in the file system image
 func (sd *SDIO) readBlock(offset int64, buf []byte) error {
+	log.Printf("sdcard: sd.readBlock %d bytes @ 0x%08x", len(buf), offset)
 	// Open the file in read-only mode
 	file, err := os.Open(sd.cfg.Image)
 	if err != nil {
@@ -121,7 +140,8 @@ func (sd *SDIO) readBlock(offset int64, buf []byte) error {
 }
 
 // write a block in the file system image
-func (sd *SDIO) writeBlock(offset uint32, buf []byte) error {
+func (sd *SDIO) writeBlock(offset int64, buf []byte) error {
+	log.Printf("sdcard: sd.writeBlock %d bytes @ 0x%08x", len(buf), offset)
 	return nil
 }
 
@@ -144,7 +164,7 @@ func (sd *SDIO) wrResponse(val byte) {
 
 //-----------------------------------------------------------------------------
 
-func (sd *SDIO) wrCommand(cmd int, arg uint32) {
+func (sd *SDIO) wrCommand(cmd int, arg uint32) rxState {
 	log.Printf("sdio.wrCommand cmd %d arg 0x%08x", cmd, arg)
 
 	if sd.appCommand {
@@ -164,18 +184,24 @@ func (sd *SDIO) wrCommand(cmd int, arg uint32) {
 		switch cmd {
 		case 0: // GO_IDLE_STATE, R1
 			sd.wrResponse(rsp1Idle)
+
 		case 8: // SEND_IF_COND, R7 (5 bytes)
 			sd.wrResponse(rsp1Success)
 			sd.wrResponse(0)                     // command version (left as zero)
 			sd.wrResponse(0)                     // reserved
 			sd.wrResponse(byte((arg >> 8) & 15)) // voltage accepted
 			sd.wrResponse(byte(arg & 0xff))      // pattern
+
 		case 16: // SET_BLOCKLEN, R1 (SDSC only)
-			sd.blockLength = arg
+			sd.blockLength = int(arg)
+			// re-allocate the block buffer, if we need to
+			if sd.blockLength != len(sd.blockBuffer) {
+				sd.blockBuffer = make([]byte, sd.blockLength)
+			}
 			log.Printf("sdcard: cmd16 blockLength %d", sd.blockLength)
 			sd.wrResponse(rsp1Success)
+
 		case 17: // READ_SINGLE_BLOCK, R1
-			log.Printf("sdcard: cmd17 block address %08x", arg)
 			sd.wrResponse(rsp1Success)
 			sd.wrResponse(blockBusy)
 			// work out the image offset
@@ -207,28 +233,42 @@ func (sd *SDIO) wrCommand(cmd int, arg uint32) {
 			// big endian order
 			sd.wrResponse(byte(crc >> 8))
 			sd.wrResponse(byte(crc))
+
 		case 24: // WRITE_BLOCK, R1
-			log.Printf("sdcard: cmd24 block address %08x", arg)
 			sd.wrResponse(rsp1Success)
-			// TODO
+			if sd.cfg.SDSC {
+				// SDSC has byte addressing
+				sd.wrOffset = int64(arg)
+			} else {
+				// SDSC has block addressing
+				sd.wrOffset = int64(sd.blockLength) * int64(arg)
+			}
+			// get the block data
+			return stateBlockStart
 
 		case 55: // APP_CMD, R1
 			sd.appCommand = true
 			sd.wrResponse(rsp1Success)
+
 		case 58: // READ_OCR, R3 (5 bytes)
 			sd.wrResponse(rsp1Success)
 			sd.wrResponse(0x80 | boolToByte(!sd.cfg.SDSC, 0x40)) // not busy, sdhc/sdsc
 			sd.wrResponse(0xff)                                  // 2.8-3.6v
 			sd.wrResponse(0)
 			sd.wrResponse(0)
+
 		case 59: // CRC_ON_OFF, R1
 			sd.crcOn = arg&1 != 0
 			sd.wrResponse(rsp1Success)
+
 		default:
 			log.Printf("sdio.wrCommand unknown command %d", cmd)
 			sd.wrResponse(rsp1IllegalCommand)
 		}
 	}
+
+	// wait for the next command
+	return stateCommand
 }
 
 //-----------------------------------------------------------------------------
@@ -243,35 +283,75 @@ func sdCommand(cmd byte) (int, bool) {
 
 func (sd *SDIO) wrData(val byte) {
 	//log.Printf("sdio.wrData %02x", val)
-	switch sd.cmdState {
+	switch sd.rxState {
 	case stateCommand:
+		// wait for a command byte
 		if cmd, ok := sdCommand(val); ok {
-			sd.crc = addCRC7(0, val)
+			sd.cmdCRC = addCRC7(0, val)
 			sd.cmd = cmd
 			sd.arg = 0
-			sd.argBytes = 0
-			sd.cmdState = stateArgument
+			sd.rxBytes = 0
+			sd.rxState = stateCommandArgument
 		}
-	case stateArgument:
-		sd.crc = addCRC7(sd.crc, val)
+	case stateCommandArgument:
+		// receive the command argument (4 bytes)
+		sd.cmdCRC = addCRC7(sd.cmdCRC, val)
 		sd.arg = (sd.arg << 8) | uint32(val)
-		sd.argBytes += 1
-		if sd.argBytes == 4 {
-			sd.cmdState = stateCRC
+		sd.rxBytes += 1
+		if sd.rxBytes == 4 {
+			sd.rxState = stateCommandCRC
 		}
-	case stateCRC:
+	case stateCommandCRC:
+		// receive and check the command crc7
 		if !(sd.crcOn || (sd.cmd == 0) || (sd.cmd == 8)) {
 			// no crc check, just check for 1 in the lsb.
-			val = (sd.crc << 1) | (val & 1)
+			val = (sd.cmdCRC << 1) | (val & 1)
 		}
 		// check the CRC
-		if val == (sd.crc<<1)|1 {
-			sd.wrCommand(sd.cmd, sd.arg)
-		} else {
+		if val != (sd.cmdCRC<<1)|1 {
 			log.Printf("sdio.wrData bad crc %02x %08x", sd.cmd, sd.arg)
 			sd.wrResponse(rsp1ComCRCError)
+			sd.rxState = stateCommand
+			break
 		}
-		sd.cmdState = stateCommand
+		// process the command
+		sd.rxState = sd.wrCommand(sd.cmd, sd.arg)
+	case stateBlockStart:
+		// wait for the block start byte
+		if val == blockStart {
+			sd.rxState = stateBlockData
+			sd.rxBytes = 0
+			sd.blockCRC = 0
+		}
+	case stateBlockData:
+		// receive the block data
+		sd.blockCRC = addCRC16(sd.blockCRC, val)
+		sd.blockBuffer[sd.rxBytes] = val
+		sd.rxBytes += 1
+		if sd.rxBytes == sd.blockLength {
+			sd.rxState = stateBlockCRC
+			sd.rxBytes = 0
+		}
+	case stateBlockCRC:
+		// receive and check the block crc16
+		sd.rxCRC = (sd.rxCRC << 8) | uint16(val)
+		sd.rxBytes += 1
+		if sd.rxBytes == 2 {
+			if sd.crcOn && (sd.rxCRC != sd.blockCRC) {
+				sd.wrResponse(dataCrcError)
+				sd.rxState = stateCommand
+				break
+			}
+			// write the block
+			err := sd.writeBlock(sd.wrOffset, sd.blockBuffer)
+			if err != nil {
+				sd.wrResponse(dataWriteError)
+			} else {
+				sd.wrResponse(dataAccepted)
+			}
+			sd.wrResponse(0xff)
+			sd.rxState = stateCommand
+		}
 	}
 }
 
