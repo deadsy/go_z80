@@ -77,6 +77,9 @@ type Config struct {
 type SDIO struct {
 	cfg Config // sdcard configuration
 
+	// fat32 file system image
+	image *os.File
+
 	// spi state variables
 	clock     bool // clock state
 	dataIn    byte // data in register
@@ -107,8 +110,23 @@ type SDIO struct {
 }
 
 func New(cfg Config) (*SDIO, error) {
+
+	if !cfg.Enable {
+		return &SDIO{cfg: cfg}, nil
+	}
+
+	// Open the image file
+	file, err := os.OpenFile(cfg.Image, os.O_RDWR, 0644)
+	if err != nil {
+		log.Printf("sdcard: disabled, %s", err.Error())
+		cfg.Enable = false
+		return &SDIO{cfg: cfg}, nil
+	}
+
+	log.Printf("sdcard: image %s", cfg.Image)
 	return &SDIO{
 		cfg:         cfg,
+		image:       file,
 		blockLength: defaultBlockLength,
 		blockBuffer: make([]byte, defaultBlockLength),
 		rsp:         newCircularBuffer(1024),
@@ -121,14 +139,7 @@ func New(cfg Config) (*SDIO, error) {
 // read a block in the file system image
 func (sd *SDIO) readBlock(offset int64, buf []byte) error {
 	log.Printf("sdcard: sd.readBlock %d bytes @ 0x%08x", len(buf), offset)
-	// Open the file in read-only mode
-	file, err := os.Open(sd.cfg.Image)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	// ReadAt fills the slice completely from the given offset
-	n, err := file.ReadAt(buf, offset)
+	n, err := sd.image.ReadAt(buf, offset)
 	if err != nil {
 		// io.EOF is expected if you try to read exactly up to the end of the file
 		if err == io.EOF && n == len(buf) {
@@ -142,7 +153,8 @@ func (sd *SDIO) readBlock(offset int64, buf []byte) error {
 // write a block in the file system image
 func (sd *SDIO) writeBlock(offset int64, buf []byte) error {
 	log.Printf("sdcard: sd.writeBlock %d bytes @ 0x%08x", len(buf), offset)
-	return nil
+	_, err := sd.image.WriteAt(buf, offset)
+	return err
 }
 
 //-----------------------------------------------------------------------------
@@ -151,7 +163,7 @@ func (sd *SDIO) writeBlock(offset int64, buf []byte) error {
 // push a byte into the response FIFO
 func (sd *SDIO) wrResponse(val byte) {
 	if sd.outActive {
-		// we already have a byte in chute
+		// we already have a byte in the chute
 		// add this one to the buffer
 		sd.rsp.write(val)
 		return
@@ -193,6 +205,11 @@ func (sd *SDIO) wrCommand(cmd int, arg uint32) rxState {
 			sd.wrResponse(byte(arg & 0xff))      // pattern
 
 		case 16: // SET_BLOCKLEN, R1 (SDSC only)
+			if !sd.cfg.SDSC {
+				log.Printf("sdcard: cmd16 for non SDSC, ignoring")
+				sd.wrResponse(rsp1IllegalCommand)
+				break
+			}
 			sd.blockLength = int(arg)
 			// re-allocate the block buffer, if we need to
 			if sd.blockLength != len(sd.blockBuffer) {
@@ -210,7 +227,7 @@ func (sd *SDIO) wrCommand(cmd int, arg uint32) rxState {
 				// SDSC has byte addressing
 				ofs = int64(arg)
 			} else {
-				// SDSC has block addressing
+				// SDHC has block addressing
 				ofs = int64(sd.blockLength) * int64(arg)
 			}
 			// get the block
@@ -240,7 +257,7 @@ func (sd *SDIO) wrCommand(cmd int, arg uint32) rxState {
 				// SDSC has byte addressing
 				sd.wrOffset = int64(arg)
 			} else {
-				// SDSC has block addressing
+				// SDHC has block addressing
 				sd.wrOffset = int64(sd.blockLength) * int64(arg)
 			}
 			// get the block data
@@ -303,6 +320,7 @@ func (sd *SDIO) wrData(val byte) {
 		}
 	case stateCommandCRC:
 		// receive and check the command crc7
+		// note: cmd0 and cmd8 always have correct crc values
 		if !(sd.crcOn || (sd.cmd == 0) || (sd.cmd == 8)) {
 			// no crc check, just check for 1 in the lsb.
 			val = (sd.cmdCRC << 1) | (val & 1)
@@ -328,8 +346,9 @@ func (sd *SDIO) wrData(val byte) {
 		sd.blockCRC = addCRC16(sd.blockCRC, val)
 		sd.blockBuffer[sd.rxBytes] = val
 		sd.rxBytes += 1
-		if sd.rxBytes == sd.blockLength {
+		if sd.rxBytes == len(sd.blockBuffer) {
 			sd.rxState = stateBlockCRC
+			sd.rxCRC = 0
 			sd.rxBytes = 0
 		}
 	case stateBlockCRC:
@@ -345,6 +364,7 @@ func (sd *SDIO) wrData(val byte) {
 			// write the block
 			err := sd.writeBlock(sd.wrOffset, sd.blockBuffer)
 			if err != nil {
+				log.Printf("sdcard: %s", err.Error())
 				sd.wrResponse(dataWriteError)
 			} else {
 				sd.wrResponse(dataAccepted)
@@ -371,11 +391,14 @@ func (sd *SDIO) Write(chipSelect, mosi, clock bool) {
 
 	if !chipSelect {
 		// chip is not selected
+		// reset spi state
 		sd.clock = false
 		sd.dataIn = 0
 		sd.inCount = 0
 		sd.outCount = 0
-		// note: don't reset the response data
+		// abandon any rx in-progress
+		//sd.rxState = stateCommand
+		// note: don't reset any response data
 		return
 	}
 
