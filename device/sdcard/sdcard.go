@@ -127,6 +127,7 @@ func New(cfg Config) (*SDIO, error) {
 	return &SDIO{
 		cfg:         cfg,
 		image:       file,
+		miso:        true,
 		blockLength: defaultBlockLength,
 		blockBuffer: make([]byte, defaultBlockLength),
 		rsp:         newCircularBuffer(1024),
@@ -379,17 +380,20 @@ func (sd *SDIO) wrData(val byte) {
 
 // read the card detect and miso bits
 func (sd *SDIO) Read() (bool, bool) {
+	if !sd.cfg.Enable {
+		return false, true
+	}
 	//log.Printf("sdio.Read %t", sd.miso)
-	return sd.cfg.Enable, sd.miso
+	return true, sd.miso
 }
 
-func (sd *SDIO) Write(chipSelect, mosi, clock bool) {
+func (sd *SDIO) Write(cs, mosi, clock bool) {
 	if !sd.cfg.Enable {
 		// no device present
 		return
 	}
 
-	if !chipSelect {
+	if !cs {
 		// chip is not selected
 		// reset spi state
 		sd.clock = false
@@ -401,8 +405,6 @@ func (sd *SDIO) Write(chipSelect, mosi, clock bool) {
 		// note: don't reset any response data
 		return
 	}
-
-	//log.Printf("sdio.Write mosi %t clock %t", mosi, clock)
 
 	risingEdge := !sd.clock && clock
 	fallingEdge := sd.clock && !clock
@@ -419,20 +421,20 @@ func (sd *SDIO) Write(chipSelect, mosi, clock bool) {
 		}
 	}
 
-	if fallingEdge {
-		if sd.outActive {
-			if sd.outCount == 7 {
-				val, err := sd.rsp.read()
-				sd.outActive = err == nil
-				sd.dataOut = val
-				sd.outCount = 0
+	if fallingEdge && sd.outActive {
+		if sd.outCount == 7 {
+			val, err := sd.rsp.read()
+			if err != nil {
+				sd.outActive = false
+				sd.miso = true
+				return
 			}
-			sd.miso = (sd.dataOut & 0x80) != 0
-			sd.dataOut <<= 1
-			sd.outCount += 1
-		} else {
-			sd.miso = false
+			sd.dataOut = val
+			sd.outCount = 0
 		}
+		sd.miso = (sd.dataOut & 0x80) != 0
+		sd.dataOut <<= 1
+		sd.outCount += 1
 	}
 }
 
