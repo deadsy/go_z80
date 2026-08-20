@@ -178,22 +178,24 @@ func (sd *SDIO) wrResponse(val byte) {
 //-----------------------------------------------------------------------------
 
 func (sd *SDIO) wrCommand(cmd int, arg uint32) rxState {
-	log.Printf("sdio.wrCommand cmd %d arg 0x%08x", cmd, arg)
 
 	if sd.appCommand {
 		// ACMDx processing
+		log.Printf("sdio.wrCommand acmd%d arg 0x%08x", cmd, arg)
 		sd.appCommand = false
 		switch cmd {
 		case 41: // SD_SEND_OP_COND, R1
 			hcs := arg&(1<<30) != 0
 			_ = hcs // and do what?
 			sd.wrResponse(rsp1Success)
+
 		default:
-			log.Printf("sdio.wrCommand unknown app command %d", cmd)
+			log.Printf("sdio.wrCommand unknown acmd%d", cmd)
 			sd.wrResponse(rsp1IllegalCommand)
 		}
 	} else {
 		// CMDx processing
+		log.Printf("sdio.wrCommand cmd%d arg 0x%08x", cmd, arg)
 		switch cmd {
 		case 0: // GO_IDLE_STATE, R1
 			sd.wrResponse(rsp1Idle)
@@ -280,7 +282,7 @@ func (sd *SDIO) wrCommand(cmd int, arg uint32) rxState {
 			sd.wrResponse(rsp1Success)
 
 		default:
-			log.Printf("sdio.wrCommand unknown command %d", cmd)
+			log.Printf("sdio.wrCommand unknown cmd%d", cmd)
 			sd.wrResponse(rsp1IllegalCommand)
 		}
 	}
@@ -396,13 +398,12 @@ func (sd *SDIO) Write(cs, mosi, clock bool) {
 	if !cs {
 		// chip is not selected
 		// reset spi state
+		// note: don't reset any response data
 		sd.clock = false
 		sd.dataIn = 0
 		sd.inCount = 0
-		sd.outCount = 0
 		// abandon any rx in-progress
 		//sd.rxState = stateCommand
-		// note: don't reset any response data
 		return
 	}
 
@@ -421,20 +422,23 @@ func (sd *SDIO) Write(cs, mosi, clock bool) {
 		}
 	}
 
-	if fallingEdge && sd.outActive {
-		if sd.outCount == 7 {
-			val, err := sd.rsp.read()
-			if err != nil {
-				sd.outActive = false
-				sd.miso = true
-				return
+	if fallingEdge {
+		if sd.outActive {
+			sd.miso = (sd.dataOut & 0x80) != 0
+			sd.dataOut <<= 1
+			sd.outCount += 1
+			if sd.outCount == 8 {
+				val, err := sd.rsp.read()
+				if err != nil {
+					sd.outActive = false
+					return
+				}
+				sd.dataOut = val
+				sd.outCount = 0
 			}
-			sd.dataOut = val
-			sd.outCount = 0
+		} else {
+			sd.miso = true
 		}
-		sd.miso = (sd.dataOut & 0x80) != 0
-		sd.dataOut <<= 1
-		sd.outCount += 1
 	}
 }
 
