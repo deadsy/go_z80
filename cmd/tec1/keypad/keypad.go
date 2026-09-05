@@ -1,9 +1,23 @@
 //-----------------------------------------------------------------------------
 /*
 
-TEC-1 Emulation
+TEC-1 Keypad Emulation
 
-Keypad
+"Keypad" refers to the keys on the TEC-1 PCB.
+
+The key data comes from the 74C923 keypad encoder.
+There are 5 bits coming from the encoder (D0..D4).
+There is a CPU reset button.
+
+The encoder providers a data available line that asserts when a
+key is pressed. It de-asserts when the key is released.
+
+The 5 bit key code is latched to the output on key down.
+
+The shift/function key is not provided by the encoder and so does not
+assert data available.
+
+The real 74C923 has a 2 key rollover, that is not emulated here.
 
 */
 //-----------------------------------------------------------------------------
@@ -11,8 +25,6 @@ Keypad
 package keypad
 
 import (
-	"log"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
@@ -44,109 +56,110 @@ const (
 )
 
 type Keypad struct {
-	keys    []ebiten.Key
-	current ebiten.Key // current key being pressed
-	code    byte
-	reset   bool
+	keys  []ebiten.Key
+	code  byte // current key code
+	latch byte // latched '923 key code
+	reset bool // current reset key state
 }
 
 func New() (*Keypad, error) {
 	return &Keypad{
-		keys:    make([]ebiten.Key, 16),
-		code:    keyNone,
-		current: ebiten.KeyMax,
+		keys:  make([]ebiten.Key, 16),
+		code:  keyNone,
+		latch: keyNone,
 	}, nil
 }
 
 // return true if the reset button is pressed
 func (k *Keypad) Reset() bool {
-	if k.reset {
-		k.reset = false
-		return true
-	}
-	return false
+	return k.reset
 }
 
-// return the san code from the keypad
+// return the key code amd shift state from the keypad
 func (k *Keypad) Scan() byte {
-	return k.code
+	return k.latch
 }
 
-func (k *Keypad) set(key ebiten.Key, code byte) bool {
-	k.current = key
-	k.code = code
-	return true
+// Does the '923 have data available?
+func (k *Keypad) DataAvailable() bool {
+	return k.code != keyNone
 }
 
-// Update the keyboard logic (called from ebiten update).
-// Return true if a keypress is recognized.
-func (k *Keypad) Update() bool {
+// get the current key state
+func (k *Keypad) getState() (reset bool, code byte) {
+
+	reset = false
+	code = keyNone
 
 	k.keys = inpututil.AppendPressedKeys(k.keys[:0])
 
-	// is the current key still being pressed?
-	if k.current != ebiten.KeyMax {
-		for _, key := range k.keys {
-			if k.current == key {
-				// yes... no new keypress
-				return false
-			}
+	// do we have a reset key?
+	for _, key := range k.keys {
+		if key == ebiten.KeyDelete {
+			reset = true
 		}
 	}
-	// no ... reset the current key
-	k.current = ebiten.KeyMax
-	k.code = keyNone
 
+	// do we have an encoder key?
 	for _, key := range k.keys {
 		switch key {
 		case ebiten.KeyA:
-			return k.set(key, keyA)
+			code = keyA
 		case ebiten.KeyB:
-			return k.set(key, keyB)
+			code = keyB
 		case ebiten.KeyC:
-			return k.set(key, keyC)
+			code = keyC
 		case ebiten.KeyD:
-			return k.set(key, keyD)
+			code = keyD
 		case ebiten.KeyE:
-			return k.set(key, keyE)
+			code = keyE
 		case ebiten.KeyF:
-			return k.set(key, keyF)
+			code = keyF
 		case ebiten.KeyDigit0:
-			return k.set(key, key0)
+			code = key0
 		case ebiten.KeyDigit1:
-			return k.set(key, key1)
+			code = key1
 		case ebiten.KeyDigit2:
-			return k.set(key, key2)
+			code = key2
 		case ebiten.KeyDigit3:
-			return k.set(key, key3)
+			code = key3
 		case ebiten.KeyDigit4:
-			return k.set(key, key4)
+			code = key4
 		case ebiten.KeyDigit5:
-			return k.set(key, key5)
+			code = key5
 		case ebiten.KeyDigit6:
-			return k.set(key, key6)
+			code = key6
 		case ebiten.KeyDigit7:
-			return k.set(key, key7)
+			code = key7
 		case ebiten.KeyDigit8:
-			return k.set(key, key8)
+			code = key8
 		case ebiten.KeyDigit9:
-			return k.set(key, key9)
+			code = key9
 		case ebiten.KeyArrowLeft: // -
-			return k.set(key, keyMinus)
+			code = keyMinus
 		case ebiten.KeyArrowRight: // +
-			return k.set(key, keyPlus)
+			code = keyPlus
 		case ebiten.KeyEnter: // go
-			return k.set(key, keyGo)
+			code = keyGo
 		case ebiten.KeyEscape: // address
-			return k.set(key, keyAddress)
-		case ebiten.KeyDelete:
-			k.reset = true
-			return k.set(key, keyNone)
+			code = keyAddress
 		default:
-			log.Printf("unmapped key %s", key)
+			//log.Printf("unmapped key %s", key)
 		}
 	}
-	return false
+
+	return reset, code
+}
+
+// Update the keypad logic (called from ebiten update).
+func (k *Keypad) Update() {
+	reset, code := k.getState()
+	k.reset = reset
+	if k.code == keyNone && code != keyNone {
+		// key down, latch the key code
+		k.latch = code
+	}
+	k.code = code
 }
 
 //-----------------------------------------------------------------------------

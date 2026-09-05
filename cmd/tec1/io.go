@@ -97,6 +97,7 @@ func (io *sysIO) Update() {
 	io.dev.display.Update()
 	io.dev.ledSpeaker.Update()
 	io.dev.ledArray.Update()
+	io.dev.keypad.Update()
 }
 
 func (io *sysIO) Draw(screen *ebiten.Image) {

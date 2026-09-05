@@ -85,6 +85,8 @@ type system struct {
 	audioSampleCycles float32          // audio sample cpu cycles
 	soundStarted      bool             // has the sound been started?
 	haltLogged        bool             // have we logged a cpu halt?
+	resetState        bool             // current state of the reset key
+	kdaState          bool             // current state of the '923 data available line
 }
 
 func newSystem(cfg *Config) (*system, error) {
@@ -270,13 +272,23 @@ func (s *system) Update() error {
 	// update the IO devices
 	s.io.Update()
 
-	if s.io.dev.keypad.Update() {
-		if s.io.dev.keypad.Reset() {
-			s.cpu.Reset()
-		} else {
-			// key presses are signalled with the NMI
-			s.cpu.NMI()
-		}
+	// Reset on the rising edge of the reset key being pressed.
+	reset := s.io.dev.keypad.Reset()
+	resetRising := !s.resetState && reset
+	s.resetState = reset
+	if resetRising {
+		log.Printf("cpu reset")
+		s.haltLogged = false
+		s.cpu.Reset()
+	}
+
+	// recognise a key press on the rising edge of the data available line from the '923
+	kda := s.io.dev.keypad.DataAvailable()
+	kdaRising := !s.kdaState && kda
+	s.kdaState = kda
+	if kdaRising {
+		// the nmi reads the scan code....
+		s.cpu.NMI()
 	}
 
 	if ebiten.IsWindowBeingClosed() {
