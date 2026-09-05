@@ -10,18 +10,10 @@ There are 5 bits coming from the encoder (D0..D4).
 There is an extra bit (D5) used as a function/shift key.
 There is a CPU reset button.
 
-The key mapping should be standard for all platforms:
-
-0..9, A..F = same keys
-"-" = arrow left
-"+" = arrow right
-address = escape
-go = enter
-reset = "r"
-function/shift = shift key
-
 The encoder providers a data available line that asserts when a
 key is pressed. It de-asserts when the key is released.
+
+The 5 bit key code is latched to the output on key down.
 
 The shift/function key is not provided by the encoder and so does not
 assert data available.
@@ -68,14 +60,18 @@ const (
 
 type Keypad struct {
 	keys  []ebiten.Key
-	code  byte
-	reset bool
+	code  byte // current key code
+	latch byte // latched '923 key code
+	shift byte // current shift key state
+	reset bool // current reset key state
 }
 
 func New() (*Keypad, error) {
 	return &Keypad{
-		keys: make([]ebiten.Key, 16),
-		code: keyNone,
+		keys:  make([]ebiten.Key, 16),
+		code:  keyNone,
+		latch: keyNone,
+		shift: shiftMask,
 	}, nil
 }
 
@@ -84,25 +80,21 @@ func (k *Keypad) Reset() bool {
 	return k.reset
 }
 
-// return the san code from the keypad
+// return the key code amd shift state from the keypad
 func (k *Keypad) Scan() byte {
-	return k.code
+	return k.latch &^ k.shift
 }
 
-// Does the keypad have data available?
+// Does the '923 have data available?
 func (k *Keypad) DataAvailable() bool {
-	// is it *only* the shift key?
-	if k.code == keyNone&^shiftMask {
-		return false
-	}
 	return k.code != keyNone
 }
 
-// get the current keypad code
-func (k *Keypad) getCode() (reset bool, code byte) {
+// get the current key state
+func (k *Keypad) getState() (reset bool, shift, code byte) {
 
 	reset = false
-	shift := byte(0)
+	shift = 0
 	code = keyNone
 
 	k.keys = inpututil.AppendPressedKeys(k.keys[:0])
@@ -165,13 +157,18 @@ func (k *Keypad) getCode() (reset bool, code byte) {
 		}
 	}
 
-	return reset, code &^ shift
+	return reset, shift, code
 }
 
 // Update the keypad logic (called from ebiten update).
 func (k *Keypad) Update() {
-	reset, code := k.getCode()
+	reset, shift, code := k.getState()
 	k.reset = reset
+	k.shift = shift
+	if k.code == keyNone && code != keyNone {
+		// key down, latch the key code
+		k.latch = code
+	}
 	k.code = code
 }
 
